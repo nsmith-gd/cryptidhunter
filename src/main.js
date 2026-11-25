@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
+import { buildSwampMap } from './maps/swamp.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
@@ -10,7 +11,7 @@ import { ClueTrails } from './clues/clueTrail.js';
 import { Journal } from './journal/journal.js';
 import { ClueFinder } from './journal/clueFinder.js';
 import { JournalUI } from './journal/journalUI.js';
-import { Mothman } from './cryptids/mothman.js';
+import { Mothman, MOTHMAN } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
@@ -40,9 +41,22 @@ const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
 
-const { colliders, bounds, spawns } = buildTestMap(scene);
+// Pick the map with ?map=swamp (default: the greybox test map).
+const MAPS = { test: buildTestMap, swamp: buildSwampMap };
+const mapId = new URLSearchParams(location.search).get('map') ?? 'test';
+const map = (MAPS[mapId] ?? buildTestMap)(scene);
+const { colliders, bounds, spawns } = map;
+if (map.environment) {
+  scene.background.set(map.environment.background);
+  scene.fog.color.set(map.environment.fog.color);
+  scene.fog.near = map.environment.fog.near;
+  scene.fog.far = map.environment.fog.far;
+}
+if (spawns?.mothman) MOTHMAN.home.set(spawns.mothman.x, 0, spawns.mothman.z);
 const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
+player.speedAt = map.speedAt ?? null;
+if (map.playerStart) { player.position.set(map.playerStart.x, 0, map.playerStart.z); player.yaw = map.playerStart.yaw ?? 0; }
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 const mothman = new Mothman(scene, player, flashlight);
@@ -53,8 +67,11 @@ const noiseRing = new NoiseRing(scene, player);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position });
-const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
-cryptids.spawn(PROFILES.bigfoot, bigfootSpawn.x, bigfootSpawn.z);
+// Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
+if (mapId !== 'swamp') {
+  const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
+  cryptids.spawn(PROFILES.bigfoot, bigfootSpawn.x, bigfootSpawn.z);
+}
 
 // Clues: cryptids drop footprints / hair / scratch marks along the route they actually take.
 // F3 (or ?debug in the URL) draws that true route as a yellow line for checking.
@@ -114,7 +131,9 @@ function frame() {
   mothman.update(dt);
   chupacabra.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
-  hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
+  const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
+  const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
+  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
   bars.update();
@@ -128,4 +147,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
+window.__game = { THREE, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
