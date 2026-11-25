@@ -27,6 +27,7 @@ import { LevelFlow } from './hunt/levelFlow.js';
 import { PhotoCamera } from './hunt/photoCamera.js';
 import { TrailCameras } from './gear/trailCamera.js';
 import { AudioLures, synthWhoop } from './gear/audioLure.js';
+import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
@@ -161,6 +162,9 @@ const photo = new PhotoCamera({
 // view, on its own (grainy shots, lower score).
 const trailCams = new TrailCameras({ scene, player, input, getSubjects: () => photo.getSubjects(),
   onPhoto: (r) => hunt.onPhoto(r), notify: (m) => photo.toast(m) });
+// V toggles night-vision goggles: see in the dark (green, narrow view) without light; shares the
+// flashlight's battery. Cryptids can't see it, unlike the torch.
+const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi, input, photo, notify: (m) => photo.toast(m) });
 
 // Getting touched by a cryptid ends the hunt.
 const huntFailure = new HuntFailure({
@@ -200,7 +204,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (huntFailure.isCaught || hunt.stage === 'ended') {   // world freezes behind the end screens
-    renderer.render(scene, camera);
+    if (!nightVision.render()) renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
   }
@@ -220,13 +224,14 @@ function frame() {
     chupacabra.update(dt);
   }
   photo.update(dt);
+  nightVision.update(dt);
   audioLures.update(dt);
   trailCams.update(dt);
   hunt.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
-  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)  TRAIL CAM ${trailCams.carried} (T)  LURE ${audioLures.carried} (L)` +
+  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}${nightVision.on ? '  NVG ON' : ''}   BAIT ${bait.carried} (G)  TRAIL CAM ${trailCams.carried} (T)  LURE ${audioLures.carried} (L)` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m` +
       (c.perception ? `  hear ${c.perception.hearLevel.toFixed(2)} see ${Math.max(c.perception.sightLevel, c.perception.beamLevel).toFixed(2)} aware ${c.perception.awareness.toFixed(2)}${c.perception.detected ? ' DETECTED' : ''}` : '')).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
@@ -239,10 +244,10 @@ function frame() {
   aiDebug.update(camera);
   night?.update(player.position, dt);
   trailReader.update(dt);
-  renderer.render(scene, camera);
+  if (!nightVision.render()) renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
