@@ -82,6 +82,7 @@ else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.posit
 // Base camp: money, owned gear and past hunts carry over between hunts. This hunt's photos only
 // count if you drive home from the van; getting caught (or dawn) loses them, gear comes home.
 const camp = new Camp();
+addEventListener('pagehide', () => camp.save());   // save on quit (money is also saved whenever it changes)
 const packed = camp.packForHunt();
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot',
   onEnd: (outcome) => {

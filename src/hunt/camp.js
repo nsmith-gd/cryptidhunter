@@ -2,7 +2,7 @@
 // Photos are "unsaved evidence" until you make it back to the van: get caught (or let dawn
 // catch you) and this hunt's photos are lost and earn nothing, but you keep your gear.
 // Stored in localStorage (one key); falls back to memory if storage is unavailable.
-// (When the save-file task lands, this state should move into it.)
+// Money lives in the save file (save/saveService.js): loaded on start, saved whenever it changes.
 
 export const CAMP = {
   storageKey: 'cryptidhunter.camp.v1',
@@ -14,12 +14,17 @@ export const CAMP = {
 
 const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery' };
 
+import { SaveService } from '../save/saveService.js';
+
 let memory = null;
 
 export class Camp {
-  constructor(storage = safeStorage()) {
+  constructor(storage = safeStorage(), saveService = new SaveService()) {
     this.storage = storage;
+    this.saveService = saveService;
     this.state = this.load();
+    // The save file is the source of truth for money.
+    this.state.money = this.saveService.load().money;
   }
 
   static fresh() {
@@ -38,6 +43,7 @@ export class Camp {
   }
 
   save() {
+    this.saveService.save({ money: this.state.money });
     const raw = JSON.stringify(this.state);
     memory = raw;
     try { this.storage?.setItem(CAMP.storageKey, raw); } catch { /* private mode etc. */ }

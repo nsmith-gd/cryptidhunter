@@ -1,0 +1,64 @@
+
+> cryptid-hunter@1.0.0 test
+> node --test tests/*.test.js
+
+TAP version 13
+# Subtest: money round-trips through the JSON save file across a restart
+ok 1 - money round-trips through the JSON save file across a restart
+  ---
+  duration_ms: 3.095217
+  type: 'test'
+  ...
+# Subtest: missing save file loads defaults (money 0)
+ok 2 - missing save file loads defaults (money 0)
+  ---
+  duration_ms: 0.861406
+  type: 'test'
+  ...
+# Subtest: corrupt or nonsense save files load defaults without throwing
+ok 3 - corrupt or nonsense save files load defaults without throwing
+  ---
+  duration_ms: 3.396527
+  type: 'test'
+  ...
+# Subtest: base camp money persists through the save service
+ok 4 - base camp money persists through the save service
+  ---
+  duration_ms: 0.363882
+  type: 'test'
+  ...
+# Subtest: compass convention: north is -Z, east is +X
+ok 5 - compass convention: north is -Z, east is +X
+  ---
+  duration_ms: 0.582883
+  type: 'test'
+  ...
+# Subtest: pointAhead walks along the route and stops at its end
+ok 6 - pointAhead walks along the route and stops at its end
+  ---
+  duration_ms: 0.63458
+  type: 'test'
+  ...
+# Subtest: hint names freshness and the way the cryptid went from the clue
+ok 7 - hint names freshness and the way the cryptid went from the clue
+  ---
+  duration_ms: 0.199667
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 56.880004
+
+PASS a fresh camp starts with $0 and the starter kit {"panel":"BASE CAMP  ·  $0\nFirst night out. No photos sold yet.\nGear: camera, flashlight, 3 bait, 1 spare battery","money":0,"spares":1,"bait":3}
+PASS caught after photographing Bigfoot: the photo is lost and earns nothing {"photos1":[{"subject":"Bigfoot","score":79}],"caught":{"outcome":"caught","text":"Bigfoot got you. The hunt is over, and any unsaved evidence is lost.\n\nCaught — 1 photo lost: no new earnings ($0).\nYou kept your gear: camera, flashlight, 3 bait, 2 spare batteries.","money":0}}
+PASS base camp after being caught shows no new earnings {"panel":"BASE CAMP  ·  $0\nLast hunt (#1): Caught — 1 photo lost: no new earnings ($0).\nGear: camera, flashlight, 3 bait, 2 spare batteries","money":0,"spares":2,"bait":3}
+PASS gear is kept: the extra battery you were carrying comes home {"carried":{"spares":2,"bait":3},"nextHunt":{"panel":"BASE CAMP  ·  $0\nLast hunt (#1): Caught — 1 photo lost: no new earnings ($0).\nGear: camera, flashlight, 3 bait, 2 spare batteries","money":0,"spares":2,"bait":3}}
+PASS driving home with the photo sells it {"photos2":[{"subject":"Bigfoot","score":79}],"done":{"outcome":"complete","money":474}}
+PASS base camp then shows the new earnings {"panel":"BASE CAMP  ·  $474\nLast hunt (#2): Made it out: +$474.\n  Bigfoot photo, score 79: $474\nGear: camera, flashlight, 3 bait, 2 spare batteries","money":474,"spares":2,"bait":3}
+PASS no page errors []
