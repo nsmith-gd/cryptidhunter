@@ -7,7 +7,7 @@ import { pixelMaterial } from '../../src/art/pixelTex.js';
 
 const q = new URLSearchParams(location.search);
 const board = q.get('board') ?? 'palette';
-const W = 1280, H = 720;
+const W = 1280, H = q.get('tile') === '3' ? 1340 : 720;
 
 function canvas2d() {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -35,21 +35,21 @@ if (board === 'palette') {
 }
 
 if (board === 'textures') {
+  // Every tile drawn at the same texel scale, tiled N x N (?tile=3 for the 3x3 seam check).
+  const N = Number(q.get('tile') ?? 2), S = N === 3 ? 2 : 3;
   const g = canvas2d();
   g.fillStyle = '#d8d2c4'; g.font = 'bold 20px monospace';
-  g.fillText(`PINE HOLLOW TEXTURE SET · ${TEXEL_DENSITY} texels per metre · shown 2×2 tiled (no seams)`, 40, 44);
+  g.fillText(`PINE HOLLOW TEXTURE SET · ${TEXEL_DENSITY} texels per metre · shown ${N}×${N} tiled (no seams)`, 40, 44);
   const list = [
     ['bark (1×2 m)', F.pineBarkTexture()], ['dirt / trail (2 m)', F.dirtTexture()], ['leaf litter (2 m)', F.leafLitterTexture()],
     ['moss (1 m)', F.mossTexture()], ['granite (2 m)', F.rockTexture()], ['grass ground (2 m)', F.grassTexture()], ['pine needles (1 m)', F.needleTexture()], ['grass tuft card', F.grassTuftTexture()],
   ];
-  // Every tile drawn at the same texel scale (3 screen px per texel), tiled 2x2.
-  const S = 3;
   let x = 40, y = 70, rowH = 0;
   for (const [label, t] of list) {
-    const img = t.image, tw = img.width * 2 * S, th = img.height * 2 * S;
+    const img = t.image, tw = img.width * N * S, th = img.height * N * S;
     if (x + tw > W - 30) { x = 40; y += rowH + 34; rowH = 0; }
     if (label.startsWith('grass tuft')) { g.fillStyle = '#1d2a33'; g.fillRect(x, y, tw, th); }
-    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) g.drawImage(img, x + i * img.width * S, y + j * img.height * S, img.width * S, img.height * S);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) g.drawImage(img, x + i * img.width * S, y + j * img.height * S, img.width * S, img.height * S);
     g.fillStyle = '#b6aa96'; g.font = '12px monospace'; g.fillText(label, x, y + th + 16);
     x += tw + 26; rowH = Math.max(rowH, th);
   }
