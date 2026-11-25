@@ -17,6 +17,7 @@ const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', s
   trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick' };
 
 import { SaveService } from '../save/saveService.js';
+import { BountyBoard } from './bounties.js';
 
 let memory = null;
 
@@ -25,8 +26,10 @@ export class Camp {
     this.storage = storage;
     this.saveService = saveService;
     this.state = this.load();
-    // The save file is the source of truth for money.
-    this.state.money = this.saveService.load().money;
+    // The save file is the source of truth for money and for which bounties are already paid.
+    const saved = this.saveService.load();
+    this.state.money = saved.money;
+    this.bounties = new BountyBoard({ completed: saved.bountiesDone ?? [] });
   }
 
   static fresh() {
@@ -45,13 +48,29 @@ export class Camp {
   }
 
   save() {
-    this.saveService.save({ money: this.state.money });
+    this.saveService.save({ money: this.state.money, bountiesDone: this.bounties?.completedIds ?? [] });
     const raw = JSON.stringify(this.state);
     memory = raw;
     try { this.storage?.setItem(CAMP.storageKey, raw); } catch { /* private mode etc. */ }
   }
 
-  reset() { this.state = Camp.fresh(); this.save(); }
+  reset() { this.state = Camp.fresh(); this.bounties = new BountyBoard(); this.save(); }
+
+  /**
+   * Sell evidence (#45): normal score-based value (best photo per cryptid), an optional extra
+   * rate (home before dawn), then each sold photo is checked against the active bounties and any
+   * it meets pay their bonus once. Adds the money and saves.
+   * photos: [{ subject|cryptid, score }] (the camera's records today; #51's album later).
+   */
+  sellPhotos(photos, target, { extraRate = 0 } = {}) {
+    const { total: base, sold } = Camp.valuePhotos(photos, target);
+    const extra = Math.round(base * extraRate);
+    const { bonus: bountyBonus, paid: bounties } = this.bounties.applySale(sold);
+    const total = base + extra + bountyBonus;
+    this.state.money += total;
+    this.save();
+    return { base, extra, sold, bountyBonus, bounties, total };
+  }
 
   get lastHunt() { return this.state.hunts[this.state.hunts.length - 1] ?? null; }
 
@@ -84,13 +103,14 @@ export class Camp {
    */
   settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0 }) {
     const keptPhotos = outcome === 'complete' || outcome === 'abandoned';
-    const { total: base, sold } = keptPhotos ? Camp.valuePhotos(photos, target) : { total: 0, sold: [] };
-    // Drive home before dawn and the photos are worth more (fresh story for the show).
-    const bonus = Math.round(base * dawnBonus);
-    const total = base + bonus;
+    // Sell what you brought home: score value, the home-before-dawn bonus, then bounties (#45).
+    const sale = keptPhotos ? this.sellPhotos(photos, target, { extraRate: dawnBonus })
+      : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0 };
+    const { sold, bounties, bountyBonus } = sale;
+    const bonus = sale.extra;
+    const total = sale.total;
     // Gear always comes home: what you carried at the end of the hunt is what camp owns.
     for (const [k, n] of Object.entries(gearLeft ?? {})) this.state.gear[k] = n;
-    this.state.money += total;
     // Reputation (#47): bringing home a photo of the night's target earns +1, a great one (70+) +2.
     const best = sold.find((s) => s.subject === target)?.score ?? 0;
     const repGain = outcome === 'complete' && best > 0 ? (best >= CAMP.greatPhoto ? 2 : 1) : 0;
@@ -98,7 +118,7 @@ export class Camp {
     const entry = {
       n: this.state.hunts.length + 1, outcome, target,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
-      sold, bonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation,
+      sold, bonus, bounties, bountyBonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation,
     };
     this.state.hunts.push(entry);
     if (this.state.hunts.length > 50) this.state.hunts.shift();
@@ -121,7 +141,8 @@ export function huntSummary(h) {
   const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
   return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
-    ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : []), ...(h.repGain ? [`  Reputation +${h.repGain} (now ${h.reputation})`] : [])].join('\n');
+    ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : []),
+    ...(h.bounties ?? []).map((b) => `  Bounty claimed: ${b.title} (score ${b.minScore}+): +$${b.bonus}`), ...(h.repGain ? [`  Reputation +${h.repGain} (now ${h.reputation})`] : [])].join('\n');
 }
 
 /** BASE CAMP panel on the start screen: money, what happened last hunt, gear you own. */
