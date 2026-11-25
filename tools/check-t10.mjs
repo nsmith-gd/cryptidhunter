@@ -40,7 +40,7 @@ const speedAt = async (x, z, y, sprint) => {
   await place(x, z, 0, 0, y);
   await page.waitForTimeout(200);
   await keys(true, sprint ? ['KeyW', 'ShiftLeft'] : ['KeyW']);
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1500);   // long enough to reach top speed even at low software-render frame rates
   const s = await state();
   await keys(false, ['KeyW', 'ShiftLeft']);
   return s;
