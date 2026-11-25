@@ -47,7 +47,8 @@
     const kit = new ForestKit(77);
     const rows = [
       // [prefix, spacing, scale fn]
-      ['pine', 9, (k) => (k === 'pine:2' ? [5, 5, 5] : [14, 15, 14])],
+      ['pine', 7.5, () => [14, 15, 14]],
+      ['youngPine', 4.5, () => [5, 5, 5]],
       ['snag', 9, () => [13, 12, 13]],
       ['bush', 3.2, () => 1.2],
       ['fern', 2.6, () => 1.2],
@@ -64,7 +65,7 @@
       }
       keys.forEach((k, i) => kit.add(k, (i - (keys.length - 1) / 2) * gap, 0, z, 0.6 + i, scale(k)));
       if (prefix === 'pine' || prefix === 'snag') keys.forEach((k, i) => kit.add('litter:0', (i - (keys.length - 1) / 2) * gap, 0, z, i, [4, 1, 4]));
-      z += prefix === 'pine' ? 12 : prefix === 'snag' ? 9 : 4.5;
+      z += prefix === 'pine' ? 12 : prefix === 'snag' ? 9 : prefix === 'youngPine' ? 7 : 4.5;
     }
     const group = kit.build(scene);
     const swayer = group.children[0];

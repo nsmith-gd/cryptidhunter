@@ -69,6 +69,33 @@ export function pineNeedleTexture(variant = 0) {
   }, { seed: 211 + variant * 5 });
 }
 
+// Full branch spray (#60), 32 x 32, alpha: a twig running from the trunk (left) to the tip
+// (right), with dense needle tufts fanning out both sides in a tapering, ragged leaf shape. Lit on
+// the upper side, deep shade underneath, darker gaps between tufts so it reads as many twigs.
+export function pineSprayCard(variant = 0) {
+  return pixelTexture(`pineSpray${variant}`, 32, 32, (g, px, r, w, h) => {
+    const pal = variant === 1
+      ? ['#0b1614', '#12251e', '#1a3427', '#244531', '#33583a', '#486f45']
+      : ['#0c140f', '#152517', '#1f3620', '#2c4a28', '#3d6131', '#567a3b'];
+    const mid = (x) => 15 + Math.round((x / w) * (x / w) * 5);          // the twig droops toward the tip
+    for (let x = 0; x < w; x++) {
+      const hw = Math.max(1, Math.round(12 * (1 - Math.pow(x / w, 1.6)) * (x < 3 ? x / 3 : 1)));
+      const c = mid(x);
+      for (let y = c - hw; y <= c + hw; y++) {
+        const off = (y - c) / hw;                                         // -1 top .. 1 bottom
+        const edge = Math.abs(off) > 0.75;
+        if (r() > (edge ? 0.45 : 0.86)) continue;                          // ragged edge, gaps inside
+        // Tufts slant outward from the twig: lighter on top, shade below.
+        const tone = off < -0.3 ? 4 + (r() < 0.35 ? 1 : 0) : off < 0.25 ? 3 : off < 0.7 ? 2 : 1;
+        px(x, y, pal[Math.min(5, tone)]);
+      }
+      // Side twigs every few pixels: darker diagonal strokes that break the mass into sprays.
+      if (x % 6 === 3) for (let k = 1; k < hw; k++) { px(x + Math.floor(k * 0.5), c - k, pal[1]); px(x + Math.floor(k * 0.5), c + k, pal[0]); }
+      px(x, c, pal[0]);
+    }
+  }, { seed: 225 + variant, alpha: true });
+}
+
 // Branch-tip card that hangs off each tier's rim so the crown silhouette is ragged, 32 x 16, alpha.
 export function pineBranchCard(variant = 0) {
   return pixelTexture(`pineBranch${variant}`, 32, 16, (g, px, r, w, h) => {
