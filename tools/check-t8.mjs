@@ -15,7 +15,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto('http://localhost:4320/');
+await page.goto('http://localhost:4320/?sandbox');
 await page.waitForFunction(() => window.__game);
 // This check repeats hits on purpose; don't end the hunt on the first one.
 await page.evaluate(() => { if (__game.huntFailure) __game.huntFailure.enabled = false; });

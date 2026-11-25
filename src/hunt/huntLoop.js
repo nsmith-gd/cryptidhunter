@@ -1,0 +1,199 @@
+import * as THREE from 'three';
+
+// A Night's Hunt (L0 greybox): briefing -> search & track -> photograph the target ->
+// return to the truck before dawn -> results. Caught (HuntFailure) and dawn end it early.
+export const HUNT = {
+  dawnSeconds: 7 * 60,          // real seconds from start until dawn
+  truck: new THREE.Vector3(0, 0, 7),
+  extractRadius: 4,
+  giveUpAfter: 20,              // seconds before "leave without a photo" is offered
+};
+
+export class HuntLoop {
+  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload() }) {
+    this.player = player;
+    this.journal = journal;
+    this.target = target;
+    this.onRestart = onRestart;
+    this.stage = 'briefing';      // briefing | search | extract | ended
+    this.elapsed = 0;
+    this.photo = null;            // { subject, distance, at }
+    this.missedShots = 0;
+    this.outcome = null;          // complete | abandoned | dawn | caught
+    this.inZone = false;
+    this.buildTruck(scene, colliders);
+    this.buildHud();
+    this.buildEndScreen();
+    addEventListener('keydown', (e) => {
+      if (e.code === 'KeyG' && !e.repeat && this.canGiveUp()) this.end('abandoned');
+      if ((e.code === 'Space' || e.code === 'Enter') && this.stage === 'ended' && this.outcome !== 'caught') this.restart();
+    });
+  }
+
+  start() {
+    if (this.stage !== 'briefing') return;
+    this.stage = 'search';
+  }
+
+  get timeLeft() { return Math.max(0, HUNT.dawnSeconds - this.elapsed); }
+
+  canGiveUp() { return this.stage === 'search' && this.inZone && this.elapsed >= HUNT.giveUpAfter; }
+
+  // Hook for the camera: called with { subject, distance } for every shot taken.
+  onPhoto({ subject, distance }) {
+    if (this.stage !== 'search' && this.stage !== 'extract') return;
+    if (subject !== this.target) { this.missedShots++; return; }
+    if (!this.photo || distance < this.photo.distance) this.photo = { subject, distance, at: this.elapsed };
+    this.stage = 'extract';
+  }
+
+  update(dt) {
+    this.beacon.material.opacity = 0.35 + 0.2 * Math.sin(performance.now() / 300);
+    const p = this.player.position;
+    this.inZone = Math.hypot(p.x - HUNT.truck.x, p.z - HUNT.truck.z) < HUNT.extractRadius;
+    if (this.stage === 'search' || this.stage === 'extract') {
+      this.elapsed += dt;
+      if (this.stage === 'extract' && this.inZone) this.end('complete');
+      else if (this.elapsed >= HUNT.dawnSeconds) this.end('dawn');
+    }
+    this.renderHud();
+  }
+
+  end(outcome) {
+    if (this.stage === 'ended') return;
+    this.stage = 'ended';
+    this.outcome = outcome;
+    this.renderHud();                                 // clears the objective + clock
+    if (outcome === 'caught') return;                 // HuntFailure shows its own screen
+    document.exitPointerLock?.();
+    this.readyAt = performance.now() + 600;
+    this.showResults();
+  }
+
+  restart() {
+    if (performance.now() < (this.readyAt ?? 0)) return;
+    this.onRestart();
+  }
+
+  // ---------- world ----------
+  buildTruck(scene, colliders) {
+    const g = new THREE.Group();
+    const grey = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(2, 1.1, 4.4), grey(0x3d4a5a));
+    bed.position.y = 0.75;
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.9, 1.8), grey(0x34404e));
+    cab.position.set(0, 1.75, -1.1);
+    for (const m of [bed, cab]) { m.castShadow = m.receiveShadow = true; }
+    // Headlights so the truck reads in the dark, pointing away from the hunt area.
+    const lamp = new THREE.MeshBasicMaterial({ color: 0xfff2c0 });
+    for (const x of [-0.65, 0.65]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.05), lamp);
+      l.position.set(x, 0.9, 2.21);
+      g.add(l);
+    }
+    // Green pulsing beacon: visible from anywhere so you can find your way back.
+    this.beacon = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.25, 0.25, 30, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x3cff7a, transparent: true, opacity: 0.4, depthWrite: false, fog: false }),
+    );
+    this.beacon.position.set(1.6, 15, 0);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(HUNT.extractRadius - 0.12, HUNT.extractRadius, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x3cff7a, transparent: true, opacity: 0.5, depthWrite: false }),
+    );
+    ring.position.y = 0.03;
+    g.add(bed, cab, this.beacon, ring);
+    // Truck body sits just behind the extract point; the ring is centred on the point itself.
+    g.position.copy(HUNT.truck);
+    g.position.z += 1.5;
+    ring.position.z = -1.5;
+    g.name = 'truck';
+    scene.add(g);
+    this.truck = g;
+    g.updateMatrixWorld(true);
+    colliders.push(new THREE.Box3().setFromObject(bed), new THREE.Box3().setFromObject(cab));
+  }
+
+  // ---------- HUD ----------
+  buildHud() {
+    const box = this.hud = document.createElement('div');
+    Object.assign(box.style, { position: 'fixed', bottom: '10px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', maxWidth: '560px',
+      font: '13px monospace', color: '#e8e8e8', textShadow: '0 0 3px #000', pointerEvents: 'none', whiteSpace: 'pre-line', lineHeight: '1.5' });
+    document.body.appendChild(box);
+    this.clock = document.createElement('div');
+    Object.assign(this.clock.style, { position: 'fixed', top: '8px', right: '10px', font: '13px monospace', color: '#cfd8ff',
+      textShadow: '0 0 3px #000', pointerEvents: 'none' });
+    document.body.appendChild(this.clock);
+  }
+
+  objectiveText() {
+    const p = this.player.position;
+    const dTruck = Math.hypot(p.x - HUNT.truck.x, p.z - HUNT.truck.z);
+    switch (this.stage) {
+      case 'briefing': return '';
+      case 'search': {
+        const n = this.journal?.entries.length ?? 0;
+        const lines = [`OBJECTIVE: Photograph ${this.target}`,
+          n === 0 ? 'Search for tracks with your flashlight. Aim at one and press E to examine it.'
+            : `Clues logged: ${n}. Follow the trail; when you see ${this.target}, click to take a photo.`];
+        if (this.canGiveUp()) lines.push('[G] Drive home without a photo');
+        return lines.join('\n');
+      }
+      case 'extract':
+        return `GOT THE SHOT! Return to your truck (green light) before dawn — ${dTruck.toFixed(0)} m`;
+      case 'ended': return '';
+    }
+    return '';
+  }
+
+  renderHud() {
+    this.hud.textContent = this.objectiveText();
+    if (this.stage === 'briefing' || this.stage === 'ended') { this.clock.textContent = ''; return; }
+    const t = this.timeLeft;
+    // In-world clock: 11:00 PM start, dawn at 5:30 AM.
+    const night = 6.5 * 60; // minutes of in-world night
+    const mins = 23 * 60 + (this.elapsed / HUNT.dawnSeconds) * night;
+    const h = Math.floor(mins / 60) % 24, m = Math.floor(mins % 60);
+    const h12 = ((h + 11) % 12) + 1;
+    this.clock.textContent = `${h12}:${String(m).padStart(2, '0')} ${h >= 12 && h < 24 ? 'PM' : 'AM'}  ·  dawn in ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    this.clock.style.color = t < 60 ? '#ffb070' : '#cfd8ff';
+  }
+
+  buildEndScreen() {
+    const s = this.screen = document.createElement('div');
+    Object.assign(s.style, { position: 'fixed', inset: '0', display: 'none', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', gap: '12px', background: 'rgba(6,10,16,0.9)', color: '#eee', fontFamily: 'monospace',
+      textAlign: 'center', zIndex: '20', cursor: 'pointer', whiteSpace: 'pre', lineHeight: '1.6' });
+    this.endTitle = document.createElement('div');
+    Object.assign(this.endTitle.style, { fontSize: '44px', letterSpacing: '6px' });
+    this.endBody = document.createElement('div');
+    this.endBody.style.fontSize = '15px';
+    const hint = Object.assign(document.createElement('div'), { textContent: 'Click or press Space to start a new hunt' });
+    Object.assign(hint.style, { fontSize: '13px', color: '#aaa', marginTop: '10px' });
+    s.append(this.endTitle, this.endBody, hint);
+    s.addEventListener('click', () => this.restart());
+    document.body.appendChild(s);
+  }
+
+  showResults() {
+    const titles = {
+      complete: ['HUNT COMPLETE', '#7dff9e'],
+      abandoned: ['HUNT ABANDONED', '#ffd27a'],
+      dawn: ['DAWN BROKE', '#ffb070'],
+    };
+    const [title, color] = titles[this.outcome];
+    this.endTitle.textContent = title;
+    this.endTitle.style.color = color;
+    const t = Math.floor(this.elapsed);
+    const v = this.journal?.verdict?.();
+    const lines = [];
+    if (this.outcome === 'dawn') lines.push(`The sun came up before you made it back to the truck.${this.photo ? '\nThe photo never left the woods.' : ''}`);
+    if (this.outcome === 'abandoned') lines.push('You drove home empty-handed.');
+    lines.push('', `Photo of ${this.target}:  ${this.photo && this.outcome === 'complete' ? `YES (from ${this.photo.distance.toFixed(0)} m)` : 'none'}`);
+    lines.push(`Clues logged:  ${this.journal?.entries.length ?? 0}`);
+    if (v?.likely) lines.push(`Journal verdict:  ${v.likely.name}`);
+    lines.push(`Time out:  ${Math.floor(t / 60)}m ${String(t % 60).padStart(2, '0')}s`);
+    this.endBody.textContent = lines.join('\n');
+    this.screen.style.display = 'flex';
+  }
+}

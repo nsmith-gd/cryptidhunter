@@ -16,6 +16,8 @@ import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
+import { HuntLoop } from './hunt/huntLoop.js';
+import { PhotoSnap } from './hunt/photoSnap.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -40,13 +42,20 @@ const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
 
+// Default is the greybox hunt (Bigfoot only). ?sandbox also brings in the other cryptid placeholders.
+const sandbox = new URLSearchParams(location.search).has('sandbox');
+
 const { colliders, bounds, spawns } = buildTestMap(scene);
+// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the truck before dawn.
+// Built before the cryptids so the truck is baked into their walkable grid.
 const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
+const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot' });
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
+mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
 const batteries = new BatteryPickups(scene, player, flashlight);
 const bars = new Hud(player, flashlight);
 const noiseRing = new NoiseRing(scene, player);
@@ -67,14 +76,30 @@ addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); 
 const journal = new Journal();
 const clueFinder = new ClueFinder(camera, clues, journal, input);
 const journalUI = new JournalUI(journal, clueFinder);
+hunt.journal = journal;
+
+const photo = new PhotoSnap({
+  camera, scene, input,
+  getSubjects: () => [
+    ...cryptids.cryptids.map((c) => ({ name: c.profile.name, object3d: c.mesh, radius: c.profile.radius,
+      center: new THREE.Vector3(c.agent.x, c.profile.height * 0.6, c.agent.z) })),
+    ...(sandbox ? [
+      { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
+      { name: 'Chupacabra', object3d: chupacabra.mesh, radius: 0.5, center: chupacabra.position.clone() },
+    ] : []),
+  ],
+  onPhoto: (r) => hunt.onPhoto(r),
+});
 
 // Getting touched by a cryptid ends the hunt.
 const huntFailure = new HuntFailure({
   player,
   getThreats: () => [
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, z: c.agent.z, y0: 0, y1: c.profile.height, radius: c.profile.radius })),
+    ...(!sandbox ? [] : [
     { name: 'The Mothman', x: mothman.mesh.position.x, z: mothman.mesh.position.z, y0: mothman.mesh.position.y - 0.8, y1: mothman.mesh.position.y + 0.8, radius: 0.8 },
     { name: 'The Chupacabra', x: chupacabra.position.x, z: chupacabra.position.z, y0: 0, y1: 0.55, radius: 0.45 },
+    ]),
   ],
 });
 chupacabra.onHit = () => {
@@ -93,13 +118,17 @@ resize();
 
 const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => input.requestLock());
-document.addEventListener('pointerlockchange', () => overlay.classList.toggle('hidden', input.locked));
+document.addEventListener('pointerlockchange', () => {
+  overlay.classList.toggle('hidden', input.locked);
+  if (input.locked) hunt.start();   // the dawn clock starts with the first click into the game
+});
 
 const hud = document.getElementById('hud');
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (huntFailure.isCaught) {          // world freezes behind the Caught screen
+  if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
+  if (huntFailure.isCaught || hunt.stage === 'ended') {   // world freezes behind the end screens
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
@@ -111,8 +140,12 @@ function frame() {
   clueTrails.update();
   clues.update(dt);
   journal.update(dt);
-  mothman.update(dt);
-  chupacabra.update(dt);
+  if (sandbox) {
+    mothman.update(dt);
+    chupacabra.update(dt);
+  }
+  photo.update(dt);
+  hunt.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
@@ -128,4 +161,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
+window.__game = { THREE, sandbox, hunt, photo, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
