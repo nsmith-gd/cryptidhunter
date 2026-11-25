@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { NavAgent } from './navAgent.js';
 import { DEFAULT_PROFILE } from './profiles.js';
 import { Perception } from './perception.js';
+import { buildBigfootModel } from './bigfootModel.js';
 
 // Body tint per state (greybox readability); roam/investigate keep the cryptid's own colour.
 const STATE_TINT = {
@@ -49,7 +50,8 @@ export class CryptidAI {
     this.replanTimer = 0;
     this.playerDistance = Infinity;
 
-    this.mesh = buildCapsule(profile);
+    // Cryptids with a model get it; the rest keep the greybox capsule.
+    this.mesh = profile.id === 'bigfoot' ? buildBigfootModel(profile) : buildCapsule(profile);
     scene.add(this.mesh);
     if (this.perception) scene.add(this.buildAwarenessBar()); // separate from the body so it doesn't change its size
     this.baseColor = new THREE.Color(profile.color);
@@ -70,6 +72,7 @@ export class CryptidAI {
     else this.thinkL0(dt, p);
     this.agent.update(dt);
     this.syncMesh();
+    this.mesh.userData.animate?.(dt, this.agent.currentSpeed, this.state);
   }
 
   // ---------------------------------------------------------------------------------------
@@ -398,7 +401,7 @@ export class CryptidAI {
   dispose() {
     this.awarenessBar?.removeFromParent();
     this.mesh.removeFromParent();
-    this.mesh.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+    this.mesh.traverse((o) => { o.geometry?.dispose(); [o.material].flat().forEach((m) => m?.dispose()); });
   }
 }
 

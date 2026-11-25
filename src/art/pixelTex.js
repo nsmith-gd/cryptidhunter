@@ -268,3 +268,52 @@ export function pixelMaterial(tex, { repeat = [1, 1], color = 0xffffff, side = T
     ...rest,
   });
 }
+
+// --- Creatures ------------------------------------------------------------------------------
+
+// Shaggy fur, 16 x 32: dark roots, long brown strands running down, ginger tips catching light.
+export function furTexture(variant = 0) {
+  return pixelTexture(`fur${variant}`, 16, 32, (g, px, r, w, h) => {
+    const pal = variant === 1
+      ? ['#140e0a', '#21170f', '#2e2016', '#3c2a1c', '#4c3624', '#5e452e']   // darker (back, shoulders)
+      : ['#1a120c', '#2a1d13', '#3a281a', '#4b3422', '#5f432c', '#7a5838'];
+    g.fillStyle = pal[1]; g.fillRect(0, 0, w, h);
+    for (let s = 0; s < 34; s++) {
+      let x = Math.floor(r() * w);
+      const y0 = Math.floor(r() * h), len = 4 + Math.floor(r() * 10), c = 2 + Math.floor(r() * 3);
+      for (let k = 0; k < len; k++) {
+        if (r() < 0.2) x += r() < 0.5 ? -1 : 1;
+        px(x, y0 + k, k === 0 ? pal[Math.min(5, c + 1)] : k > len - 3 ? pal[c - 1] : pal[c]);
+      }
+    }
+    for (let i = 0; i < 12; i++) px(Math.floor(r() * w), Math.floor(r() * h), pal[0]);   // deep clumps
+  }, { seed: 101 + variant });
+}
+
+// Leathery skin for face, palms and soles, 16 x 16: grey-brown with creases.
+export function skinTexture() {
+  return pixelTexture('skin', 16, 16, (g, px, r, w, h) => {
+    const pal = ['#1f1814', '#2e2520', '#3c312a', '#4a3e35'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[1 + Math.floor(r() * 2.4)]);
+    for (let i = 0; i < 6; i++) { const y = Math.floor(r() * h), x0 = Math.floor(r() * w); for (let k = 0; k < 4; k++) px(x0 + k, y, pal[0]); }
+  }, { seed: 131 });
+}
+
+// Bigfoot's face, 16 x 16 (front of the head): heavy brow, deep-set eyes, flat nose, wide mouth.
+export function bigfootFaceTexture() {
+  return pixelTexture('bigfootFace', 16, 16, (g, px, r, w, h) => {
+    const fur = ['#1a120c', '#2a1d13', '#3a281a', '#4b3422'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, fur[1 + Math.floor(r() * 3)]);
+    // Bare face patch.
+    for (let y = 4; y < 15; y++) for (let x = 3; x < 13; x++) {
+      const edge = (y === 4 || y === 14 || x === 3 || x === 12);
+      if (edge && r() < 0.5) continue;
+      px(x, y, r() < 0.3 ? '#3c312a' : '#2e2520');
+    }
+    for (let x = 3; x < 13; x++) { px(x, 4, '#1c1410'); px(x, 5, '#120d0a'); }   // brow ridge shadow
+    for (const ex of [5, 9]) { px(ex, 6, '#070505'); px(ex + 1, 6, '#070505'); px(ex + 1, 6, '#c9a14a'); } // eyes with glint
+    px(7, 8, '#1a1410'); px(8, 8, '#1a1410'); px(7, 9, '#120d0a'); px(8, 9, '#120d0a');                // nostrils
+    for (let x = 5; x < 11; x++) px(x, 11, '#100b08');                                                    // mouth
+    px(5, 12, '#2a201a'); px(10, 12, '#2a201a');
+  }, { seed: 141 });
+}
