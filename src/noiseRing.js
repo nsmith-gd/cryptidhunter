@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
-// Debug: a ring on the ground showing how far the player's noise carries. Toggle with N.
+// Debug: a ring on the ground showing how far the player's noise carries, plus the HUD noise bar.
+// Toggle with N.
 export class NoiseRing {
   constructor(scene, player) {
     this.player = player;

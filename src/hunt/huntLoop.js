@@ -26,7 +26,12 @@ export class HuntLoop {
     this.buildHud();
     this.buildEndScreen();
     addEventListener('keydown', (e) => {
-      if (e.code === 'KeyH' && !e.repeat && this.canGiveUp()) this.end('abandoned');
+      // H at the van: drive home. With a photo that completes the hunt; without one (after a
+      // little while) it abandons it. You choose when to leave - you can keep hunting for a better shot.
+      if (e.code === 'KeyH' && !e.repeat) {
+        if (this.canLeaveWithPhoto()) this.end('complete');
+        else if (this.canGiveUp()) this.end('abandoned');
+      }
       if ((e.code === 'Space' || e.code === 'Enter') && this.stage === 'ended' && this.outcome !== 'caught') this.restart();
     });
   }
@@ -39,6 +44,8 @@ export class HuntLoop {
   get timeLeft() { return Math.max(0, HUNT.dawnSeconds - this.elapsed); }
 
   canGiveUp() { return this.stage === 'search' && this.inZone && this.elapsed >= HUNT.giveUpAfter; }
+
+  canLeaveWithPhoto() { return this.stage === 'extract' && this.inZone; }
 
   // Hook for the camera: called with { subject, distance } for every shot taken.
   // Hook for every camera (handheld or gear): { subject, distance, score?, source? }.
@@ -58,8 +65,7 @@ export class HuntLoop {
     this.inZone = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z) < HUNT.extractRadius;
     if (this.stage === 'search' || this.stage === 'extract') {
       this.elapsed += dt;
-      if (this.stage === 'extract' && this.inZone) this.end('complete');
-      else if (this.elapsed >= HUNT.dawnSeconds) this.end('dawn');
+      if (this.elapsed >= HUNT.dawnSeconds) this.end('dawn');
     }
     this.renderHud();
   }
@@ -163,8 +169,12 @@ export class HuntLoop {
         if (this.canGiveUp()) lines.push('[H] Head home without a photo');
         return lines.join('\n');
       }
-      case 'extract':
-        return `GOT THE SHOT! Return to the van (green light) before dawn — ${dVan.toFixed(0)} m`;
+      case 'extract': {
+        const best = this.photo ? ` (best: score ${this.photo.score})` : '';
+        return this.inZone
+          ? `At the van with your photo${best}.\n[H] Drive home and end the hunt — or keep hunting for a better shot.`
+          : `GOT THE SHOT${best}! Return to the van (green light) before dawn — ${dVan.toFixed(0)} m\nThen press H there to drive home.`;
+      }
       case 'ended': return '';
     }
     return '';

@@ -82,6 +82,34 @@ await page.evaluate(() => { if (__game.flashlight.on) __game.flashlight.toggle()
 const s4 = await waitState('roam', 25000);
 check('far away and calm again -> back to ROAM', s4.state === 'roam', s4);
 
+// ---------------- Bigfoot can turn on you ----------------
+const turn = async (setup) => {
+  await page.goto('http://localhost:4326/');
+  await page.waitForFunction(() => window.__game);
+  await page.evaluate(setup);
+  return waitState('aggress', 8000);
+};
+const cornered = await turn(() => {
+  const g = __game; g.overlay.classList.add('hidden'); g.input.locked = true; g.huntFailure.enabled = false;
+  const b = g.cryptids.cryptids[0]; b.tickRoam = () => {}; b.agent.stop(); b.findLure = () => false;
+  b.agent.x = -28; b.agent.z = 30; b.agent.heading = -Math.PI / 2; b.perception.reset();
+  const p = g.player; p.position.set(-25, 0, 30); p.yaw = Math.PI / 2; p.pitch = 0;   // 3 m in front of it
+  if (!g.flashlight.on) g.flashlight.toggle();
+});
+check('surprise Bigfoot up close and it turns on you (AGGRESS: cornered)', cornered.state === 'aggress' && /aggress/.test(cornered.hist), cornered);
+await lookAt(); await page.waitForTimeout(60);
+await page.screenshot({ path: `${out}/05-bigfoot-cornered-charges.png` });
+const fedUp = await turn(() => {
+  const g = __game; g.overlay.classList.add('hidden'); g.input.locked = true; g.huntFailure.enabled = false;
+  const b = g.cryptids.cryptids[0]; b.tickRoam = () => {}; b.agent.stop(); b.findLure = () => false;
+  b.agent.x = -28; b.agent.z = 30; b.agent.heading = -Math.PI / 2; b.perception.reset();
+  b.flees = 3;                                                                          // already chased off 3 times
+  const p = g.player; p.position.set(-12, 0, 30); p.yaw = Math.PI / 2; p.pitch = 0;    // 16 m away
+  if (!g.flashlight.on) g.flashlight.toggle();
+});
+const why = await page.evaluate(() => __game.cryptids.cryptids[0].history.at(-1)?.why);
+check('hound it enough and it stops running (AGGRESS: fed up)', fedUp.state === 'aggress' && why === 'fed up with you', { ...fedUp, why });
+
 // ---------------- Hostile stand-in (sandbox) ----------------
 await page.goto('http://localhost:4326/?sandbox');
 await page.waitForFunction(() => window.__game);

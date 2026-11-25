@@ -46,6 +46,7 @@ export class CryptidAI {
     this.target = null;      // noise spot being investigated
     this.lookLeft = 0;
     this.observeCooldown = 0;
+    this.flees = 0;          // times it has run from the player this hunt (some cryptids snap)
     this.pauseLeft = 0;
     this.replanTimer = 0;
     this.playerDistance = Infinity;
@@ -90,7 +91,9 @@ export class CryptidAI {
     // Detection overrides everything calm.
     if (calm && this.noticesPlayer()) {
       if (B.onDetect === 'aggress') this.enterAggress('detected you');
-      else this.enterFlee(p, 'detected you');
+      else if (B.turnWithin > 0 && this.playerDistance <= B.turnWithin) this.enterAggress('cornered');
+      else if (B.turnAfterFlees > 0 && this.flees >= B.turnAfterFlees) this.enterAggress('fed up with you');
+      else { this.flees++; this.enterFlee(p, 'detected you'); }
       return;
     }
     // Glimpsed you (not sure yet): stop and stare.
