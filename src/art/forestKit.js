@@ -175,7 +175,7 @@ export class ForestKit {
   pineWhorl(v, { young = false } = {}) {
     const r = rng(9001 + v * 131 + (young ? 7000 : 0));
     const pick = (a, b) => a + r() * (b - a);
-    const styles = young ? ['young', 'young', 'sparseYoung', 'young'] : ['classic', 'columnar', 'broad', 'windswept', 'sparse', 'broken', 'classic', 'fork', 'columnar', 'broad', 'windswept', 'sparse'];
+    const styles = young ? ['young', 'young', 'sparseYoung', 'young'] : ['classic', 'columnar', 'broad', 'windswept', 'sparse', 'broken', 'classic', 'fork', 'columnar', 'broad', 'windswept', 'classic'];   // one sparse tree in twelve: a dense, dark forest (director)
     const style = styles[v % styles.length];
     const P = {
       classic: { base: 0.16, r0: 0.2, shape: 1.0, whorls: 10, per: 5, skip: 0.12, asym: 0.14, droop: 0.42, stubs: 3 },
@@ -249,15 +249,15 @@ export class ForestKit {
 
     // Whorls of branches up the trunk, lengths from a crown profile with per-variant asymmetry.
     const asymDir = r() * TAU;
-    const W = Math.round(P.whorls * 1.1) + Math.round(pick(-1, 1));
+    const W = Math.round(P.whorls * 1.3) + Math.round(pick(-1, 1));
     for (let k = 0; k < W; k++) {
       const t = k / (W - 1);
       const y = P.base + t * (top * 0.96 - P.base) + pick(-0.012, 0.012);
       const R = P.r0 * Math.pow(1 - t * 0.9, P.shape) + 0.022;   // tops stay bushy, not a bare spike
-      const per = P.per + Math.round(pick(-1, 1));
+      const per = P.per + 1 + Math.round(pick(-1, 1));   // dense crowns (director: darker, more lost)
       const az0 = k * 2.39996 + r();                        // golden-angle spiral between whorls
       for (let j = 0; j < per; j++) {
-        if (r() < P.skip * 0.6 && t < 0.85) continue;       // missing branches: gaps in the crown
+        if (r() < P.skip * 0.35 && t < 0.85) continue;       // missing branches: gaps in the crown
         const az = az0 + (j / per) * TAU + pick(-0.35, 0.35);
         const L = R * (1 + P.asym * Math.cos(az - asymDir)) * pick(0.78, 1.18);
         limb(y, az, Math.max(0.025, L), P.droop * pick(0.75, 1.25) * (1 - 0.4 * t));
@@ -265,7 +265,7 @@ export class ForestKit {
     }
     // A dark inner core so you can't see daylight straight through the middle of the crown.
     const coreH = (top - P.base) * 0.9;
-    const cone = new THREE.ConeGeometry(P.r0 * 0.32, coreH * 0.72, 6, 1, true);   // fills the crown's heart, stops short of the top
+    const cone = new THREE.ConeGeometry(P.r0 * 0.4, coreH * 0.78, 6, 1, true);   // fills the crown's heart, stops short of the top
     cone.translate(0, P.base + coreH * 0.36, 0);
     { const p = cone.attributes.position; for (let i = 0; i < p.count; i++) { const [cx, cz] = center(p.getY(i)); p.setX(i, p.getX(i) + cx); p.setZ(i, p.getZ(i) + cz); } }
     scaleUV(cone, 3, 4);
