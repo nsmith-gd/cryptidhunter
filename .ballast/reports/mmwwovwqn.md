@@ -4,4 +4,4 @@ STATUS: DONE
 - Tree positions, paths and collisions are unchanged.
 - To see it: `npm run dev`, open `?map=forest`, and walk any trail at night. Before and after from the same spots are in `.ballast/media/mmwwovwqn/` ("before" = the previous trees, "dense" = now); `02-creek-trail-treeline` and `04-dense-stand-flashlight` show it best.
 - Cost: about 30% more geometry for the trees (2.8M vs 2.1M triangles per frame in the forest without the torch). Expected to be fine on a desktop GPU; real frame rate couldn't be measured here. The lighting checks pass. One forest check (Bigfoot pathing round the ridge) fails on main without this change too.
-- PR: PR_LINK
+- PR: https://github.com/nsmith-gd/cryptidhunter/pull/74
