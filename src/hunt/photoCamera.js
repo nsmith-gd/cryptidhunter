@@ -206,14 +206,17 @@ export class PhotoCamera {
 /**
  * Placeholder photo score (0-100) until the evidence-scoring task lands:
  *   framing   — how much of the subject shows and how centred it is
+ *   closeness — nearer shots are worth more
  *   steadiness — a shaking camera (fear) blurs the shot: 1 when still, down to 0.2
  */
 export function photoScore(r, shakeDegPerSec) {
   const steadiness = Math.max(0.2, 1 - shakeDegPerSec / 8);
   if (!r.subject) return { score: 0, framing: 0, steadiness };
   const centred = 1 - Math.min(1, r.offCentre ?? 0);
+  // More of the creature, more centred and closer are all worth more.
   const framing = (r.visible / r.samples) * (0.6 + 0.4 * centred);
-  return { score: Math.round(100 * framing * steadiness), framing, steadiness };
+  const closeness = Math.max(0.3, Math.min(1, 1 - (r.distance - 8) / 60)); // 1 within 8 m, 0.3 by ~50 m
+  return { score: Math.round(100 * framing * closeness * steadiness), framing, closeness, steadiness };
 }
 
 // Points on the subject to test: a standing column (feet, knees, chest, head, shoulders)
