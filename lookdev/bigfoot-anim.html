@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bigfoot Animation Viewer</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0f12; overflow: hidden; font-family: monospace; color: #cfd6c8; }
+    canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+    #ui { position: fixed; left: 10px; top: 8px; font-size: 12px; line-height: 1.6; text-shadow: 0 0 2px #000; }
+    #ui b { color: #ffc35c; }
+  </style>
+</head>
+<body>
+  <div id="ui"></div>
+  <script type="module">
+    // Bigfoot animation viewer (#43). Run the dev server (npx vite), open /lookdev/bigfoot-anim.html.
+    // 1-8 pick a clip, A/D rotate, P toggles stepped (pixel) posing vs smooth, Space replays a knock.
+    import * as THREE from 'three';
+    import { buildBigfootModel } from '/src/cryptids/bigfootModel.js';
+    import { PROFILES } from '/src/cryptids/profiles.js';
+    import { POSE_FPS } from '/src/cryptids/bigfootAnim.js';
+
+    const PIXEL_SCALE = 3;
+    const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1);
+    renderer.shadowMap.enabled = true;
+    document.body.prepend(renderer.domElement);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x182231);
+    scene.fog = new THREE.FogExp2(0x182231, 0.03);
+    scene.add(new THREE.HemisphereLight(0x6a83a0, 0x1a1810, 1.1));
+    const key = new THREE.DirectionalLight(0xffd7a0, 3.0);
+    key.position.set(-4, 6, 5); key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    Object.assign(key.shadow.camera, { left: -4, right: 4, top: 6, bottom: -1 });
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x9db4e8, 1.4);
+    rim.position.set(3, 4, -6);
+    scene.add(rim);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(8, 32), new THREE.MeshStandardMaterial({ color: 0x2b3324, roughness: 1 }));
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+    const bf = buildBigfootModel(PROFILES.bigfoot);
+    scene.add(bf);
+    const animator = bf.userData.animator;
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+
+    const CLIP_DRIVE = {
+      idle: ['roam', 0], walk: ['roam', 1.8], run: ['roam', 5.5], flee: ['flee', 8.5],
+      investigate: ['investigate', 1.2], prowl: ['shadow', 0.9], stare: ['observe', 0], knock: ['roam', 0],
+    };
+    const names = Object.keys(CLIP_DRIVE);
+    let current = new URLSearchParams(location.search).get('clip') ?? 'walk';
+    let yaw = -Math.PI / 2;              // side view (model faces -Z)
+    let knockTimer = 0;
+    const ui = document.getElementById('ui');
+    const label = () => {
+      ui.innerHTML = `BIGFOOT ANIMATION VIEWER<br>${names.map((n, i) => (n === current ? `<b>${i + 1} ${n}</b>` : `${i + 1} ${n}`)).join(' · ')}<br>` +
+        `A/D rotate · P posing: ${animator.poseFps ? `stepped ${animator.poseFps} fps` : 'smooth'} · Space: knock again<br>playing: <b>${animator.clip}</b>`;
+    };
+    const setClip = (name) => { current = name; knockTimer = 0; if (name === 'knock') animator.play('knock', { count: 3 }); };
+    addEventListener('keydown', (e) => {
+      const i = Number(e.key) - 1;
+      if (i >= 0 && i < names.length) setClip(names[i]);
+      if (e.code === 'KeyA') yaw -= 0.3;
+      if (e.code === 'KeyD') yaw += 0.3;
+      if (e.code === 'KeyP') animator.poseFps = animator.poseFps ? 0 : POSE_FPS;
+      if (e.code === 'Space') animator.play('knock', { count: 3 });
+    });
+    const resize = () => {
+      renderer.setSize(Math.ceil(innerWidth / PIXEL_SCALE), Math.ceil(innerHeight / PIXEL_SCALE), false);
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    };
+    addEventListener('resize', resize); resize();
+    const step = (dt) => {
+      const [state, speed] = CLIP_DRIVE[current];
+      if (current === 'knock' && !animator.action && (knockTimer += dt) > 0.8) { knockTimer = 0; animator.play('knock', { count: 3 }); }
+      animator.animate(dt, speed, state);
+      const r = 8.8;
+      camera.position.set(Math.sin(yaw) * r, 2.4, Math.cos(yaw) * r);
+      camera.lookAt(0, 2.05, 0);
+      renderer.render(scene, camera);
+      label();
+    };
+    window.__viewer = { setClip, setYaw: (y) => { yaw = y; }, step, animator, bf, renderer, get clip() { return animator.clip; } };
+    setClip(current);
+    let last = performance.now();
+    if (!new URLSearchParams(location.search).has('manual')) {
+      renderer.setAnimationLoop(() => { const now = performance.now(); step(Math.min(0.05, (now - last) / 1000)); last = now; });
+    }
+  </script>
+</body>
+</html>
