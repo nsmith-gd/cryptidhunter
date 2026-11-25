@@ -410,7 +410,8 @@ export function bigfootScowlTexture() {
     // Snout folds down to a heavy, downturned mouth; fang tips just showing.
     for (let k = 0; k < 4; k++) { px(9 + k, 20 + k, sk[1]); px(22 - k, 20 + k, sk[1]); }
     for (let x = 10; x < 22; x++) px(x, 25 + (x < 12 || x > 19 ? 1 : 0), '#0b0708');
-    for (const fx of [12, 19]) { px(fx, 26, '#c9b98a'); px(fx, 27, '#a89466'); }
+    px(12, 26, '#c9b98a'); px(12, 27, '#a89466'); px(12, 28, '#7d6c48');   // long left fang
+    px(19, 26, '#7d6c48');                                                     // right fang snapped off
     for (let x = 11; x < 21; x++) px(x, 27, sk[1]);
     // Beard and cheek hair creeping onto the face edges.
     for (let y = 18; y < 32; y++) for (const x of [5, 6, 25, 26]) if (r() < 0.7) px(x, y, fur[2 + Math.floor(r() * 2)]);
@@ -418,6 +419,7 @@ export function bigfootScowlTexture() {
     // Old scars across the left brow and cheek.
     for (let k = 0; k < 7; k++) px(6 + k, 9 + k, '#5a3a32');
     for (let k = 0; k < 4; k++) px(22 + k, 18 + k, '#5a3a32');
+    for (let k = 0; k < 5; k++) px(13 + k, 19 - (k >> 1), '#6a463c');                          // scar across the nose
   }, { seed: 171 });
 }
 
@@ -439,4 +441,26 @@ export function longHairTexture() {
       }
     }
   }, { seed: 181, alpha: true });
+}
+
+// Bare, scarred patch where the fur has worn thin (#56): grey-brown hide with rib bands showing
+// through and three parallel claw scars, ragged fur edges. 32 x 32, alpha-cut edges.
+export function ribScarTexture() {
+  return pixelTexture('ribScar', 32, 32, (g, px, r, w, h) => {
+    const sk = ['#1c1210', '#2e2019', '#3e2d24', '#4f3b2f', '#614a3b'];
+    const fur = ['#140d09', '#22160e', '#342215'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = (x - 15.5) / 15, dy = (y - 15.5) / 15, d = Math.sqrt(dx * dx + dy * dy) + (r() - 0.5) * 0.25;
+      if (d > 1) continue;                                                // transparent outside the patch
+      if (d > 0.82) { px(x, y, fur[Math.floor(r() * 3)]); continue; }      // ragged fur rim
+      px(x, y, sk[2 + (r() < 0.3 ? 1 : 0) - (r() < 0.2 ? 1 : 0)]);
+    }
+    // Ribs: curved bands, lit above, shadowed below.
+    for (let k = 0; k < 4; k++) for (let x = 4; x < 28; x++) {
+      const y = 6 + k * 6 + Math.round(Math.sin((x / 32) * Math.PI) * -2);
+      px(x, y, sk[4]); px(x, y + 1, sk[3]); px(x, y + 2, sk[0]);
+    }
+    // Three claw scars raked diagonally across, pale and raised.
+    for (let s = 0; s < 3; s++) for (let k = 0; k < 18; k++) { px(9 + s * 4 + Math.floor(k / 2), 5 + k, '#7a5a4a'); px(10 + s * 4 + Math.floor(k / 2), 5 + k, '#4a2e26'); }
+  }, { seed: 191, alpha: true });
 }

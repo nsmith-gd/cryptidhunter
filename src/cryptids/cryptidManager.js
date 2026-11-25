@@ -4,7 +4,10 @@ import { CryptidAI } from './cryptidAI.js';
 // Owns every cryptid in the level and the walkable grids they path on
 // (one grid per body size, baked lazily from the map's colliders).
 export class CryptidManager {
-  constructor({ scene, colliders, halfSize, getPlayerPosition, lures = null, senses = null, calls = null }) {
+  constructor({ scene, colliders, halfSize, getPlayerPosition, lures = null, senses = null, calls = null, level = null, rocks = null, onEvent = null }) {
+    this.level = level;      // escalation level override (null: each cryptid's own home level)
+    this.rocks = rocks;
+    this.onEvent = onEvent;
     this.calls = calls;
     this.senses = senses ? { colliders, ...senses } : null;
     this.lures = lures;
@@ -28,7 +31,7 @@ export class CryptidManager {
 
   spawn(profile, x, z) {
     const c = new CryptidAI({
-      scene: this.scene, grid: this.gridFor(profile), profile, x, z, getPlayerPosition: this.getPlayerPosition, lures: this.lures, senses: this.senses, calls: this.calls,
+      scene: this.scene, grid: this.gridFor(profile), profile, x, z, getPlayerPosition: this.getPlayerPosition, lures: this.lures, senses: this.senses, calls: this.calls, level: this.level, rocks: this.rocks, onEvent: this.onEvent,
     });
     this.cryptids.push(c);
     return c;
