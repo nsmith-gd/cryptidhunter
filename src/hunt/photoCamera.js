@@ -9,6 +9,8 @@ export const PHOTO = {
   raisedFov: 40,       // vertical field of view through the viewfinder (degrees)
   raiseTime: 0.22,     // seconds to bring the camera up
   cooldown: 0.8,
+  filmRoll: 12,        // shots per hunt (misses use film too)
+  thumbWidth: 160,     // album thumbnail size (16:9)
   fullFrame: 0.45,     // a subject this tall in the frame (share of frame height) gets full marks for size
   lookBlur: 6,         // turning the view this many deg/s blurs a photo as much as 1 deg/s of fear shake       // seconds between shots (shutter + wind-on)
 };
@@ -23,8 +25,11 @@ export class PhotoCamera {
    *   With base + height the subject is sampled as a standing column (feet to head);
    *   otherwise as a sphere around center.
    */
-  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0 }) {
+  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, canvas = null, film = PHOTO.filmRoll }) {
     this.camera = camera;
+    this.canvas = canvas;       // the rendered view, for album thumbnails
+    this.filmTotal = film;
+    this.film = film;           // shots left on the roll
     this.getShake = getShake;   // () => degrees/second the view is shaking (fear sway)
     this.scene = scene;
     this.input = input;
@@ -83,13 +88,18 @@ export class PhotoCamera {
       if (this.enabled && !this.raised) { if (this.onLoweredClick) this.onLoweredClick(); else this.toast('Hold right mouse to raise the camera'); }
       return null;
     }
+    if (this.film <= 0) { this.toast('Out of film', 'miss'); this.renderFilm(); return null; } // the shutter won't fire
+    this.film--;
     this.cooldown = PHOTO.cooldown;
     const r = this.evaluate();
     const shake = this.getShake();
     // Camera motion: how fast the view is turning (your mouse) plus fear shake.
     const motion = shake + this.lookSpeed / PHOTO.lookBlur;
     const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, motion, ...photoScore(r, motion), at: performance.now() };
+    entry.thumb = this.thumbnail();   // grabbed before the flash: what the lens saw
+    entry.frame = this.filmTotal - this.film;
     this.log.push(entry);
+    this.renderFilm();
     console.info(r.subject
       ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible, score ${entry.score} (centred ${entry.parts?.centring} size ${entry.parts?.size} visible ${entry.parts?.visibility} steady ${entry.parts?.steadiness})`
       : `[photo] MISS: ${r.reason}`);
@@ -130,6 +140,24 @@ export class PhotoCamera {
       }
     }
     return best ? { ...best, reason: 'in frame' } : { subject: null, distance: 0, visible: 0, samples: 0, reason };
+  }
+
+  /** Small JPEG of the current view for the album (null without a canvas). */
+  thumbnail() {
+    if (!this.canvas) return null;
+    try {
+      const w = PHOTO.thumbWidth, h = Math.round(w * this.canvas.height / this.canvas.width);
+      const c = Object.assign(document.createElement('canvas'), { width: w, height: h });
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;          // keep the pixels crisp
+      g.drawImage(this.canvas, 0, 0, w, h);
+      return c.toDataURL('image/jpeg', 0.8);
+    } catch { return null; }
+  }
+
+  renderFilm() {
+    const el = this.overlay?.querySelector('.vf-film');
+    if (el) { el.textContent = `film ${this.film}/${this.filmTotal}`; el.style.color = this.film <= 2 ? '#ff8a7a' : ''; }
   }
 
   /** True if nothing solid sits between the eye and point p (hits on the subject itself are fine). */
@@ -174,7 +202,7 @@ export class PhotoCamera {
     o.id = 'viewfinder';
     o.innerHTML = `
       <div class="vf-c tl"></div><div class="vf-c tr"></div><div class="vf-c bl"></div><div class="vf-c br"></div>
-      <div class="vf-focus"></div><div class="vf-rec">● CAM</div><div class="vf-help">LMB snap</div>`;
+      <div class="vf-focus"></div><div class="vf-rec">● CAM</div><div class="vf-help">LMB snap · <span class="vf-film"></span></div>`;
     const css = document.createElement('style');
     css.textContent = `
 #viewfinder { position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 12;
@@ -197,6 +225,7 @@ export class PhotoCamera {
     this.label = Object.assign(document.createElement('div'), { id: 'photo-label' });
     document.body.append(o, this.white, this.label);
     this.overlay = o;
+    this.renderFilm();
   }
 
   toast(text, cls = '') {
