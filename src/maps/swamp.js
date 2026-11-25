@@ -5,6 +5,7 @@ import {
   foliageTexture, mudTexture, waterTexture, reedTexture, lilyTexture,
 } from '../art/pixelTex.js';
 import { snapTextureToPalette } from '../art/palette.js';
+import { WATER_OFFSET } from './terrainPainter.js';
 import { cypressSprayCard, longMossCard, lilyFlowerCard, buildFogBanks } from '../art/swampArt.js';
 import { ForestKit } from '../art/forestKit.js';
 
@@ -162,7 +163,9 @@ export function buildSwampMap(scene) {
   water.receiveShadow = true;
   const deepMats = [];
   for (const [x0, z0, x1, z1] of DEEP) {
-    const mat = pixelMaterial(deepTex, { repeat: [(x1 - x0) / 4, (z1 - z0) / 4], roughness: 0.45, metalness: 0.2 });
+    // Deep water sits on the shallow sheet: a fixed depth-bias tier wins cleanly at any distance (#61).
+    const mat = pixelMaterial(deepTex, { repeat: [(x1 - x0) / 4, (z1 - z0) / 4], roughness: 0.45, metalness: 0.2,
+      polygonOffset: true, polygonOffsetFactor: WATER_OFFSET.factor, polygonOffsetUnits: WATER_OFFSET.units });
     deepMats.push(mat);
     add(new THREE.PlaneGeometry(x1 - x0, z1 - z0), mat, (x0 + x1) / 2, W + 0.004, (z0 + z1) / 2,
       { rx: -Math.PI / 2, shadow: false, name: 'water-deep' });

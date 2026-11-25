@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DECAL_OFFSET } from '../maps/terrainPainter.js';
 
 // A Night's Hunt: briefing -> search & track -> photograph the target -> return to the van and
 // choose to leave (H) -> results. A 15-minute night clock runs: at dawn the cryptid leaves the
@@ -145,9 +146,11 @@ export class HuntLoop {
     this.beacon.position.set(1.6, 15, 0);
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(HUNT.extractRadius - 0.12, HUNT.extractRadius, 48).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x3cff7a, transparent: true, opacity: 0.5, depthWrite: false }),
+      // Ground marker: decal tier (#61), drawn over the terrain by depth bias, not a lift.
+      new THREE.MeshBasicMaterial({ color: 0x3cff7a, transparent: true, opacity: 0.5, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: DECAL_OFFSET.factor, polygonOffsetUnits: DECAL_OFFSET.units }),
     );
-    ring.position.y = 0.03;
+    ring.position.y = 0.01;
     g.add(body, nose, windscreen, this.beacon, ring);
     // Van sits just behind the exit point (nose toward it); the ring is centred on the point itself.
     g.position.copy(HUNT.exit);

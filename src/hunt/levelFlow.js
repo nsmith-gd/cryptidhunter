@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DECAL_OFFSET } from '../maps/terrainPainter.js';
 
 // Level flow (L1): at the start of a hunt, pick where the cryptid beds down and where its fresh
 // trail starts from the map's spawn zones, then let it actually walk that route (fast-forwarded)
@@ -102,7 +103,8 @@ export class LevelFlow {
       const g = this.debugGroup = new THREE.Group();
       const ring = (z, color, picked) => {
         // Filled translucent disc plus a solid rim, so it reads from the ground and from overhead.
-        const mat = (o) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: o, depthWrite: false, fog: false });
+        const mat = (o) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: o, depthWrite: false, fog: false,
+          polygonOffset: true, polygonOffsetFactor: DECAL_OFFSET.factor, polygonOffsetUnits: DECAL_OFFSET.units });   // decal tier (#61)
         const disc = new THREE.Mesh(new THREE.CircleGeometry(z.r, 40).rotateX(-Math.PI / 2), mat(picked ? 0.35 : 0.15));
         const rim = new THREE.Mesh(new THREE.RingGeometry(z.r * 0.85, z.r, 40).rotateX(-Math.PI / 2), mat(picked ? 0.95 : 0.5));
         disc.position.set(z.x, 0.05, z.z);
