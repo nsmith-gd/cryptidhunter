@@ -3,6 +3,8 @@ import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { Flashlight } from './flashlight.js';
+import { CryptidManager } from './cryptids/cryptidManager.js';
+import { PROFILES } from './cryptids/profiles.js';
 import { Mothman } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
@@ -31,7 +33,7 @@ const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
 
-const { colliders } = buildTestMap(scene);
+const { colliders, bounds, spawns } = buildTestMap(scene);
 const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
 scene.add(camera); // camera carries the flashlight
@@ -40,6 +42,11 @@ const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
 const batteries = new BatteryPickups(scene, player, flashlight);
 const bars = new Hud(player, flashlight);
+
+// Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
+const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position });
+const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
+cryptids.spawn(PROFILES.bigfoot, bigfootSpawn.x, bigfootSpawn.z);
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -61,10 +68,12 @@ function frame() {
   player.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
+  cryptids.update(dt);
   mothman.update(dt);
   chupacabra.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
-  hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}`;
+  hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
+    cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('');
   bars.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -72,4 +81,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { player, flashlight, batteries, mothman, chupacabra, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, input, scene, camera, renderer, overlay };

@@ -1,10 +1,10 @@
-// Plain HUD bars for stamina and flashlight battery, bottom-left above the status line.
+// Plain HUD bars for stamina and flashlight battery, top-left.
 export class Hud {
   constructor(player, flashlight) {
     this.player = player;
     this.flashlight = flashlight;
     const root = document.createElement('div');
-    Object.assign(root.style, { position: 'fixed', left: '8px', bottom: '28px', font: '11px monospace', color: '#ccc',
+    Object.assign(root.style, { position: 'fixed', left: '8px', top: '8px', font: '11px monospace', color: '#ccc',
       textShadow: '0 0 2px #000', pointerEvents: 'none' });
     document.body.appendChild(root);
     this.stamina = this.bar(root, 'STAMINA', '#7fc8ff');

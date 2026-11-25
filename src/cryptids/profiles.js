@@ -1,0 +1,54 @@
+// Per-cryptid tuning. The shared CryptidAI reads everything from a profile, so each cryptid
+// (Bigfoot, ...) is just a different data entry on the same brain. L0: movement + flee numbers
+// and the placeholder capsule size/colour only.
+
+export const DEFAULT_PROFILE = Object.freeze({
+  id: 'unknown',
+  name: 'Unknown Cryptid',
+  // Placeholder body (metres).
+  height: 2.0,
+  radius: 0.4,
+  color: 0x6b5a48,
+  // Roam.
+  roamRadius: 25,        // how far from home it wanders
+  roamSpeed: 1.6,
+  roamPause: [1, 4],     // seconds it lingers at each point (min, max)
+  // Flee.
+  fleeTriggerDistance: 10, // player inside this → bolt
+  fleeSafeDistance: 20,    // keeps running until the player is this far away
+  fleeSpeed: 6.5,
+  fleeStep: 14,            // how far ahead each flee destination is picked
+  acceleration: 10,
+  turnRate: 7,             // radians / second
+  // Clue data for the clues system (not dropped at L0). null = leaves none.
+  clues: null,
+});
+
+export function makeProfile(overrides = {}) {
+  return Object.freeze({ ...DEFAULT_PROFILE, ...overrides });
+}
+
+// Bigfoot: the starter cryptid of Pine Hollow forest. Tall, shy (notices you from further away
+// than most) and very fast once it bolts; leaves big footprints and makes wood knocks.
+export const BIGFOOT = makeProfile({
+  id: 'bigfoot',
+  name: 'Bigfoot',
+  height: 2.4,
+  radius: 0.55,
+  color: 0x4a3626,
+  roamRadius: 30,
+  roamSpeed: 1.8,
+  roamPause: [2, 6],
+  fleeTriggerDistance: 15, // shy: bolts well before you get close
+  fleeSafeDistance: 30,
+  fleeSpeed: 8.5,          // faster than the player's sprint (6 m/s): you can't run it down
+  fleeStep: 18,
+  acceleration: 14,
+  turnRate: 6,
+  clues: Object.freeze({
+    footprint: Object.freeze({ length: 0.45, width: 0.2, stride: 1.5 }), // metres; human boot ~0.3
+    woodKnock: Object.freeze({ intervalSeconds: [20, 60] }),
+  }),
+});
+
+export const PROFILES = Object.freeze({ default: DEFAULT_PROFILE, bigfoot: BIGFOOT });
