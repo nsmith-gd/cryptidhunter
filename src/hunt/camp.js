@@ -9,10 +9,11 @@ export const CAMP = {
   ratePerPoint: 2,          // $ per photo-score point
   targetBonus: 3,           // the hunt's target cryptid is worth this many times more
   // Starter kit: consumables are topped back up to this at camp before every hunt.
-  starter: { camera: 1, flashlight: 1, bait: 3, spareBatteries: 1 },
+  starter: { camera: 1, flashlight: 1, bait: 3, spareBatteries: 1, trailCamera: 2, audioLure: 1, nightVision: 1, knockStick: 1 },
 };
 
-const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery' };
+const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery',
+  trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick' };
 
 let memory = null;
 
@@ -94,8 +95,9 @@ export class Camp {
 
 export function gearList(gear) {
   return Object.entries(gear).filter(([, n]) => n > 0)
-    .map(([k, n]) => (k === 'camera' || k === 'flashlight' ? GEAR_NAMES[k]
-      : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}` : `${n} ${GEAR_NAMES[k] ?? k}`)).join(', ');
+    .map(([k, n]) => (['camera', 'flashlight', 'nightVision', 'knockStick'].includes(k) ? GEAR_NAMES[k]
+      : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}`
+        : `${n} ${GEAR_NAMES[k] ?? k}${n > 1 && k !== 'bait' ? 's' : ''}`)).join(', ');
 }
 
 /** One-paragraph summary of a settled hunt for end screens and the camp panel. */
