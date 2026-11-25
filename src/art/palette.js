@@ -47,3 +47,36 @@ export function ramp(name, i) {
   const r = RAMPS[name];
   return r[Math.max(0, Math.min(r.length - 1, i))];
 }
+
+// --- Palette snapping ------------------------------------------------------------------------
+const PAL_RGB = PALETTE.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+
+/** Nearest palette colour to an RGB triple (weighted RGB distance, a cheap perceptual stand-in). */
+export function nearestPaletteRGB(r, g, b) {
+  let best = PAL_RGB[0], bd = Infinity;
+  for (const p of PAL_RGB) {
+    const dr = r - p[0], dg = g - p[1], db = b - p[2];
+    const d = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+    if (d < bd) { bd = d; best = p; }
+  }
+  return best;
+}
+
+/**
+ * Snap every opaque texel of a canvas-backed texture to the master palette (style guide rule 2).
+ * Safe to call repeatedly: a texture is only snapped once.
+ */
+export function snapTextureToPalette(tex) {
+  if (tex.userData.paletteSnapped) return tex;
+  const c = tex.image, g = c.getContext('2d');
+  const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    const p = nearestPaletteRGB(d[i], d[i + 1], d[i + 2]);
+    d[i] = p[0]; d[i + 1] = p[1]; d[i + 2] = p[2];
+  }
+  g.putImageData(img, 0, 0);
+  tex.needsUpdate = true;
+  tex.userData.paletteSnapped = true;
+  return tex;
+}
