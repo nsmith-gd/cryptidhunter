@@ -17,6 +17,8 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4319/');
 await page.waitForFunction(() => window.__game);
+// Park the stalker so it can't interfere with this check.
+await page.evaluate(() => { if (__game.chupacabra) __game.chupacabra.update = () => {}; });
 await page.evaluate(() => {
   __game.overlay.classList.add('hidden');
   const p = __game.player; p.position.set(20, 0, 15); p.yaw = 0; p.pitch = 0;
