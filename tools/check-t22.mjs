@@ -103,7 +103,7 @@ const fedUp = await turn(() => {
   const g = __game; g.overlay.classList.add('hidden'); g.input.locked = true; g.huntFailure.enabled = false;
   const b = g.cryptids.cryptids[0]; b.tickRoam = () => {}; b.agent.stop(); b.findLure = () => false;
   b.agent.x = -28; b.agent.z = 30; b.agent.heading = -Math.PI / 2; b.perception.reset();
-  b.flees = 3;                                                                          // already chased off 3 times
+  b.agitation = 0.9; b.lastWarn = -30;                                                  // already pushed it hard and been warned
   const p = g.player; p.position.set(-12, 0, 30); p.yaw = Math.PI / 2; p.pitch = 0;    // 16 m away
   if (!g.flashlight.on) g.flashlight.toggle();
 });

@@ -1,21 +1,22 @@
 import * as THREE from 'three';
 
 const STATE_COLORS = {
-  roam: '#9fb4c8', investigate: '#7fd0ff', observe: '#ffc23a', flee: '#ff5a4a', aggress: '#ff8a2a',
+  roam: '#9fb4c8', investigate: '#7fd0ff', observe: '#ffc23a', flee: '#ff5a4a', aggress: '#ff8a2a', shadow: '#c9a0ff', warn: '#ff6a2a',
 };
 
 // Debug overlay for the cryptid behaviour state machine (F4 toggles it).
 // A panel lists each cryptid's state, how long it has been in it, what it senses and its
 // recent transitions with the reason; a floating label over each cryptid shows its state.
 export class AIDebug {
-  constructor(scene, manager, { visible = true } = {}) {
+  constructor(scene, manager, { visible = true, others = () => [] } = {}) {
+    this.others = others;   // cryptids with their own movement (Mothman, Chupacabra): tree only
     this.scene = scene;
     this.manager = manager;
     this.labels = new Map();
     this.panel = document.createElement('div');
     Object.assign(this.panel.style, {
-      position: 'fixed', right: '8px', top: '130px', width: '300px', font: '11px monospace', color: '#ddd',
-      background: 'rgba(0,0,0,0.55)', padding: '6px 8px', whiteSpace: 'pre', pointerEvents: 'none', lineHeight: '1.45',
+      position: 'fixed', right: '8px', top: '130px', width: '340px', font: '11px monospace', color: '#ddd',
+      background: 'rgba(0,0,0,0.55)', padding: '6px 8px', whiteSpace: 'pre-wrap', pointerEvents: 'none', lineHeight: '1.45',
       border: '1px solid #333',
     });
     this.panel.id = 'ai-debug';
@@ -57,7 +58,8 @@ export class AIDebug {
       if (pc) {
         lines.push(`  hear ${pc.hearLevel.toFixed(2)}  see ${Math.max(pc.sightLevel, pc.beamLevel).toFixed(2)}  aware ${pc.awareness.toFixed(2)}${pc.detected ? ' DETECTED' : ''}`);
       }
-      lines.push(`  ${c.playerDistance.toFixed(1)} m from you · on detect: ${c.profile.behavior?.onDetect ?? 'flee'}`);
+      lines.push(`  ${c.playerDistance.toFixed(1)} m from you · level ${c.level} · agitation ${c.agitation.toFixed(2)}`);
+      if (c.brain) lines.push(`  tree: ${c.brain.pathText}`);
       for (const h of c.history.slice(-5).reverse()) {
         lines.push(`  ${h.t.toFixed(1).padStart(6)}s ${h.from} → ${h.to}${h.why ? ` (${h.why})` : ''}`);
       }
@@ -80,6 +82,10 @@ export class AIDebug {
       // Keep it a readable size on screen at the game's low render resolution.
       const k = Math.max(1, d / 5);
       l.scale.set(3.2 * k, 0.6 * k, 1);
+    }
+    for (const o of this.others()) {
+      lines.push('', `${o.name}  [${o.state.toUpperCase()}]  level ${o.level}`);
+      lines.push(`  tree: ${o.pathText ?? ''}`);
     }
     this.panel.textContent = lines.join('\n');
   }

@@ -1,8 +1,27 @@
 import * as THREE from 'three';
+import { sel, seq, when, act, tier, Brain, OK, RUN, FAIL } from './brains/bt.js';
 
-// Chupacabra greybox placeholder: a low box that creeps after the player only while
-// they aren't looking at it, and charges once it gets within range unseen.
+// CHUPACABRA — behaviour tree, lore first (Puerto Rico 1995, then Texas ranch country):
+//  · The "goat-sucker": a low, spined night predator that drains livestock through puncture
+//    wounds. It is hungry above all else — blood bait stops it in its tracks.
+//  · It hunts like a predator: it never comes at you while you face it; it creeps in when
+//    your back is turned, circles to get behind you, then coils and leaps.
+//  · Reported to hiss before it strikes, and to shy from bright light.
+// Rules this teaches the player:
+//  1. Never turn your back on it — while you watch it, it freezes.
+//  2. A hiss means it's coiling to pounce: turn and face it NOW.
+//  3. Bright light close up drives it back (not at the highest level).
+//  4. Bait buys you time: it can't resist feeding.
+// Escalation: at higher levels it's faster, coils quicker, flanks, and stops fearing the light.
+export const CHUPA_TIERS = {
+  1: { stalkSpeed: 2.0, windup: 0.6, flank: false, lightRepel: 12, retreatDistance: 18 },
+  2: { stalkSpeed: 2.6, windup: 0.45, flank: true, lightRepel: 8, retreatDistance: 16 },
+  3: { stalkSpeed: 3.0, windup: 0.35, flank: true, lightRepel: 0, retreatDistance: 11 },
+};
 export const CHUPA = {
+  homeLevel: 3,            // ranch country: the third and harshest hunting ground
+  scentRange: 30,          // smells blood bait this far away
+  eatTime: 8,
   catchHits: 3,            // small: you can shake it off twice; the third charge that lands ends the hunt
   spawn: new THREE.Vector3(14, 0, 22),
   size: new THREE.Vector3(0.6, 0.55, 1.1),   // width, height, length (metres)
@@ -23,7 +42,13 @@ const _v = new THREE.Vector3();
 const _ray = new THREE.Ray();
 
 export class Chupacabra {
-  constructor(scene, player, camera, colliders) {
+  constructor(scene, player, camera, colliders, { level = null, lures = null, flashlight = null, onEvent = null } = {}) {
+    this.level = level ?? CHUPA.homeLevel;
+    this.lures = lures;          // bait it can smell: { lures(), consume(b) }
+    this.flashlight = flashlight;
+    this.onEvent = onEvent;
+    this.bait = null; this.eatLeft = 0;
+    this.name = 'Chupacabra';
     this.player = player;
     this.camera = camera;
     this.colliders = colliders;
@@ -58,6 +83,113 @@ export class Chupacabra {
       pointerEvents: 'none', opacity: '0', transition: 'opacity .5s',
     });
     document.body.appendChild(this.flash);
+    this.brain = this.buildBrain();
+  }
+
+  get T() { return CHUPA_TIERS[Math.min(3, Math.max(1, this.level))]; }
+  emit(type, data = {}) { this.onEvent?.(type, { name: 'Chupacabra', ...data }); }
+  get pathText() { return this.brain.pathText; }
+
+  /** Your flashlight beam is on it (and it's close enough to be blinded). */
+  lit(maxDist) {
+    if (!maxDist || !this.flashlight?.on) return false;
+    const to = this.position.clone().sub(this.camera.position);
+    return to.length() < maxDist && this.camera.getWorldDirection(new THREE.Vector3()).angleTo(to) < THREE.MathUtils.degToRad(20);
+  }
+
+  nearestBait() {
+    if (!this.lures) return null;
+    let best = null, bd = CHUPA.scentRange;
+    for (const b of this.lures.lures()) {
+      if (b.gone || (b.claimedBy && b.claimedBy !== this)) continue;
+      const d = Math.hypot(b.x - this.position.x, b.z - this.position.z);
+      if (d < bd) { best = b; bd = d; }
+    }
+    return best;
+  }
+
+  buildBrain() {
+    const c = this;
+    const root = sel('Chupacabra',
+      seq('Pouncing', when('leaping', () => c.state === 'charge'), act('leap', () => c.tickCharge())),
+      seq('Coiling', when('coiling', () => c.state === 'windup'), act('hiss and coil', () => c.tickWindup())),
+      seq('Slinking off', when('retreating', () => c.state === 'retreat'), act('slink off', () => c.tickRetreat())),
+      seq('Hungry', when('smells bait', () => (c.bait = c.bait && !c.bait.gone ? c.bait : c.nearestBait())), act('drain the bait', () => c.tickFeed())),
+      seq('Blinded', when('beam on it, close', () => c.lit(c.T.lightRepel)), act('back out of the light', () => c.tickBackoff())),
+      seq('Watched', when('you are facing it', () => c.watched), act('freeze', () => { c.enter2('freeze'); return RUN; })),
+      seq('In range', when('close and unseen', () => c.dist <= CHUPA.chargeRange), act('coil to pounce', () => { c.enter('windup'); c.emit('hiss'); return RUN; })),
+      tier(2, seq('Flank', when('your back is turned', () => c.T.flank && c.dist < 16), act('circle behind you', () => c.tickFlank()))),
+      act('stalk', () => c.tickStalk()),
+    );
+    return new Brain(root, { get level() { return c.level; } });
+  }
+
+  enter2(state) { if (this.state !== state) this.enter(state); }
+
+  tickStalk() {
+    this.enter2('stalk');
+    this.face(this.toPlayer);
+    this.move(this.toPlayer.clone().normalize(), this.T.stalkSpeed * this.dt);
+    return RUN;
+  }
+
+  // Aim for a point behind you (opposite to where you're looking), closing in as it goes.
+  tickFlank() {
+    this.enter2('flank');
+    const p = this.player.position, f = this.camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+    const behind = new THREE.Vector3(p.x - f.x * 3, 0, p.z - f.z * 3);
+    const dir = behind.sub(this.position).setY(0);
+    if (dir.length() < 0.5) dir.copy(this.toPlayer);
+    this.face(dir);
+    this.move(dir.normalize(), this.T.stalkSpeed * 1.15 * this.dt);
+    return RUN;
+  }
+
+  tickWindup() {
+    this.face(this.toPlayer);
+    if (this.watched) { this.enter('freeze'); return RUN; }   // you turned in time
+    if (this.timer >= this.T.windup) { this.chargeDir.copy(this.toPlayer).normalize(); this.enter('charge'); }
+    return RUN;
+  }
+
+  tickCharge() {
+    this.move(this.chargeDir, CHUPA.chargeSpeed * this.dt);
+    if (this.flatToPlayer().length() < CHUPA.hitRadius) this.hitPlayer();
+    else if (this.timer >= CHUPA.chargeMaxTime) this.enter('stalk');
+    return RUN;
+  }
+
+  tickRetreat() {
+    const away = new THREE.Vector3(this.retreatTo.x - this.position.x, 0, this.retreatTo.z - this.position.z);
+    if (away.length() < 0.5 || this.timer > 5) { this.enter('stalk'); return OK; }
+    this.face(away);
+    this.move(away.normalize(), CHUPA.retreatSpeed * this.dt);
+    return RUN;
+  }
+
+  tickBackoff() {
+    this.enter2('backoff');
+    const away = this.toPlayer.clone().negate().normalize();
+    this.face(this.toPlayer);
+    this.move(away, CHUPA.retreatSpeed * 0.7 * this.dt);
+    return RUN;
+  }
+
+  tickFeed() {
+    const b = this.bait;
+    const to = new THREE.Vector3(b.x - this.position.x, 0, b.z - this.position.z);
+    if (to.length() > 0.8) {
+      this.enter2('feed');
+      b.claimedBy = this;
+      this.face(to);
+      this.move(to.normalize(), this.T.stalkSpeed * 1.4 * this.dt);
+      this.eatLeft = CHUPA.eatTime;
+      return RUN;
+    }
+    this.enter2('feed');
+    this.eatLeft -= this.dt;
+    if (this.eatLeft <= 0) { this.lures.consume(b); this.bait = null; this.emit('fed'); return OK; }
+    return RUN;
   }
 
   get position() { return this.mesh.position; }
@@ -84,40 +216,12 @@ export class Chupacabra {
   }
 
   update(dt) {
+    this.dt = dt;
     this.watched = this.isWatched();
-    const toPlayer = this.flatToPlayer();
-    const dist = toPlayer.length();
+    this.toPlayer = this.flatToPlayer();
+    this.dist = this.toPlayer.length();
     this.timer += dt;
-
-    switch (this.state) {
-      case 'stalk':
-        if (this.watched) break;              // freezes while you look at it
-        if (dist <= CHUPA.chargeRange) { this.enter('windup'); break; }
-        this.face(toPlayer);
-        this.move(toPlayer.normalize(), CHUPA.stalkSpeed * dt);
-        break;
-      case 'windup':
-        this.face(toPlayer);
-        if (this.watched) { this.enter('stalk'); break; }   // caught it in time
-        if (this.timer >= CHUPA.chargeWindup) {
-          this.chargeDir.copy(toPlayer).normalize();
-          this.enter('charge');
-        }
-        break;
-      case 'charge': {
-        this.move(this.chargeDir, CHUPA.chargeSpeed * dt);
-        if (this.flatToPlayer().length() < CHUPA.hitRadius) this.hitPlayer();
-        else if (this.timer >= CHUPA.chargeMaxTime) this.enter('stalk');
-        break;
-      }
-      case 'retreat': {
-        const away = new THREE.Vector3(this.retreatTo.x - this.position.x, 0, this.retreatTo.z - this.position.z);
-        if (away.length() < 0.5 || this.timer > 5) { this.enter('stalk'); break; }
-        this.face(away);
-        this.move(away.normalize(), CHUPA.retreatSpeed * dt);
-        break;
-      }
-    }
+    this.brain.tick();
     // Squash during wind-up so the leap is telegraphed.
     this.mesh.scale.y = this.state === 'windup' ? 0.7 : 1;
   }
@@ -135,7 +239,7 @@ export class Chupacabra {
     this.flash.style.transition = 'none';
     this.flash.style.opacity = '1';
     requestAnimationFrame(() => { this.flash.style.transition = 'opacity .8s'; this.flash.style.opacity = '0'; });
-    this.retreatTo.copy(this.position).addScaledVector(this.chargeDir, -CHUPA.retreatDistance);
+    this.retreatTo.copy(this.position).addScaledVector(this.chargeDir, -this.T.retreatDistance);
     this.enter('retreat');
   }
 
