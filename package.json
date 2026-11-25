@@ -27,7 +27,8 @@
     "check:t9": "vite build && node tools/check-t9.mjs",
     "check:t48": "vite build && node tools/check-t48.mjs",
     "check:t49": "vite build && node tools/check-t49.mjs",
-    "check:t4": "vite build && node tools/check-t4.mjs"
+    "check:t4": "vite build && node tools/check-t4.mjs",
+    "check:t28": "vite build && node tools/check-t28.mjs"
   },
   "repository": {
     "type": "git",

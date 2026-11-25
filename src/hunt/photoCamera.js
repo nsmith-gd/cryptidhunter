@@ -79,7 +79,7 @@ export class PhotoCamera {
       ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible`
       : `[photo] MISS: ${r.reason}`);
     this.flash(entry);
-    this.onPhoto?.({ subject: r.subject, distance: r.distance });
+    this.onPhoto?.({ subject: r.subject, distance: r.distance, visible: r.visible, samples: r.samples });
     return entry;
   }
 
@@ -201,7 +201,7 @@ export class PhotoCamera {
 
 // Points on the subject to test: a standing column (feet, knees, chest, head, shoulders)
 // or a sphere (centre plus four points on its rim, square to the view).
-function samplePoints(s, eye) {
+export function samplePoints(s, eye) {
   const right = new THREE.Vector3().subVectors(s.center, eye).setY(0).normalize();
   right.set(-right.z, 0, right.x);
   if (s.base && s.height) {
@@ -214,7 +214,7 @@ function samplePoints(s, eye) {
     s.center.clone().add(new THREE.Vector3(0, r, 0)), s.center.clone().add(new THREE.Vector3(0, -r, 0))];
 }
 
-function isPartOf(o, root) {
+export function isPartOf(o, root) {
   for (; o; o = o.parent) if (o === root) return true;
   return false;
 }
