@@ -5,6 +5,7 @@ import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
 import { NightLighting } from './maps/nightLighting.js';
+import { PixelWater } from './art/pixelWater.js';
 import { Atmosphere, timeOfDayConfig } from './maps/atmosphere.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
@@ -244,7 +245,11 @@ chupacabra.onHit = () => {
 };
 
 const pixels = new PixelPipeline({ renderer, camera });
-const drawFrame = () => pixels.frame(() => { if (!nightVision.render()) renderer.render(scene, camera); });
+// Swamp water: pixelated reflections, texel-snapped ripples and a moon sheen (art/pixelWater.js).
+const water = mapId === 'swamp' ? new PixelWater({ renderer, scene, camera, height: map.waterHeight ?? 0.3,
+  moonDir: night?.moonDir, moonColor: night ? new THREE.Color(night.cfg.moonColor) : undefined }) : null;
+water?.applyToScene();
+const drawFrame = () => pixels.frame(() => { water?.renderReflection(); if (!nightVision.render()) renderer.render(scene, camera); });
 
 // Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
 // once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
@@ -312,6 +317,7 @@ function frame() {
   huntFailure.update();
   aiDebug.update(camera);
   night?.update(player.position, dt);
+  water?.update(dt);
   atmosphere?.update(dt);
   trailReader.update(dt);
   drawFrame();
@@ -320,4 +326,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, pixels, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, water, pixels, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

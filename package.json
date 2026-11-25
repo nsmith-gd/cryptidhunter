@@ -41,7 +41,8 @@
     "capture:t39": "node tools/capture-t39.mjs",
     "check:t26": "vite build && node tools/check-t26.mjs",
     "capture:t40": "vite build && node tools/capture-t40.mjs",
-    "check:t35": "vite build && node tools/check-t35.mjs"
+    "check:t35": "vite build && node tools/check-t35.mjs",
+    "check:t41": "vite build && node tools/check-t41.mjs"
   },
   "repository": {
     "type": "git",
