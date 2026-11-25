@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ForestKit } from '../art/forestKit.js';
+import { dressForest } from './forestDressing.js';
 
 // Pine Hollow Forest — greybox (L0). The starter hunting ground and Bigfoot's home.
 // Layout (north = -z), 300 x 300 m:
@@ -58,6 +59,7 @@ const COLORS = {
 
 export function buildForestMap(scene) {
   const H = FOREST.half;
+  const firstChild = scene.children.length;   // everything after this is the map (for the texture pass)
   const colliders = [];
   const rng = mulberry32(1337);
   const mats = new Map();
@@ -404,6 +406,9 @@ export function buildForestMap(scene) {
   // Wind: advance the sway clock from the render loop (no extra hook needed in main).
   const swayer = kitGroup.children.find((c) => c.name.startsWith('kit-fern')) ?? kitGroup.children[0];
   if (swayer) swayer.onBeforeRender = () => { kit.wind.value = performance.now() / 1000; };
+
+  // Texture pass: painted pixel textures on every surface (art #38, docs/art-style-guide.md).
+  for (const p of dressForest({ meshes: scene.children.slice(firstChild), colors: COLORS, half: H, rng, keepClear })) scene.add(p);
 
   /** 'dry' | 'shallow' — wading the creek (bridge and stones count as dry). */
   const surfaceAt = (x, z, y = 0) => {

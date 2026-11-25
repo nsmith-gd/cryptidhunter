@@ -1,294 +1,261 @@
-import { pixelTexture } from './pixelTex.js';
+import { pixelTexture, rng } from './pixelTex.js';
+import { RAMPS } from './palette.js';
 
-// Pixel-art textures for the Pine Hollow forest kit (trees, ferns, bushes, logs, rocks, ground
-// cover). Same approach as pixelTex.js: tiny canvases, small hue-shifted palettes (shadows lean
-// blue-green, lights lean warm yellow-green), dark outlines, deliberate wear. Nearest sampled.
+// Pine Hollow forest texture set, painted to the style guide (docs/art-style-guide.md):
+// 32 texels per metre, master-palette ramps only, posterised value bands with ordered
+// dithering only where bands meet, 1-texel darkest-ramp outlines on material breaks
+// (cracks, plate edges, leaf and pebble undersides), soft top light painted in (highlights
+// on upper edges). Every tile wraps seamlessly: all noise and features are periodic.
 
-const pick = (r, arr) => arr[Math.floor(r() * arr.length) % arr.length];
+// ---- Periodic helpers ----------------------------------------------------------------------
 
-// --- Pine ------------------------------------------------------------------------------------
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
-// Ponderosa/Douglas-fir style bark, 16 x 32: deep dark fissures around warm red-brown plates,
-// grey weathered plate edges, a few lichen flecks.
-export function pineBarkTexture(variant = 0) {
-  return pixelTexture(`pineBark${variant}`, 16, 32, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#120f0e', '#221c19', '#352c27', '#4a3f37', '#5f5349', '#77695c']      // old grey (snags, logs)
-      : ['#140d0b', '#28181b', '#3d241a', '#56331f', '#6e4428', '#8a5a36'];      // living, red-brown
-    g.fillStyle = pal[0]; g.fillRect(0, 0, w, h);
-    // Plates: irregular rounded rectangles stacked in staggered columns.
-    for (let col = 0; col < 4; col++) {
-      let y = Math.floor(r() * 6) - 6;
-      while (y < h + 6) {
-        const pw = 3 + Math.floor(r() * 2), ph = 4 + Math.floor(r() * 5), x0 = col * 4 + Math.floor(r() * 2) - 1;
-        for (let yy = 1; yy < ph; yy++) for (let xx = 0; xx < pw; xx++) {
-          const edge = xx === 0 || xx === pw - 1 || yy === 1 || yy === ph - 1;
-          if (edge && (yy === 1 || yy === ph - 1) && (xx === 0 || xx === pw - 1)) continue; // rounded corners
-          let c = 3;
-          if (yy === 1) c = 4;                         // lit top lip of each plate
-          else if (xx === pw - 1 || yy === ph - 1) c = 2; // shaded side and bottom
-          if (!edge && r() < 0.18) c = r() < 0.5 ? 4 : 2;
-          if (yy === 1 && r() < 0.3) c = 5;            // sun-bleached flake
-          px(x0 + xx, y + yy, pal[c]);
-        }
-        y += ph;
-      }
-    }
-    // A few dark resin streaks and lichen.
-    for (let i = 0; i < 3; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); for (let k = 0; k < 3; k++) px(x, y + k, pal[1]); }
-    for (let i = 0; i < 6; i++) px(Math.floor(r() * w), Math.floor(r() * h), r() < 0.6 ? '#56634a' : '#7d8a63');
-  }, { seed: 201 + variant });
+/** Tileable value noise: `cells` lattice cells across the tile, smoothstep-interpolated. */
+function periodicNoise(r, w, h, cellsX, cellsY = cellsX) {
+  const g = [];
+  for (let j = 0; j < cellsY; j++) { g.push([]); for (let i = 0; i < cellsX; i++) g[j].push(r()); }
+  const s = (t) => t * t * (3 - 2 * t);
+  return (x, y) => {
+    const fx = (((x / w) * cellsX) % cellsX + cellsX) % cellsX, fy = (((y / h) * cellsY) % cellsY + cellsY) % cellsY;
+    const i0 = Math.floor(fx), j0 = Math.floor(fy), i1 = (i0 + 1) % cellsX, j1 = (j0 + 1) % cellsY;
+    const tx = s(fx - i0), ty = s(fy - j0);
+    const a = g[j0][i0] + (g[j0][i1] - g[j0][i0]) * tx;
+    const b = g[j1][i0] + (g[j1][i1] - g[j1][i0]) * tx;
+    return a + (b - a) * ty;
+  };
 }
 
-// Needle mass wrapped on each tier of the crown, 32 x 32 (tiles). Layered sprays: each spray is a
-// lit upper edge of needle ticks over a deep blue-green shadow, so the tier reads as branches.
-export function pineNeedleTexture(variant = 0) {
-  return pixelTexture(`pineNeedles${variant}`, 32, 32, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#0a1412', '#10201b', '#173025', '#20402c', '#2d5534', '#3f6c3b', '#5a8446']   // fir: bluer, deeper
-      : ['#0b1310', '#121f17', '#1b2f1d', '#253f24', '#33532b', '#466a34', '#61833f'];  // pine: warmer
-    g.fillStyle = pal[1]; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 46; i++) {
-      // One spray: a short drooping branch running down-right or down-left.
-      const x0 = Math.floor(r() * w), y0 = Math.floor(r() * h), dir = r() < 0.5 ? 1 : -1, len = 5 + Math.floor(r() * 6);
+/** Fractal (2-3 octave) periodic noise in 0..1. */
+function fbm(r, w, h, base, octaves = 3) {
+  const layers = [];
+  for (let o = 0; o < octaves; o++) layers.push(periodicNoise(r, w, h, base << o, base << o));
+  return (x, y) => {
+    let v = 0, amp = 1, tot = 0;
+    for (const n of layers) { v += n(x, y) * amp; tot += amp; amp *= 0.5; }
+    return v / tot;
+  };
+}
+
+/** Posterise a 0..1 value into a ramp index range with Bayer dithering at the band edges. */
+function band(v, x, y, lo, hi) {
+  const t = lo + v * (hi - lo + 1) - 0.5;
+  const base = Math.floor(t), frac = t - base;
+  const d = BAYER4[(y & 3) * 4 + (x & 3)];
+  return Math.max(lo, Math.min(hi, base + (frac > d ? 1 : 0)));
+}
+
+/** Periodic Voronoi: returns { d1, d2, id } for the nearest and second-nearest seed. */
+function voronoi(r, w, h, n, stretchY = 1) {
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push({ x: r() * w, y: r() * h, id: i, v: r() });
+  return (x, y) => {
+    let d1 = Infinity, d2 = Infinity, best = null;
+    for (const p of pts) {
+      let dx = Math.abs(x - p.x), dy = Math.abs(y - p.y);
+      dx = Math.min(dx, w - dx); dy = Math.min(dy, h - dy) / stretchY;
+      const d = Math.hypot(dx, dy);
+      if (d < d1) { d2 = d1; d1 = d; best = p; } else if (d < d2) d2 = d;
+    }
+    return { d1, d2, p: best };
+  };
+}
+
+// ---- Textures -------------------------------------------------------------------------------
+
+/** Pine bark, 32 x 64 (1 m around x 2 m tall): long vertical plates split by dark fissures. */
+export function pineBarkTexture() {
+  return pixelTexture('f-bark', 32, 64, (g, px, r, w, h) => {
+    const R = RAMPS.bark, L = RAMPS.lichen;
+    const vor = voronoi(r, w, h, 14, 3.2);          // tall plates
+    const n = fbm(r, w, h, 2, 3);
+    const grid = [];
+    for (let y = 0; y < h; y++) {
+      grid.push([]);
+      for (let x = 0; x < w; x++) {
+        const { d1, d2, p } = vor(x, y);
+        const edge = d2 - d1;
+        let i;
+        if (edge < 0.9) i = 0;                                  // fissure: darkest (outline rule)
+        else if (edge < 1.8) i = 1;
+        else i = band(0.25 + p.v * 0.35 + n(x, y) * 0.4, x, y, 2, 5);
+        grid[y].push(i);
+      }
+    }
+    // Plates catch light on their upper-left rims (soft top light).
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let i = grid[y][x];
+      if (i >= 2 && grid[(y + h - 1) % h][x] <= 1) i = Math.min(6, i + 2);
+      else if (i >= 2 && grid[y][(x + w - 1) % w] <= 1) i = Math.min(6, i + 1);
+      px(x, y, R[i]);
+    }
+    // Horizontal scale lines across plates (pine bark flakes).
+    for (let k = 0; k < 26; k++) {
+      const x = Math.floor(r() * w), y = Math.floor(r() * h), len = 2 + Math.floor(r() * 3);
+      for (let j = 0; j < len; j++) if (grid[y][(x + j) % w] >= 2) px(x + j, y, R[1]);
+    }
+    // Lichen crusts in a few patches.
+    for (let k = 0; k < 5; k++) {
+      const cx = Math.floor(r() * w), cy = Math.floor(r() * h);
+      for (let j = 0; j < 7; j++) {
+        const x = cx + Math.floor(r() * 4) - 1, y = cy + Math.floor(r() * 4) - 1;
+        if (grid[(y + h) % h][(x + w) % w] >= 2) px(x, y, L[Math.floor(r() * 3)]);
+      }
+      px(cx, cy, L[3]);
+    }
+  }, { seed: 501 });
+}
+
+/** Forest dirt / trail, 64 x 64 (2 m): packed earth, pebbles with outlines, root threads. */
+export function dirtTexture() {
+  return pixelTexture('f-dirt', 64, 64, (g, px, r, w, h) => {
+    const R = RAMPS.dirt, K = RAMPS.rock;
+    const n = fbm(r, w, h, 3, 3), m = fbm(r, w, h, 8, 2);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, R[band(n(x, y) * 0.7 + m(x, y) * 0.3, x, y, 1, 4)]);
+    // Pebbles: 2-3 texel stones, lit top-left, outlined bottom-right.
+    for (let k = 0; k < 34; k++) {
+      const x = Math.floor(r() * w), y = Math.floor(r() * h), big = r() < 0.4;
       const tone = 3 + Math.floor(r() * 2);
-      for (let k = 0; k < len; k++) {
-        const x = x0 + dir * k, y = y0 + Math.floor(k * 0.45);
-        px(x, y + 1, pal[0]);                           // shadow under the spray
-        px(x, y, pal[tone]);
-        if (k % 2 === 0) { px(x, y - 1, pal[tone + 1]); if (r() < 0.45) px(x - dir, y - 2, pal[Math.min(6, tone + 2)]); } // needle tips catch light
+      px(x, y, K[tone]); if (big) { px(x + 1, y, K[tone - 1]); px(x, y + 1, K[tone - 1]); px(x + 1, y + 1, K[tone - 2]); }
+      px(x - 1, y - 1, K[tone + 1]);                               // highlight
+      px(x + (big ? 2 : 1), y + (big ? 1 : 0), R[0]);             // outline / contact shadow
+      px(x + (big ? 1 : 0), y + (big ? 2 : 1), R[0]);
+    }
+    // Root threads: thin wandering darker lines with a lit pixel every so often.
+    for (let k = 0; k < 4; k++) {
+      let x = r() * w, y = r() * h, a = r() * Math.PI * 2;
+      for (let s = 0; s < 22; s++) {
+        a += (r() - 0.5) * 0.7; x += Math.cos(a); y += Math.sin(a);
+        px(Math.round(x), Math.round(y), s % 5 === 0 ? RAMPS.bark[4] : RAMPS.bark[2]);
+        px(Math.round(x), Math.round(y) + 1, R[0]);
       }
     }
-    // Darkest gaps between branches.
-    for (let i = 0; i < 18; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, pal[0]); px(x + 1, y, pal[0]); }
-  }, { seed: 211 + variant * 5 });
+  }, { seed: 502 });
 }
 
-// Branch-tip card that hangs off each tier's rim so the crown silhouette is ragged, 32 x 16, alpha.
-export function pineBranchCard(variant = 0) {
-  return pixelTexture(`pineBranch${variant}`, 32, 16, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#0d1a16', '#173025', '#22432f', '#2f5837', '#456f43']
-      : ['#0e1812', '#1b2f1d', '#28442a', '#385a30', '#4f733a'];
-    // Main twig from left (attached to the tree) drooping to the right.
-    const twig = [];
-    for (let x = 0; x < w - 1; x++) twig.push(Math.round(3 + (x / w) * (x / w) * 7));
-    for (let x = 0; x < w - 1; x++) {
-      const y = twig[x];
-      // Needles: ticks above (lit) and below (shade), thinning toward the tip.
-      const dens = 1 - x / w * 0.6;
-      for (let k = 1; k <= 3; k++) {
-        if (r() < dens) px(x, y - k, pal[k === 3 ? 4 : 3]);
-        if (r() < dens) px(x, y + k, pal[k === 1 ? 1 : 2]);
+/** Leaf litter, 64 x 64 (2 m): dirt base covered in rust/amber leaves and pine needles. */
+export function leafLitterTexture() {
+  return pixelTexture('f-litter', 64, 64, (g, px, r, w, h) => {
+    const D = RAMPS.dirt, Lt = RAMPS.litter, N = RAMPS.needles;
+    const n = fbm(r, w, h, 4, 2);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, D[band(n(x, y), x, y, 0, 3)]);
+    // Fallen pine needles: short diagonal strokes, two tones.
+    for (let k = 0; k < 160; k++) {
+      const x = Math.floor(r() * w), y = Math.floor(r() * h), dx = r() < 0.5 ? 1 : -1, len = 2 + Math.floor(r() * 3);
+      const c = r() < 0.5 ? Lt[1 + Math.floor(r() * 2)] : r() < 0.6 ? RAMPS.dirt[4] : N[3];
+      for (let j = 0; j < len; j++) px(x + j * dx, y + (j >> 1), c);
+    }
+    // Leaves: small lozenges (5x3), outlined below, lit along the top edge, with a midrib.
+    const leaf = (x, y, flip, tone) => {
+      const shape = flip ? [[1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [3, 1], [1, 2], [2, 2], [3, 2], [4, 2]]
+        : [[2, 0], [3, 0], [1, 1], [2, 1], [3, 1], [4, 1], [0, 2], [1, 2], [2, 2], [3, 2]];
+      for (const [sx, sy] of shape) px(x + sx, y + sy, Lt[sy === 0 ? tone + 1 : tone]);
+      for (const [sx, sy] of shape) if (sy === 2) px(x + sx, y + 3, Lt[0]);   // outline under
+      px(x + 2, y + 1, Lt[tone - 1]);                                          // midrib
+    };
+    for (let k = 0; k < 42; k++) leaf(Math.floor(r() * w), Math.floor(r() * h), r() < 0.5, 1 + Math.floor(r() * 3));
+    // A few bright fresh leaves as focal accents.
+    for (let k = 0; k < 4; k++) leaf(Math.floor(r() * w), Math.floor(r() * h), r() < 0.5, 4);
+  }, { seed: 503 });
+}
+
+/** Moss, 32 x 32 (1 m): cushiony clumps, dark gaps between, sparkly highlight tips. */
+export function mossTexture() {
+  return pixelTexture('f-moss', 32, 32, (g, px, r, w, h) => {
+    const M = RAMPS.moss;
+    const vor = voronoi(r, w, h, 16);
+    const n = fbm(r, w, h, 2, 2);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const { d1, d2, p } = vor(x, y);
+      const dome = Math.max(0, 1 - d1 / 5);               // clumps bulge at their centres
+      let i = d2 - d1 < 0.8 ? 0 : band(dome * 0.6 + p.v * 0.2 + n(x, y) * 0.2, x, y, 1, 5);
+      px(x, y, M[i]);
+    }
+    for (let k = 0; k < 40; k++) px(Math.floor(r() * w), Math.floor(r() * h), M[6]);   // spore-tip glints
+  }, { seed: 504 });
+}
+
+/** Granite rock, 64 x 64 (2 m): faceted blocks, dark cracks, lit top edges, lichen. */
+export function rockTexture() {
+  return pixelTexture('f-rock', 64, 64, (g, px, r, w, h) => {
+    const K = RAMPS.rock, L = RAMPS.lichen, M = RAMPS.moss;
+    const vor = voronoi(r, w, h, 7, 0.8);
+    const n = fbm(r, w, h, 4, 3), mask = fbm(r, w, h, 3, 2);
+    const grid = [];
+    for (let y = 0; y < h; y++) {
+      grid.push([]);
+      for (let x = 0; x < w; x++) {
+        const { d1, d2, p } = vor(x, y);
+        const crack = d2 - d1 < 1.0 && mask(x, y) > 0.45;          // cracks break up: rock, not paving
+        const facet = (p.x / w + p.y / h) % 1;                     // each facet faces the light differently
+        grid[y].push(crack ? 0 : band(0.15 + facet * 0.3 + n(x, y) * 0.55, x, y, 2, 5));
       }
-      px(x, y, pal[0]);
-      // Side sprigs every few pixels.
-      if (x % 5 === 2 && x < w - 5) {
-        for (let k = 1; k < 5; k++) { px(x + k, y + k, pal[2]); if (r() < 0.6) px(x + k, y + k - 1, pal[3]); if (r() < 0.5) px(x + k + 1, y + k + 1, pal[1]); }
-      }
     }
-  }, { seed: 221 + variant, alpha: true });
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let i = grid[y][x];
+      if (i > 0 && grid[(y + h - 1) % h][x] === 0) i = 6;          // lit lip above a crack
+      else if (i > 0 && grid[(y + 1) % h][x] === 0) i = 1;         // shadow under a ledge
+      px(x, y, K[i]);
+    }
+    // Speckle (feldspar) and lichen/moss in the crevices.
+    for (let k = 0; k < 120; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); if (grid[y][x] > 1) px(x, y, K[grid[y][x] + (r() < 0.5 ? 1 : -1)]); }
+    for (let k = 0; k < 7; k++) {
+      const cx = Math.floor(r() * w), cy = Math.floor(r() * h);
+      for (let j = 0; j < 10; j++) px(cx + Math.floor(r() * 5) - 2, cy + Math.floor(r() * 3) - 1, L[Math.floor(r() * 4)]);
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (grid[y][x] === 0 && r() < 0.18) px(x, y - 1, M[2 + Math.floor(r() * 2)]);
+  }, { seed: 505 });
 }
 
-// --- Undergrowth ----------------------------------------------------------------------------
-
-// Sword fern frond, 16 x 32, alpha: midrib up the centre, alternating leaflets angled toward the
-// tip, lit on their upper edge; the frond tapers to a point at the top (v = 1).
-export function fernFrondTexture(variant = 0) {
-  return pixelTexture(`fern${variant}`, 16, 32, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#1d2a14', '#2f4119', '#45591f', '#5e7226', '#7a8a32']    // late season, yellower
-      : ['#10200f', '#1b3417', '#284a1e', '#386226', '#4e7c31'];
-    const cx = 7;
-    for (let y = 1; y < h; y++) {
-      const t = 1 - y / h;                         // 1 at the base (bottom), 0 at the tip (top)
-      const len = Math.max(1, Math.round(1 + 6 * Math.sin(Math.PI * Math.min(1, (1 - t) * 1.1)) * (0.35 + 0.65 * t)));
-      if (y % 2 === 0) {
-        for (const s of [-1, 1]) {
-          for (let k = 1; k <= len; k++) {
-            const yy = y - Math.floor(k / 2.5);   // leaflets sweep up toward the tip
-            px(cx + s * k, yy, k === len ? pal[2] : pal[3]);
-            px(cx + s * k, yy + 1, pal[1]);
-            if (k < len - 1 && r() < 0.35) px(cx + s * k, yy - 1, pal[4]);
-          }
-        }
-      }
-      px(cx, y, pal[0]); px(cx + 1, y, y > h * 0.7 ? pal[1] : pal[0]); // midrib (stem shows at the base)
+/** Grass ground, 64 x 64 (2 m): blades over dark soil, dry tips catching light. */
+export function grassTexture() {
+  return pixelTexture('f-grass', 64, 64, (g, px, r, w, h) => {
+    const G = RAMPS.grass, M = RAMPS.moss;
+    const n = fbm(r, w, h, 3, 2);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, M[band(n(x, y) * 0.8, x, y, 0, 2)]);
+    for (let k = 0; k < 520; k++) {
+      const x = Math.floor(r() * w), y = Math.floor(r() * h), len = 2 + Math.floor(r() * 3);
+      const lean = r() < 0.5 ? 0 : r() < 0.5 ? 1 : -1;
+      const top = 3 + Math.floor(r() * 3);
+      for (let j = 0; j < len; j++) px(x + (j === len - 1 ? lean : 0), y - j, G[j === len - 1 ? top + (r() < 0.3 ? 1 : 0) : top - 1 - (j === 0 ? 1 : 0)]);
+      px(x, y + 1, M[0]);                                  // blade base shadow (outline)
     }
-    // A couple of browned leaflet tips.
-    for (let i = 0; i < 3; i++) px(Math.floor(r() * w), 6 + Math.floor(r() * (h - 8)), r() < 0.5 ? '#6b4a22' : '#86602c');
-  }, { seed: 231 + variant, alpha: true });
+  }, { seed: 506 });
 }
 
-// Salal / huckleberry leaves on bush blobs, 32 x 32 (tiles): overlapping oval leaves with a lit
-// top, dark gaps, and berries in some variants.
-export function bushLeafTexture(variant = 0) {
-  return pixelTexture(`bushLeaf${variant}`, 32, 32, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#140f0b', '#2a2416', '#42381c', '#5c4b22', '#7a6128', '#9b7a32']   // autumn huckleberry
-      : ['#0a140f', '#13261a', '#1d3a22', '#2a5029', '#3b6932', '#55843c'];
-    g.fillStyle = pal[0]; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 70; i++) {
-      const x = Math.floor(r() * w), y = Math.floor(r() * h), c = 2 + Math.floor(r() * 3);
-      // 3x2 leaf with a highlight on top and shadow under.
-      px(x, y, pal[c + 1]); px(x + 1, y, pal[Math.min(5, c + 1)]); px(x + 2, y + 1, pal[c]);
-      px(x, y + 1, pal[c]); px(x + 1, y + 1, pal[c]); px(x + 1, y + 2, pal[c - 1]); px(x + 2, y + 2, pal[1]);
-    }
-    if (variant !== 1) for (let i = 0; i < 6; i++) {   // dark blue huckleberries
-      const x = Math.floor(r() * w), y = Math.floor(r() * h);
-      px(x, y, '#2b2c55'); px(x + 1, y, '#1b1b38'); if (r() < 0.6) px(x, y - 1, '#5a5c94');
-    }
-  }, { seed: 241 + variant });
-}
-
-// Loose leaf sprig card for bush edges, 16 x 16, alpha.
-export function bushSprigCard(variant = 0) {
-  return pixelTexture(`bushSprig${variant}`, 16, 16, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#2a2416', '#5c4b22', '#7a6128', '#9b7a32']
-      : ['#13261a', '#2a5029', '#3b6932', '#55843c'];
-    for (let y = h - 1; y > 2; y--) px(7 + Math.round((h - y) * 0.15), y, pal[0]);   // stem
-    for (let i = 0; i < 9; i++) {
-      const y = 2 + Math.floor(r() * (h - 5)), side = r() < 0.5 ? -1 : 1, x = 7 + side * (1 + Math.floor(r() * 4));
-      px(x, y, pal[3]); px(x + side, y, pal[2]); px(x, y + 1, pal[1]); px(x + side, y + 1, pal[1]); px(x + side * 2, y + 1, pal[0]);
-    }
-  }, { seed: 251 + variant, alpha: true });
-}
-
-// Grass / sedge tuft card, 16 x 16, alpha: thin blades, some dry and pale.
-export function grassTuftCard(variant = 0) {
-  return pixelTexture(`grassTuft${variant}`, 16, 16, (g, px, r, w, h) => {
-    const green = ['#1a2c16', '#2a4120', '#3b5628', '#557035'];
-    const dry = ['#4a4224', '#665a30', '#857640', '#a1915a'];
-    for (let s = 0; s < 11; s++) {
-      const pal = r() < (variant === 1 ? 0.6 : 0.2) ? dry : green;
-      const base = 5 + Math.floor(r() * 7), top = 1 + Math.floor(r() * 8), lean = (r() - 0.5) * 1.2;
+/** Grass tuft card, 32 x 32 with alpha (stands up in the world as crossed quads). */
+export function grassTuftTexture() {
+  return pixelTexture('f-tuft', 32, 32, (g, px, r, w, h) => {
+    const G = RAMPS.grass;
+    for (let s = 0; s < 16; s++) {
+      const base = 8 + Math.floor(r() * 16), top = 4 + Math.floor(r() * 16), lean = (r() - 0.5) * 1.2;
       for (let y = h - 1; y >= top; y--) {
         const t = (h - 1 - y) / (h - 1 - top);
-        px(Math.round(base + lean * t * t * 6), y, pal[t > 0.75 ? 3 : t > 0.35 ? 2 : 1]);
+        const x = Math.round(base + lean * t * t * 10);
+        px(x, y, G[t > 0.85 ? 6 : t > 0.6 ? 5 : t > 0.3 ? 4 : 2]);
+        if (t < 0.3) px(x + 1, y, G[1]);
       }
     }
-  }, { seed: 261 + variant, alpha: true });
+  }, { seed: 507, alpha: true });
 }
 
-// --- Logs & rocks ------------------------------------------------------------------------------
-
-// Bark of a long-fallen log, 16 x 32: long wavy furrows running along the trunk (v), grey-brown
-// weathered ridges, a few cross-checks, punky orange rot showing where bark has sloughed off,
-// and moss creeping into the furrows.
-export function logBarkTexture() {
-  return pixelTexture('logBark', 16, 32, (g, px, r, w, h) => {
-    const pal = ['#15110e', '#241d18', '#352b23', '#463a2f', '#5a4c3e', '#6f6150'];
-    g.fillStyle = pal[2]; g.fillRect(0, 0, w, h);
-    // Ridges with a lit left edge, separated by dark furrows; all wander gently along v.
-    for (let s = 0; s < 6; s++) {
-      let x = Math.floor((s / 6) * w + r() * 2);
-      const tone = 3 + Math.floor(r() * 2);
-      for (let y = 0; y < h; y++) {
-        if (r() < 0.12) x += r() < 0.5 ? -1 : 1;
-        px(x - 1, y, pal[0]);                       // furrow
-        px(x, y, pal[tone + 1 > 5 ? 5 : tone + 1]); // lit ridge edge
-        px(x + 1, y, pal[tone]);
-        if (r() < 0.5) px(x + 2, y, pal[tone - 1]);
+/** Pine needle foliage, 32 x 32 (1 m): layered needle sprays, dark gaps, lit tips. */
+export function needleTexture() {
+  return pixelTexture('f-needles', 32, 32, (g, px, r, w, h) => {
+    const N = RAMPS.needles;
+    g.fillStyle = N[1]; g.fillRect(0, 0, w, h);
+    // Sprays: a twig line with needles fanning down-outward, lit on top.
+    for (let k = 0; k < 30; k++) {
+      const x0 = Math.floor(r() * w), y0 = Math.floor(r() * h), len = 4 + Math.floor(r() * 5), dir = r() < 0.5 ? 1 : -1;
+      const tone = 2 + Math.floor(r() * 3);
+      for (let j = 0; j < len; j++) {
+        const x = x0 + j * dir, y = y0 + (j >> 2);
+        px(x, y - 1, N[Math.min(6, tone + 1)]); px(x, y, N[tone]); px(x, y + 1, N[tone - 1]);
+        if (j % 2 === 0) px(x, y + 2, N[tone - 2]);
       }
+      px(x0 + len * dir, y0 + (len >> 2), N[6]);
     }
-    // Cross-checks.
-    for (let i = 0; i < 5; i++) { const y = Math.floor(r() * h), x0 = Math.floor(r() * w); for (let k = 0; k < 3; k++) px(x0 + k, y, pal[1]); }
-    // Sloughed patch: punky orange-brown heartwood.
-    const py = Math.floor(r() * h), pxx = Math.floor(r() * w);
-    for (let y = 0; y < 6; y++) for (let x = 0; x < 4; x++) if (r() < 0.85) px(pxx + x, py + y, r() < 0.5 ? '#7a4a26' : '#8e5a2e');
-    // Moss in the furrows.
-    for (let i = 0; i < 14; i++) px(Math.floor(r() * w), Math.floor(r() * h), r() < 0.6 ? '#2f4520' : '#46622a');
-  }, { seed: 311 });
+  }, { seed: 508 });
 }
 
-// Cut / broken log end, 16 x 16 (mapped onto a disc): growth rings, radial cracks, dark rotten
-// heart in the hollow variant.
-export function logEndTexture(variant = 0) {
-  return pixelTexture(`logEnd${variant}`, 16, 16, (g, px, r, w, h) => {
-    const rings = ['#5a4130', '#6d5039', '#806044', '#94714f'];
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const d = Math.hypot(x - 7.5, y - 7.5);
-      if (d > 7.6) { px(x, y, '#2a1d15'); continue; }
-      if (d > 6.6) { px(x, y, r() < 0.5 ? '#3b2a1f' : '#2e2118'); continue; }   // bark rim
-      const ring = Math.floor(d * 1.3 + Math.sin(Math.atan2(y - 7.5, x - 7.5) * 3) * 0.3);
-      px(x, y, rings[ring % 2 === 0 ? 2 : 1]);
-      if (variant === 1 && d < 3.4) px(x, y, d < 2.4 ? '#0f0b09' : '#2a1d15');   // hollow / rotten heart
-      if (variant === 0 && d < 0.9) px(x, y, rings[3]);
-    }
-    // Radial checks (drying cracks).
-    for (let k = 0; k < 3; k++) {
-      const a = r() * Math.PI * 2;
-      for (let d = 1.5; d < 6.5; d += 0.8) px(Math.round(7.5 + Math.cos(a) * d), Math.round(7.5 + Math.sin(a) * d), '#3a2a20');
-    }
-    // Weathering: grey bleach on the face.
-    for (let i = 0; i < 8; i++) { const x = 3 + Math.floor(r() * 10), y = 3 + Math.floor(r() * 10); if (Math.hypot(x - 7.5, y - 7.5) < 6) px(x, y, '#8d8273'); }
-  }, { seed: 271 + variant });
-}
-
-// Moss carpet, 16 x 16, alpha: patchy cushions with lit tops, used on logs and rocks.
-export function mossCarpetTexture(variant = 0) {
-  return pixelTexture(`mossCarpet${variant}`, 16, 16, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#2a3a1a', '#3c5020', '#536a28', '#6f8634']   // brighter, sunnier moss
-      : ['#1a2a16', '#28401d', '#385625', '#4c6e2e'];
-    for (let i = 0; i < 9; i++) {
-      const cx = Math.floor(r() * w), cy = Math.floor(r() * h), rad = 1.5 + r() * 2.5;
-      for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) {
-        const d = Math.hypot(x, y);
-        if (d > rad) continue;
-        px(cx + x, cy + y, pal[d > rad - 1 ? 0 : y < -rad * 0.3 ? 3 : r() < 0.5 ? 2 : 1]);
-      }
-    }
-  }, { seed: 281 + variant, alpha: true });
-}
-
-// Granite boulder, 32 x 32 (tiles): cool grey with feldspar speckles, dark cracks, pale and
-// orange lichen rosettes.
-export function rockTexture(variant = 0) {
-  return pixelTexture(`rock${variant}`, 32, 32, (g, px, r, w, h) => {
-    const pal = variant === 1
-      ? ['#1c1d1f', '#2c2d30', '#3c3d40', '#4d4e50', '#606061', '#77756f']   // darker basalt
-      : ['#24262a', '#36383c', '#484a4c', '#5a5b5b', '#6e6d69', '#878478'];
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const n = r() + r() * 0.8 + (Math.sin((x + y * 0.6) * 0.5) * 0.15);
-      px(x, y, pal[Math.max(1, Math.min(4, Math.floor(n * 2.2)))]);
-    }
-    for (let i = 0; i < 26; i++) px(Math.floor(r() * w), Math.floor(r() * h), r() < 0.5 ? pal[5] : pal[0]); // speckles
-    // Cracks: wandering dark lines with a lit lip above.
-    for (let c = 0; c < 3; c++) {
-      let x = Math.floor(r() * w), y = Math.floor(r() * h);
-      for (let k = 0; k < 14; k++) {
-        px(x, y, pal[0]); px(x, y - 1, pal[4]);
-        x += 1; if (r() < 0.45) y += r() < 0.5 ? -1 : 1;
-      }
-    }
-    // Lichen rosettes.
-    for (let i = 0; i < 5; i++) {
-      const cx = Math.floor(r() * w), cy = Math.floor(r() * h), col = r() < 0.7 ? ['#5f6e52', '#7e8c66', '#9aa57c'] : ['#8a5a26', '#a8722e', '#c08a3a'];
-      for (let y = -2; y <= 2; y++) for (let x = -2; x <= 2; x++) if (x * x + y * y <= 4 && r() < 0.75) px(cx + x, cy + y, col[x * x + y * y <= 1 ? 2 : r() < 0.5 ? 1 : 0]);
-    }
-  }, { seed: 291 + variant });
-}
-
-// Forest-floor litter decal, 32 x 32, alpha: fallen needles, twigs and a pine cone, scattered
-// in clumps around tree bases so the ground under each tree reads as lived-in.
-export function needleLitterTexture() {
-  return pixelTexture('needleLitter', 32, 32, (g, px, r, w, h) => {
-    const needles = ['#4a3220', '#5c3f26', '#73502e', '#8a6236', '#3a2818'];
-    for (let i = 0; i < 160; i++) {
-      const cx = 16 + (r() - 0.5) * 30 * Math.sqrt(r()), cy = 16 + (r() - 0.5) * 30 * Math.sqrt(r());
-      const dx = r() < 0.5 ? 1 : -1, dy = r() < 0.5 ? 1 : 0, c = pick(r, needles);
-      for (let k = 0; k < 3; k++) px(Math.round(cx + dx * k), Math.round(cy + dy * k * 0.5), c);
-    }
-    for (let t = 0; t < 2; t++) {   // twigs
-      let x = 4 + Math.floor(r() * 24), y = 4 + Math.floor(r() * 24);
-      const dx = r() < 0.5 ? 1 : -1;
-      for (let k = 0; k < 8; k++) { px(x, y, '#2e2119'); px(x, y - 1, '#5a4535'); x += dx; if (r() < 0.3) y += 1; }
-    }
-    // A pine cone.
-    const cx = 10 + Math.floor(r() * 12), cy = 10 + Math.floor(r() * 12);
-    for (let y = 0; y < 4; y++) for (let x = 0; x < 3; x++) px(cx + x, cy + y, (x + y) % 2 ? '#3d2614' : '#7a5230');
-    px(cx + 1, cy - 1, '#a0703e');
-  }, { seed: 301, alpha: true });
-}
+export const FOREST_TEXTURES = { needleTexture, pineBarkTexture, dirtTexture, leafLitterTexture, mossTexture, rockTexture, grassTexture, grassTuftTexture };

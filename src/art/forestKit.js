@@ -4,7 +4,7 @@ import { rng, pixelMaterial, barkTexture } from './pixelTex.js';
 import {
   pineBarkTexture, pineNeedleTexture, pineBranchCard, fernFrondTexture, bushLeafTexture, bushSprigCard,
   grassTuftCard, logEndTexture, logBarkTexture, mossCarpetTexture, rockTexture, needleLitterTexture,
-} from './forestTex.js';
+} from './forestKitTex.js';
 
 // Pine Hollow forest kit: pines (4 shapes), dead snags (2), bushes (3), ferns (3), fallen logs (4),
 // boulders/rocks (5), grass tufts (2), and needle-litter decals. Every prop is built once as a
@@ -165,7 +165,7 @@ export class ForestKit {
     const bark = [], needles = [], branch = [];
     const trunk = new THREE.CylinderGeometry(trunkR * 0.25, trunkR, 1, 7, 6, true);
     trunk.translate(0, 0.5, 0);
-    scaleUV(trunk, 2, 9);
+    scaleUV(trunk, 4, 14);   // ≈32 texels/m on a 14 m pine
     bark.push(trunk);
     const flare = new THREE.CylinderGeometry(trunkR * 1.05, trunkR * 1.9, 0.035, 7, 1, true);
     flare.translate(0, 0.0175, 0);
@@ -214,7 +214,7 @@ export class ForestKit {
     const wood = [];
     const trunk = new THREE.CylinderGeometry(0.016, 0.034, top, 7, 5, true);
     trunk.translate(0, top / 2, 0);
-    scaleUV(trunk, 2, 9 * top);
+    scaleUV(trunk, 4, 12 * top);
     wood.push(trunk);
     // Jagged broken top: three splinters.
     for (let i = 0; i < 3; i++) {
@@ -297,7 +297,7 @@ export class ForestKit {
     const body = new THREE.CylinderGeometry(0.5, 0.5, 1, 10, 3, true);
     jitterVerts(body, 0.025, r);
     body.rotateZ(Math.PI / 2);
-    scaleUV(body, 4, 4);
+    scaleUV(body, 4, 6);
     bark.push(body);
     const endMat = v === 3 ? 'logEnd1' : 'logEnd0';
     const capL = new THREE.CircleGeometry(0.49, 10); capL.rotateY(-Math.PI / 2); capL.translate(-0.5, 0, 0); ends.push(capL);
@@ -353,7 +353,7 @@ export class ForestKit {
     for (let k = 0; k < pos.count; k++) minY = Math.min(minY, pos.getY(k));
     for (let k = 0; k < pos.count; k++) pos.setY(k, Math.max(pos.getY(k), minY * 0.6) - minY * 0.6 - 0.05);
     g.computeVertexNormals();
-    boxUV(g, 1.4);
+    boxUV(g, 2);
     const parts = { [`rock${v === 1 || v === 3 ? 1 : 0}`]: [g] };
     if (v !== 4) parts[`moss0`] = [topFaces(g, 0.82, 1.015)];
     return parts;
