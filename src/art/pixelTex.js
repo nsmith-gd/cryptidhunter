@@ -548,3 +548,132 @@ export function leatheretteTexture() {
     for (let k = 0; k < 40; k++) px(Math.floor(r() * w), Math.floor(r() * h), r() < 0.6 ? '#1c1d21' : '#0e0f11');
   }, { seed: 224 });
 }
+
+// --- Bigfoot, rebuilt (#58) -------------------------------------------------------------------
+
+// Long shaggy fur, 32 x 64 (tiles ~0.4 m x 0.85 m on the body). Hard pixel clumps running down:
+// each clump is a 3-6 px lock with a lit ridge, a mid body and a dark gap to the next lock, broken
+// every so often where the strands end (a dark notch, lighter tips below). A few grizzled hairs,
+// and debris caught in the coat: pine needles, a twig, a dead leaf, burrs.
+const BF_FUR = ['#100a07', '#1d130c', '#2b1c11', '#3c2817', '#50361e', '#664627', '#7e5833', '#966c40'];
+const BF_FUR_DARK = ['#0b0705', '#150e09', '#20150d', '#2d1e12', '#3d2918', '#4f3720', '#634629', '#785633'];
+function drawBigfootFur(px, r, w, h, pal, debris = true) {
+  // Lay out clumps across the tile (wrapping), each with its own tone and strand breaks.
+  const clumps = [];
+  for (let x = 0; x < w;) { const cw = 3 + Math.floor(r() * 4); clumps.push({ x, cw, tone: 3 + Math.floor(r() * 3), ph: r() * 6.28, breaks: [Math.floor(r() * h), Math.floor(r() * h)] }); x += cw; }
+  const last = clumps[clumps.length - 1]; last.cw += w - (last.x + last.cw);   // close the wrap exactly
+  for (const c of clumps) {
+    for (let y = 0; y < h; y++) {
+      const sway = Math.round(Math.sin((y / h) * Math.PI * 2 * 2 + c.ph) * 1.1);   // period divides h: tiles
+      // Tone drifts down the lock; just below a break the tips are lighter, above it a dark notch.
+      let tone = c.tone + Math.round(Math.sin((y / h) * Math.PI * 2 + c.ph) * 0.8);
+      for (const bk of c.breaks) { const dy = (y - bk + h) % h; if (dy < 2) tone = 1; else if (dy < 6) tone += 1; }
+      for (let j = 0; j < c.cw; j++) {
+        let t = tone;
+        if (j === c.cw - 1) t = Math.min(t, 2) - 1;            // dark gap between locks
+        else if (j === 1) t += 1;                              // lit ridge
+        else if (j === c.cw - 2 && c.cw > 3) t -= 1;           // shadow side
+        px(c.x + j + sway, y, pal[Math.max(0, Math.min(pal.length - 1, t))]);
+      }
+    }
+  }
+  // Loose single strands across the clumps.
+  for (let k = 0; k < 26; k++) {
+    const x = Math.floor(r() * w), y = Math.floor(r() * h), len = 5 + Math.floor(r() * 10), t = r() < 0.5 ? pal.length - 1 : 1;
+    for (let j = 0; j < len; j++) px(x + Math.round(Math.sin(j * 0.5) * 0.6), y + j, pal[t]);
+  }
+  for (let k = 0; k < 7; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); for (let j = 0; j < 7; j++) px(x, y + j, j % 3 ? '#9b8c72' : '#7c6e58'); }   // grizzle
+  if (!debris) return;
+  // Debris caught in the coat.
+  for (let k = 0; k < 3; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); for (let j = 0; j < 4; j++) px(x + j, y + (j >> 1), j ? '#6f6a2c' : '#4f4c20'); }   // pine needles
+  { const x = Math.floor(r() * w), y = Math.floor(r() * h); for (let j = 0; j < 6; j++) { px(x + j, y + j, '#5e4a30'); px(x + j + 1, y + j, '#2a2016'); } }       // twig
+  { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, '#8a5a24'); px(x + 1, y, '#a06c2c'); px(x, y + 1, '#6e4418'); px(x + 1, y + 1, '#8a5a24'); px(x + 2, y + 1, '#5a3814'); }   // dead leaf
+  for (let k = 0; k < 2; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, '#3e3a1c'); px(x + 1, y + 1, '#3e3a1c'); px(x + 1, y, '#5c5528'); }   // burrs
+}
+export function bigfootFur2Texture(variant = 0) {
+  return pixelTexture(`bfFur3-${variant}`, 32, 64, (g, px, r, w, h) => drawBigfootFur(px, r, w, h, variant === 1 ? BF_FUR_DARK : BF_FUR, variant !== 1), { seed: 301 + variant });
+}
+
+// Chest, 64 x 48 (projected once across the chest): the same fur, raked by three old claw scars
+// running diagonally down across the pecs - bare scar tissue with the fur parted dark beside it.
+export function bigfootChestTexture() {
+  return pixelTexture('bfChest', 64, 48, (g, px, r, w, h) => {
+    drawBigfootFur(px, r, w, h, BF_FUR, false);
+    for (let s = 0; s < 3; s++) {
+      for (let k = 0; k < 26; k++) {
+        const x = 36 + s * 5 - Math.round(k * 0.8), y = 6 + k + s * 2;
+        px(x - 1, y, BF_FUR[0]); px(x + 2, y, BF_FUR[0]);
+        px(x, y, k % 5 === 0 ? '#5a3328' : '#8c5a48'); px(x + 1, y, '#6e4234');
+      }
+    }
+  }, { seed: 321 });
+}
+
+// Bare ribs, 32 x 32 (one torn patch on the left flank): the coat ripped away over the ribcage,
+// grey-tan hide stretched over four rib ridges, a ragged fur edge all round.
+export function bigfootRibsTexture() {
+  return pixelTexture('bfRibs', 32, 32, (g, px, r, w, h) => {
+    drawBigfootFur(px, r, w, h, BF_FUR, false);
+    const sk = ['#2a1d17', '#45322a', '#5e463a', '#76594a', '#8a6b58'];
+    for (let y = 5; y < 28; y++) {
+      const half = 11 - Math.abs(y - 16) * 0.45 + (r() < 0.4 ? 1 : 0);
+      for (let x = Math.round(16 - half); x < Math.round(16 + half); x++) {
+        const rib = (y - 6) % 5;                              // ridge, lit top, shadowed gap
+        px(x, y, sk[rib === 0 ? 4 : rib === 1 ? 3 : rib === 4 ? 0 : 2]);
+      }
+      px(Math.round(16 - half) - 1, y, BF_FUR[0]); px(Math.round(16 + half), y, BF_FUR[0]);
+    }
+  }, { seed: 331 });
+}
+
+// Bigfoot face, 64 x 64 (hero): old-silverback scowl after the director's reference. Bare tan
+// face under a hair hood, deeply furrowed V brow over shadowed sockets (the glowing eyes are lit
+// separately), broad flat nose, long upper lip, heavy downturned mouth, a beard below.
+export function bigfootFace2Texture() {
+  return pixelTexture('bfFace2', 64, 64, (g, px, r, w, h) => {
+    const sk = ['#24160f', '#3e2a1f', '#5a3f2f', '#70503c', '#86624a', '#9a7458', '#ae8868', '#c09a78'];
+    const fur = ['#140d09', '#22160e', '#331f13', '#462c1a', '#5c3c22'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, fur[1 + Math.floor(r() * 3)]);
+    // Face mask: broad at the cheekbones, a long muzzle, narrowing to the chin.
+    for (let y = 8; y < 58; y++) {
+      const t = (y - 8) / 50;
+      const half = 26 - Math.max(0, t - 0.55) * 30 - Math.max(0, 0.12 - t) * 60;
+      for (let x = Math.round(32 - half); x < Math.round(32 + half); x++) {
+        const dx = Math.abs(x - 32) / half;
+        let s = 5 - Math.round(dx * 2.2) - (y > 44 ? 1 : 0);            // cheeks roll into shadow
+        if (r() < 0.12) s += r() < 0.5 ? 1 : -1;
+        px(x, y, sk[Math.max(1, Math.min(7, s))]);
+      }
+    }
+    // Brow: heavy shelf, pressing down to a V at the centre; stacked furrows above it.
+    for (let x = 8; x < 56; x++) {
+      const dip = Math.round(Math.max(0, 7 - Math.abs(x - 31.5) / 3.2));
+      const y = 20 + dip;
+      px(x, y - 1, sk[7]); px(x, y, sk[6]); px(x, y + 1, sk[1]); px(x, y + 2, sk[0]); px(x, y + 3, sk[1]);
+      if (x % 3 !== 0) { px(x, y - 4, sk[3]); px(x, y - 7, sk[3]); }              // forehead furrows
+    }
+    for (let k = 0; k < 6; k++) { px(30, 12 + k, sk[2]); px(33, 12 + k, sk[2]); }  // vertical scowl lines
+    // Sockets (deep shadow; the glowing eyes sit inside them on the model).
+    for (const ex of [18, 39]) for (let dx = 0; dx < 8; dx++) for (let dy = 0; dy < 5; dy++) {
+      if ((dx === 0 || dx === 7) && (dy === 0 || dy === 4)) continue;
+      px(ex + dx, 26 + dy, dy < 2 ? sk[0] : sk[1]);
+    }
+    for (const ex of [18, 39]) for (let dx = 1; dx < 7; dx++) px(ex + dx, 31, sk[3]);   // lower lid / bag
+    // Nose: broad flat bridge, flared nostrils.
+    for (let y = 30; y < 41; y++) { px(30, y, sk[6]); px(31, y, sk[7]); px(32, y, sk[6]); px(33, y, sk[5]); }
+    for (const nx of [25, 35]) { for (let k = 0; k < 4; k++) px(nx + k, 41, sk[0]); px(nx + 1, 40, sk[1]); px(nx + 2, 40, sk[1]); }
+    for (let x = 24; x < 40; x++) px(x, 42, sk[2]);
+    // Muzzle folds and the long upper lip down to a heavy downturned mouth.
+    for (let k = 0; k < 8; k++) { px(20 + k, 38 + k, sk[2]); px(43 - k, 38 + k, sk[2]); }
+    for (let x = 22; x < 42; x++) { const sag = Math.round(Math.abs(x - 31.5) / 4); px(x, 49 + sag, sk[0]); px(x, 50 + sag, sk[2]); }
+    // Scars: an old one through the left brow, a claw rake across the right cheek.
+    for (let k = 0; k < 10; k++) px(12 + k, 14 + k, '#6a4436');
+    for (let s = 0; s < 3; s++) for (let k = 0; k < 7; k++) px(44 + s * 2 + Math.floor(k / 3), 34 + k, '#6a4436');
+    for (let k = 0; k < 6; k++) { px(28 + k, 33 + (k >> 1), '#5e3226'); px(28 + k, 34 + (k >> 1), '#c49a80'); }   // nose scar
+    // Beard creeping up the chin and jaw, sideburns down the cheeks.
+    for (let y = 46; y < 64; y++) for (let x = 0; x < w; x++) {
+      const inBeard = y > 53 || Math.abs(x - 32) > 20 - (y - 46) * 0.3;
+      if (inBeard && r() < 0.8) px(x, y, fur[1 + Math.floor(r() * 4)]);
+    }
+  }, { seed: 311 });
+}
