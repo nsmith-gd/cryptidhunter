@@ -1,3 +1,4 @@
+import { stream } from '../core/rng.js';
 // Walkable-area grid ("navmesh") baked from the map's AABB colliders, plus A* pathfinding.
 // Each grid is baked for one agent size: blockers are inflated by the agent radius, and anything
 // lower than the agent's head with a top above step height blocks (so a 2.4m cryptid can't
@@ -58,7 +59,7 @@ export class NavGrid {
   }
 
   /** Random walkable point within radius of (cx, cz), or null after a few tries. */
-  randomPoint(cx, cz, radius, rand = Math.random, tries = 16) {
+  randomPoint(cx, cz, radius, rand = stream('nav'), tries = 16) {
     for (let i = 0; i < tries; i++) {
       const a = rand() * Math.PI * 2, r = Math.sqrt(rand()) * radius;
       const p = this.sample(cx + Math.cos(a) * r, cz + Math.sin(a) * r, 2);

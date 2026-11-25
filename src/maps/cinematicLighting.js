@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RAMPS } from '../art/palette.js';
+import { stream } from '../core/rng.js';
 
 // Cinematic lighting pass for Pine Hollow (art #36), layered on the night baseline
 // (maps/nightLighting.js), the atmosphere (maps/atmosphere.js) and the palette grades.
@@ -29,7 +30,7 @@ export const CINE = {
 };
 
 export class CinematicLighting {
-  constructor({ scene, camera, renderer, night, flashlight, map, rand = Math.random }) {
+  constructor({ scene, camera, renderer, night, flashlight, map, rand = stream('cinematicLighting') }) {
     this.scene = scene;
     this.camera = camera;
     this.night = night;

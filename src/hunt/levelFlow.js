@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { stream } from '../core/rng.js';
 
 // Level flow (L1): at the start of a hunt, pick where the cryptid beds down and where its fresh
 // trail starts from the map's spawn zones, then let it actually walk that route (fast-forwarded)
@@ -11,7 +12,7 @@ export const FLOW = {
 };
 
 export class LevelFlow {
-  constructor({ scene, map, rand = Math.random }) {
+  constructor({ scene, map, rand = stream('levelFlow') }) {
     this.scene = scene;
     this.map = map;
     this.rand = rand;

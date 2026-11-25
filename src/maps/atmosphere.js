@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { pixelTexture } from '../art/pixelTex.js';
 import { GRADES } from '../art/grading.js';
+import { stream } from '../core/rng.js';
 
 // Forest atmosphere (#37): makes depth read in three clear layers.
 //   foreground — near trunks and ground stay crisp and dark (only light fog);
@@ -31,7 +32,7 @@ export class Atmosphere {
   /**
    * @param {object} o { scene, camera, half (map half-size), keepClear(x,z) -> true for open ground }
    */
-  constructor({ scene, camera, half, keepClear = () => true, rng = Math.random, hazeColor = null, glowColor = null }) {
+  constructor({ scene, camera, half, keepClear = () => true, rng = stream('atmosphere'), hazeColor = null, glowColor = null }) {
     this.scene = scene;
     this.camera = camera;
     // Haze is the sky's horizon glow (lighter than the trees), so far silhouettes separate from near ones.

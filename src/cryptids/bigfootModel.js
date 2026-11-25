@@ -4,6 +4,7 @@ import {
   pixelMaterial, furTexture, skinTexture, furFringeTexture, bigfootScowlTexture, longHairTexture, ribScarTexture,
 } from '../art/pixelTex.js';
 import { createBigfootAnimator } from './bigfootAnim.js';
+import { stream } from '../core/rng.js';
 
 // Bigfoot (final, #42): a big, hunched, menacing low-poly body (~3.4 m tall standing, shoulders
 // wider than a doorway) in hand-painted pixel textures, with a shaggy silhouette made of hanging
@@ -88,7 +89,7 @@ export function buildBigfootModel(profile) {
   // Shag: hanging fur cards around a bone, facing outward at the given angles (radians around Y).
   const shag = (parent, y, radius, angles, w, h, { variant = 0, tilt = 0.25, jitter = 0.15 } = {}) => {
     for (const a of angles) {
-      const m = new THREE.Mesh(fringeGeo(w * 1.25, h * 1.15 * (1 - jitter / 2 + Math.round(Math.random() * 3) / 3 * jitter)), fringe[variant]);
+      const m = new THREE.Mesh(fringeGeo(w * 1.25, h * 1.15 * (1 - jitter / 2 + Math.round(stream('bigfootModel')() * 3) / 3 * jitter)), fringe[variant]);
       m.position.set(Math.sin(a) * radius, y, Math.cos(a) * radius);
       m.rotation.set(0, a, 0);
       m.rotateX(tilt);               // splay outward a little

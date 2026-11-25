@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { stream } from '../core/rng.js';
 
 // Clue kinds a cryptid can leave. Lifetimes are seconds until the clue has fully faded;
 // it starts fading at (1 - fadeFraction) of its life.
@@ -42,7 +43,7 @@ export function buildFootprint(data) {
 }
 
 /** Small clump of strands lying on the ground. data: { color } */
-export function buildHair(data, rand = Math.random) {
+export function buildHair(data, rand = stream('clueArt')) {
   const g = new THREE.Group();
   const m = mat(data.color ?? 0x5a3a22, { emissive: 0x120a05 });
   for (let i = 0; i < 9; i++) {

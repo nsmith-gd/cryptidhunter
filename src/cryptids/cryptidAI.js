@@ -5,6 +5,7 @@ import { Perception } from './perception.js';
 import { buildBigfootModel } from './bigfootModel.js';
 import { genericBrain } from './brains/genericBrain.js';
 import { bigfootBrain, BIGFOOT_TIERS } from './brains/bigfootBrain.js';
+import { stream } from '../core/rng.js';
 
 // Bespoke behaviour trees per cryptid (lore first, then the rules the player must learn).
 const BRAINS = { bigfoot: bigfootBrain };
@@ -29,7 +30,7 @@ export class CryptidAI {
    *   senses: { player, flashlight, camera, colliders, lightLevel } (optional: enables hearing + sight),
    *   calls: audio lures playing a call (optional; only calls for this cryptid's species count) }
    */
-  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null, senses = null, calls = null, level = null, rocks = null, onEvent = null }) {
+  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = stream(`cryptid:${profile.id}`), lures = null, senses = null, calls = null, level = null, rocks = null, onEvent = null }) {
     this.level = level ?? profile.homeLevel ?? 1;   // escalation level (1 forgiving .. 3 relentless)
     this.rocks = rocks;
     this.onEvent = onEvent;      // (type, data) for the game: 'whoop', 'rock', 'rock-hit', 'roar', 'charge'

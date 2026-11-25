@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { stream } from '../core/rng.js';
 
 // Wood-knock call and response (Bigfoot L1).
 // Any cryptid whose profile has clues.woodKnock knocks on a tree every so often (a hollow
@@ -19,7 +20,7 @@ export const KNOCK = {
 };
 
 export class WoodKnocks {
-  constructor({ cryptids, player, camera, fear = null, input = null, rand = Math.random }) {
+  constructor({ cryptids, player, camera, fear = null, input = null, rand = stream('woodKnock') }) {
     this.cryptids = cryptids;
     this.player = player;
     this.camera = camera;

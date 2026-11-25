@@ -23,7 +23,8 @@ export class HuntFailure {
     this.buildHitFlash();
   }
 
-  update() {
+  update(dt = 1 / 60) {
+    this.time = (this.time ?? 0) + dt;
     if (!this.enabled || this.isCaught) return;
     const p = this.player.position;
     const top = p.y + this.player.height;
@@ -39,7 +40,7 @@ export class HuntFailure {
   /** A cryptid made contact. Ends the hunt once it has touched you `catchHits` times. */
   touched(name = 'Something', catchHits = 1) {
     if (!this.enabled || this.isCaught) return;
-    const now = performance.now() / 1000;
+    const now = this.time ?? 0;              // simulation seconds (#66: no wall clock in the sim)
     if (now < (this.graceUntil.get(name) ?? 0)) return;
     const n = (this.hits.get(name) ?? 0) + 1;
     this.hits.set(name, n);
