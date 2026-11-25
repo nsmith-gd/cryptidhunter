@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { dressForest } from './forestDressing.js';
 
 // Pine Hollow Forest — greybox (L0). The starter hunting ground and Bigfoot's home.
 // Layout (north = -z), 300 x 300 m:
@@ -57,6 +58,7 @@ const COLORS = {
 
 export function buildForestMap(scene) {
   const H = FOREST.half;
+  const firstChild = scene.children.length;   // everything after this is the map (for the texture pass)
   const colliders = [];
   const rng = mulberry32(1337);
   const mats = new Map();
@@ -328,6 +330,9 @@ export function buildForestMap(scene) {
   ferns.computeBoundingSphere();
   ferns.name = 'ferns';
   scene.add(ferns);
+
+  // Texture pass: painted pixel textures on every surface (art #38, docs/art-style-guide.md).
+  for (const p of dressForest({ meshes: scene.children.slice(firstChild), colors: COLORS, half: H, rng, keepClear })) scene.add(p);
 
   const creekLine = CREEK.map(([x, z]) => ({ x, z }));
   /** 'dry' | 'shallow' — wading the creek (bridge and stones count as dry). */
