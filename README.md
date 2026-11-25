@@ -1,5 +1,7 @@
 # Cryptid Hunter
 
+**Design source of truth:** [`docs/Cryptozoology_GDD_v1.1.md`](docs/Cryptozoology_GDD_v1.1.md). Appendix A lists where it disagrees with what's built and the open questions.
+
 First-person cryptid-hunting game. Three.js + Vite (web), rendered at low internal resolution for a 3D pixel-art look.
 
 ## Run

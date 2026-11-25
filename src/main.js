@@ -37,6 +37,7 @@ import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
+import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
@@ -58,7 +59,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x05070b);
 scene.fog = new THREE.Fog(0x05070b, 12, 45);
 
-const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 200);
+const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200);   // near 0.1: depth precision for the ground layers (#61)
 
 // Faint moonlight so silhouettes are just readable without the flashlight.
 const hemi = new THREE.HemisphereLight(0x4a5a78, 0x0a0a0c, 0.12);
@@ -116,6 +117,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
     setTimeout(() => { for (const c of cryptids.cryptids) c.mesh.visible = false; cryptids.clear(); }, 20000);
   } });
 showCampPanel(camp);
+showBountyPanel(camp.bounties);   // #45: offers for specific photos, paid once when you sell a match
 // End-of-hunt photo album: every frame shot this hunt (lost if you were caught).
 hunt.album = (outcome) => renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: outcome === 'caught' || outcome === 'dawn', target: huntTarget });
 hunt.screen.style.overflowY = 'auto';
