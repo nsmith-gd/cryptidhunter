@@ -25,6 +25,8 @@ import { HuntFailure } from './hunt/huntFailure.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
 import { LevelFlow } from './hunt/levelFlow.js';
 import { PhotoCamera } from './hunt/photoCamera.js';
+import { TrailCameras } from './gear/trailCamera.js';
+import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { Fear } from './hunt/fear.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
@@ -86,6 +88,8 @@ mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
 const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
+// L sets an audio lure: it plays a Bigfoot call every few seconds and Bigfoot comes to check.
+const audioLures = new AudioLures({ scene, player, input, notify: (m) => photo?.toast(m) });
 // Fear: rises in the dark, near cryptids and on scares; light and the van calm you; high fear sways your aim.
 const fear = new Fear({
   scene, player, flashlight, camera, safeZone: HUNT.exit,
@@ -103,6 +107,7 @@ const noiseRing = new NoiseRing(scene, player);
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position,
   lures: { lures: () => bait.lures(), consume: (b) => bait.consume(b), eatTime: BAIT.eatTime },
+  calls: audioLures,
   // Hearing + sight: they notice your noise, your silhouette and your flashlight.
   // ?nosenses falls back to the L0 fixed flee distance (used by older mechanic checks).
   senses: new URLSearchParams(location.search).has('nosenses') ? null
@@ -152,6 +157,10 @@ const photo = new PhotoCamera({
   onPhoto: (r) => hunt.onPhoto(r),
   getShake: () => fear.swaySpeed,
 });
+// T sets a trail camera facing where you look: it photographs any cryptid that walks into its
+// view, on its own (grainy shots, lower score).
+const trailCams = new TrailCameras({ scene, player, input, getSubjects: () => photo.getSubjects(),
+  onPhoto: (r) => hunt.onPhoto(r), notify: (m) => photo.toast(m) });
 
 // Getting touched by a cryptid ends the hunt.
 const huntFailure = new HuntFailure({
@@ -211,11 +220,13 @@ function frame() {
     chupacabra.update(dt);
   }
   photo.update(dt);
+  audioLures.update(dt);
+  trailCams.update(dt);
   hunt.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
-  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)` +
+  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)  TRAIL CAM ${trailCams.carried} (T)  LURE ${audioLures.carried} (L)` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m` +
       (c.perception ? `  hear ${c.perception.hearLevel.toFixed(2)} see ${Math.max(c.perception.sightLevel, c.perception.beamLevel).toFixed(2)} aware ${c.perception.awareness.toFixed(2)}${c.perception.detected ? ' DETECTED' : ''}` : '')).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
@@ -233,4 +244,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, knocks, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

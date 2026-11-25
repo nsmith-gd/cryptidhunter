@@ -17,7 +17,8 @@ export class HuntLoop {
     this.onRestart = onRestart;
     this.stage = 'briefing';      // briefing | search | extract | ended
     this.elapsed = 0;
-    this.photo = null;            // { subject, distance, at }
+    this.photo = null;            // best photo of the target: { subject, distance, score, source, at }
+    this.photos = [];             // every photo of the target this hunt (handheld + gear)
     this.missedShots = 0;
     this.outcome = null;          // complete | abandoned | dawn | caught
     this.inZone = false;
@@ -40,10 +41,14 @@ export class HuntLoop {
   canGiveUp() { return this.stage === 'search' && this.inZone && this.elapsed >= HUNT.giveUpAfter; }
 
   // Hook for the camera: called with { subject, distance } for every shot taken.
-  onPhoto({ subject, distance }) {
+  // Hook for every camera (handheld or gear): { subject, distance, score?, source? }.
+  onPhoto({ subject, distance, score = null, source = 'handheld camera' }) {
     if (this.stage !== 'search' && this.stage !== 'extract') return;
-    if (subject !== this.target) { this.missedShots++; return; }
-    if (!this.photo || distance < this.photo.distance) this.photo = { subject, distance, at: this.elapsed };
+    if (subject !== this.target) { if (source === 'handheld camera') this.missedShots++; return; }
+    const shot = { subject, distance, score: score ?? 0, source, at: this.elapsed };
+    this.photos.push(shot);
+    const better = !this.photo || shot.score > this.photo.score || (shot.score === this.photo.score && distance < this.photo.distance);
+    if (better) this.photo = shot;
     this.stage = 'extract';
   }
 
@@ -136,7 +141,7 @@ export class HuntLoop {
   // ---------- HUD ----------
   buildHud() {
     const box = this.hud = document.createElement('div');
-    Object.assign(box.style, { position: 'fixed', top: '38px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', maxWidth: '440px',
+    Object.assign(box.style, { position: 'fixed', top: '60px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', maxWidth: '440px',
       font: '13px monospace', color: '#e8e8e8', textShadow: '0 0 3px #000', pointerEvents: 'none', whiteSpace: 'pre-line', lineHeight: '1.5' });
     document.body.appendChild(box);
     this.clock = document.createElement('div');
@@ -208,7 +213,9 @@ export class HuntLoop {
     const lines = [];
     if (this.outcome === 'dawn') lines.push(`The sun came up before you made it back to the van.${this.photo ? '\nThe photo never left the woods.' : ''}`);
     if (this.outcome === 'abandoned') lines.push('You drove home empty-handed.');
-    lines.push('', `Photo of ${this.target}:  ${this.photo && this.outcome === 'complete' ? `YES (from ${this.photo.distance.toFixed(0)} m)` : 'none'}`);
+    const best = this.photo && this.outcome === 'complete' ? this.photo : null;
+    lines.push('', `Best photo of ${this.target}:  ${best ? `score ${best.score} (${best.source}, ${best.distance.toFixed(0)} m)` : 'none'}`);
+    if (best && this.photos.length > 1) lines.push(`Photos of ${this.target} taken:  ${this.photos.length}`);
     lines.push(`Clues logged:  ${this.journal?.entries.length ?? 0}`);
     if (v?.likely) lines.push(`Journal verdict:  ${v.likely.name}`);
     lines.push(`Time out:  ${Math.floor(t / 60)}m ${String(t % 60).padStart(2, '0')}s`);

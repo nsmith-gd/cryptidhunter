@@ -29,6 +29,8 @@ Add `?map=swamp` to the URL for Blackwater Swamp (greybox): boardwalks, wading w
 
 `npm run check:t49` captures Pine Hollow at night with the flashlight on and off and checks silhouettes read.
 
+`npm run check:t28` tests the trail camera and audio lure working with the player far away.
+
 `npm run check:t1` builds, opens the greybox map headlessly, drives the player and writes screenshots to `.ballast/media/t1/`.
 
 `npm test` runs unit tests. `npm run check:t3` lets Bigfoot leave a trail, then a bot follows three clue hints (W/D/E key presses only) and checks it moves along Bigfoot's route toward it; screenshots go to `.ballast/media/t3/`.

@@ -19,9 +19,12 @@ export class CryptidAI {
   /**
    * @param {object} o { scene, grid, profile, x, z, getPlayerPosition: () => THREE.Vector3, rand,
    *   lures: { lures(): {x, z, gone, claimedBy}[], consume(lure), eatTime } (optional),
-   *   senses: { player, flashlight, camera, colliders, lightLevel } (optional: enables hearing + sight) }
+   *   senses: { player, flashlight, camera, colliders, lightLevel } (optional: enables hearing + sight),
+   *   calls: audio lures playing a call (optional; only calls for this cryptid's species count) }
    */
-  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null, senses = null }) {
+  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null, senses = null, calls = null }) {
+    this.callSource = calls;       // audio lures: { sounding(): [{x, z, species, range, id, seq}] }
+    this.heardCalls = new Map();   // lure -> last call seq reacted to
     this.perception = senses ? new Perception(profile, senses) : null;
     this.profile = profile;
     this.lureSource = lures;
@@ -98,15 +101,21 @@ export class CryptidAI {
     }
 
     switch (this.state) {
-      case 'roam':
-        if (pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.enterInvestigateNoise(pc.lastHeard, 'heard a noise');
+      case 'roam': {
+        const call = this.hearCall();
+        if (call) this.enterInvestigateNoise(call, 'heard a call');
+        else if (pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.enterInvestigateNoise(pc.lastHeard, 'heard a noise');
         else if (!this.findLure()) this.tickRoam(dt);
         break;
-      case 'investigate':
-        // A fresh, louder noise updates where it's heading.
-        if (!this.lure && pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.retargetNoise(pc.lastHeard);
+      }
+      case 'investigate': {
+        // A fresh, louder noise (or another call) updates where it's heading.
+        const call = this.lure ? null : this.hearCall();
+        if (call) { this.retargetNoise(call); this.lookLeft = B.lookAround; }
+        else if (!this.lure && pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.retargetNoise(pc.lastHeard);
         this.tickInvestigate(dt);
         break;
+      }
       case 'observe':
         this.tickObserve(dt, p);
         break;
@@ -123,11 +132,26 @@ export class CryptidAI {
   // L0 behaviour (no senses): roam / bait / flee at a fixed distance.
   thinkL0(dt, p) {
     if (this.state === 'roam' || this.state === 'investigate') {
+      const call = this.state === 'roam' || !this.lure ? this.hearCall() : null;
       if (this.playerDistance < this.profile.fleeTriggerDistance) this.enterFlee(p, 'too close');
-      else if (this.state === 'investigate') this.tickInvestigate(dt);
+      else if (call && this.state === 'roam') this.enterInvestigateNoise(call, 'heard a call');
+      else if (this.state === 'investigate') { if (call) { this.retargetNoise(call); this.lookLeft = this.profile.behavior.lookAround; } this.tickInvestigate(dt); }
       else if (!this.findLure()) this.tickRoam(dt);
     } else if (this.playerDistance > this.profile.fleeSafeDistance) this.enterRoam('far enough');
     else this.tickFlee(dt, p);
+  }
+
+  // A call from an audio lure made for this species, in earshot, not yet reacted to.
+  hearCall() {
+    if (!this.callSource) return null;
+    for (const c of this.callSource.sounding()) {
+      if (c.species !== this.profile.id) continue;
+      if (Math.hypot(c.x - this.agent.x, c.z - this.agent.z) > c.range) continue;
+      if (this.heardCalls.get(c.id) === c.seq) continue;
+      this.heardCalls.set(c.id, c.seq);
+      return { x: c.x, z: c.z };
+    }
+    return null;
   }
 
   // With senses: only once it has actually detected you. Without: the old fixed trigger distance.
