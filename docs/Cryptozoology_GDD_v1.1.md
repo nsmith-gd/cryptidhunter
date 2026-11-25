@@ -1623,3 +1623,67 @@ Begin with a minimal recorder (P01/P02/P05/P07/P12) in G00/G01, expand with AI t
 - Meta WebXR performance workflow and tools: https://developers.meta.com/vr/documentation/web/webxr-perf-workflow/ and https://developers.meta.com/vr/documentation/web/webxr-perf-tools/
 - Meta WebXR performance best practices: https://developers.meta.com/vr/documentation/web/webxr-perf-bp/
 - Khronos WebGL2 asynchronous GPU timing extension: https://registry.khronos.org/webgl/extensions/EXT_disjoint_timer_query_webgl2/
+
+---
+
+## Appendix A. Alignment with the current build (added for board task #63)
+
+This appendix does not change the design above. It records where v1.1 and the build board's existing sections disagree, so the director can decide which way each one goes. Until the director rules, **v1.1 is the design source of truth**. The board's sections keep their current behaviour so the game stays playable.
+
+**Board sections today (Cryptid Hunter build):** Player Movement & Flashlight · Clues & Tracking · Pine Hollow Forest (Starter Map) · Bigfoot / Cryptid AI (perception, behaviour states, wood knocks) · Camera & Evidence Capture (photo scoring, 12-shot film roll, album) · Danger & Hunt Failure (fear meter, caught) · Hunting Gear (bait, trail camera, audio lure, night vision, knock stick, spare batteries; 4-slot loadout) · Base Camp, Shop & Upgrades (selling, shop, upgrades, map choice, reputation) · Blackwater Swamp (Mothman) · A Night's Hunt (briefing, night clock and dawn, van extraction, results) · Story cards (switched off) · Save file · Art pipeline (style guide, palette and grades, cinematic lighting, atmosphere, pixelation pipeline).
+
+### A.1 Disagreements between v1.1 and the board
+
+| # | Topic | v1.1 says (section) | Board/build does now | Impact |
+|---|---|---|---|---|
+| D1 | Name and premise | "Cryptozoology". An ordinary Toronto resident grows a cryptozoology business; hardcore survival horror plus search-and-capture career (0, 11) | "Cryptid Hunter". A night hunt for one cryptid; the story-card draft frames it as a TV show (cards now off) | Title, intro, narrative copy |
+| D2 | Starter expedition | L01 **Cabbagetown Tunnel Monster**, Toronto tunnels, 15–25 min, escape is the goal, creature retreats, evidence optional (1.3, 6.1, 12.2) | **Pine Hollow Forest**, a 300×300 m night forest where you photograph **Bigfoot** | The board's whole starter section is not in the GDD |
+| D3 | Bigfoot | Not one of the 13 cryptids. The finale's "Ancient" (northern BC, old growth) is not described as a Sasquatch (1.3, 5.4) | Bigfoot is the main cryptid, being remodelled (#58/#59) | Big content decision |
+| D4 | Early-creature danger | L01–L05 creatures are elusive or harmless; hostility is first taught at L06 Hodag; every encounter telegraphs and has a retreat (5.1, 5.5) | Starter Bigfoot can turn, charge and catch you on first touch | Starter tone and difficulty |
+| D5 | Mothman and the swamp | Mothman is **L08, Point Pleasant WV**, industrial woodland; danger is electrical interference and weather, not attacks (5.4, 12.2). No swamp destination (Pine Barrens, L09, is the nearest) | **Blackwater Swamp** hunting Mothman, unlocked at reputation 2; Mothman can catch you | Second map and its target |
+| D6 | Fear meter | "**No mandatory sanity, fear, morale** … meter"; fear comes from uncertainty and real threats (2.4, 9.1) | FEAR bar that rises in the dark and near threatening cryptids, with sway and lower photo scores (#25/#52, built on director answers) | Direct conflict with an approved feature |
+| D7 | Camera shake | No camera shake, head bob or roll in VR (16.3); reduced shake is an accessibility option (13.1) | Fear sway on screen (half strength; none with `?vr`); shake still affects photos | Mostly aligned after the #25 follow-up; confirm |
+| D8 | Survival systems | **16 systems**. L01 engages nutrition, thermoregulation, inventory/load, navigation, illumination; stamina, hydration and medical arrive in L02 (1.2–1.4, 2.5) | Stamina, flashlight battery and a debug noise readout only; no hunger, temperature, load, hydration, injury or navigation tools | Most survival design is unbuilt |
+| D9 | Health and getting caught | Health 0–100 owned by Injury & medical; injuries, bleeding and retreat; death loses unextracted evidence and field gear, career kept (2.2, 9.1) | No health: a cryptid touch (1–3 hits) ends the hunt as "Caught"; photos lost, gear kept (#26) | Loss rules agree; the cause (touch vs health) differs |
+| D10 | Time pressure | **No global countdown**. A field clock and a 20-minute day/night baseline; leave at any valid exit (6.3, 6.5, 12.1) | 15-minute night clock to dawn: Bigfoot leaves and the bonus is lost; extraction at the van with H | Loop structure |
+| D11 | Photo score | Q = 100 × (0.30 clarity + 0.35 identification + 0.20 completeness + 0.15 provenance) × integrity, graded 0–4; judged at HQ after extraction; quality is not authenticity (4.5) | Score = visibility × steadiness × (35% centring + 65% size), shown the moment you shoot (#50, built on the director's "more of it, closer, centred" answer) | Formula, timing and grades differ |
+| D12 | Film | The starter is a **used digital compact camera** (stills, weak in low light). Film is an L08 analogue camera with 24-exposure rolls, judged after extraction (3.2, 4.3) | The starter camera has a 12-shot film roll and an end-of-hunt album (#51); the shop sells more film | Starter camera model |
+| D13 | Evidence types | 14 types: footprint photo, physical trace, creature photo, disturbance, cast, biological sample, audio, video, thermal and more (4.2) | Creature photos plus examinable footprints, hair and scratch marks, logged in a journal | Several types missing; clues are examined, not collected as sellable evidence |
+| D14 | Research progress | Milestones Lead → Located → Documented → Characterized → Confirmed, with credibility awards and a confidence score (4.6) | Journal names the likely cryptid with a confidence percentage after 3 clues | Close in spirit; different model |
+| D15 | Clue direction hints | No omniscient markers; previews never reveal species or price (4.4, 13.1) | Examining a clue says "Fresh footprint, heading north-east" from the true route, and shows a compass | May count as an omniscient hint |
+| D16 | Gear list | 98 catalogued items; **no bait, audio lure or knock stick**. Trail camera L04, night-vision monocular L09 ($900), spare battery packs L05; the L01 flashlight is finite with no swaps (3.2, 3.4) | Bait, audio lure, knock stick, trail cameras, night vision and spare batteries all owned from the first hunt | Item set and unlock pacing |
+| D17 | Loadout | Pack with mass and volume limits, worn layers, hands, **four quick slots** (3.5, 13.1) | Four slots chosen before the hunt; no pack mass or volume | Quick slots match; the pack model is missing |
+| D18 | Money | CAD, start $250, each trip costs money, buyers with affinity, offer = T × B × M × N × A, per-trip payout ceiling (3.6, 4.7, 7.2) | $ with no trip cost; $2 per score point, the target ×3, a before-dawn bonus | Economy model |
+| D19 | Progression | Next destination unlocks on extraction plus the **Documented** milestone and being able to afford the trip; credibility can't be spent (6.4, 7.1–7.2) | Map unlocked by a reputation number (2 for the swamp; +1/+2 per target photo) | Unlock rule |
+| D20 | Upgrades | No permanent stats; better gear is new items (camera F01 → F08 telephoto → F14 analogue) (3.1, 10) | Shop sells levelled upgrades (more film, zoom lens, torch) (#46) | Upgrades vs new items |
+| D21 | Base camp | A first-person 3D HQ with stations; Toronto apartment → garage → office → staging facility (10) | A text panel on the start screen (base camp, loadout, map choice, shop) | HQ form |
+| D22 | Platform | Desktop and **WebXR VR are equal**; 72 Hz floor on Quest 3, 60 FPS desktop, comfort rules (0, 16) | Desktop only; no WebXR session code | Large missing pillar |
+| D23 | Pixel look | World-space pixel textures; **avoid screen-space pixelation in VR**; desktop post-filter optional and never affects evidence or AI (13.2, 16.4) | Low-res render + upscale pipeline for everyone (#35, being redone in #61) | Pipeline approach (VR) |
+| D24 | Testing | 10 gameplay gyms (G00–G09) with pass criteria; profiling tools P01–P12 exporting `cryptozoology_<build>_<gym>_…json` (15, 17) | One scripted check per task (`npm run check:tNN`); no gyms, no profiling exports | Process and tooling |
+| D25 | Wood knocks | Audio is evidence (field recorder, acoustic EV07) (4.2) | Bigfoot knocks and answers your knock stick; knocks aren't evidence | Feature not in GDD |
+
+### A.2 Ambiguities inside v1.1 (worth fixing in the GDD)
+
+- 4.2 lists the analogue film camera and film (unlock L08) as tools for the creature photo from L01.
+- 4.7 quotes an "exceptional photo $88" that doesn't match the worked $70 example.
+- 12.2 level cards end with an unlabelled "$A/$B" pair (A looks like trip cost; B doesn't match the 7.3 ledger for L01–L03).
+- 8.1 uses "G03–G05", "G10/G13", which read like item IDs but share the gym ID prefix.
+- 7.4 mentions "post-entry cash" for the L01 tutorial, implying an entry fee that isn't defined.
+- 13.2 asks for a "controlled palette" without specifying it (the build has its own 98-colour palette, `docs/art/palette`).
+- "The Ancient" (L13) is never described as a specific creature.
+
+### A.3 Open questions for the director
+
+1. **Which game are we building now:** keep the Pine Hollow / Bigfoot night hunt as a vertical slice, or pivot the starter to the v1.1 Cabbagetown tunnel tutorial and the 13-expedition order?
+2. **Name:** "Cryptid Hunter" or "Cryptozoology"?
+3. **Bigfoot:** keep Bigfoot (as an extra expedition, or as the Ancient?), or drop it for the v1.1 roster?
+4. **Fear meter:** v1.1 rules out a fear meter, but you approved one in #25/#52. Keep it (and update the GDD), or remove it?
+5. **Starter danger:** should the first creature be harmless (v1.1) or able to catch you (current Bigfoot)?
+6. **Time pressure:** keep the night clock and dawn, or switch to the v1.1 field clock with no global deadline?
+7. **Starter camera:** digital compact (v1.1) or the 12-shot film roll (current)?
+8. **Photo score:** keep the current four-part score, or move to v1.1's clarity/identification/completeness/provenance grades judged at HQ?
+9. **Extra gear:** keep bait, audio lure and knock stick (not in v1.1), and keep giving trail cameras and night vision from the first hunt?
+10. **Economy and unlocks:** move to trip costs, buyers, credibility and the Documented milestone, or keep the simpler money + reputation?
+11. **WebXR:** when should VR support start, and should the pixelation pipeline (#61) switch to world-space pixel textures so it's VR-safe?
+12. **Survival systems:** which of the 16 to build first; v1.1's L01 set is hunger, body temperature, inventory/load, navigation and light.
+13. **Testing:** adopt the v1.1 gyms (G00–G09) and profiling exports (P01–P12) as the way sections are checked, instead of per-task check scripts?
