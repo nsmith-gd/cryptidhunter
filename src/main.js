@@ -307,8 +307,9 @@ const drawFrame = () => pixels.frame(() => { water?.renderReflection(); if (!nig
 const textCard = new TextCard();
 const reputation = new ReputationStub(Number(new URLSearchParams(location.search).get('rep') ?? camp.state.reputation ?? 0));
 reputation.onChange((v) => { camp.state.reputation = v; camp.save(); }); // base camp keeps it between hunts
-// Automated browser checks skip the cards (they'd eat the first key press) unless ?cards is given.
-const cardsOn = !navigator.webdriver || new URLSearchParams(location.search).has('cards');
+// Story cards are OFF for now (director: the TV-show story belongs later in development, not on
+// the opening Bigfoot hunt). The system stays in place; ?cards turns it on for testing.
+const cardsOn = new URLSearchParams(location.search).has('cards');
 const story = new StoryCards({ show: (id) => (cardsOn ? textCard.show(id) : null) });
 reputation.onChange((v, max) => story.reputationChanged(v, max));
 story.start(camp.state.hunts.length === 0 && camp.state.money === 0);
