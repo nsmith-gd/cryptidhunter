@@ -13,6 +13,12 @@ export const PLAYER = {
   gravity: 20,
   crouchLerp: 10,        // how fast the camera drops/rises
   mouseSens: 0.0022,
+  // Stamina (0..1).
+  staminaDrain: 1 / 6,       // full bar lasts 6 s of sprinting
+  staminaRegenMove: 0.12,    // per second while walking/crouch-walking
+  staminaRegenRest: 0.3,     // per second while standing still
+  staminaRegenDelay: 0.8,    // pause after sprinting before refilling starts
+  staminaRecover: 0.3,       // once emptied, sprint is locked until this much is back
   maxPitch: Math.PI / 2 - 0.01,
 };
 
@@ -32,6 +38,9 @@ export class Player {
     this.crouching = false;
     this.sprinting = false;
     this.grounded = true;
+    this.stamina = 1;
+    this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
+    this.sinceSprint = 99;
     camera.rotation.order = 'YXZ';
   }
 
@@ -59,7 +68,9 @@ export class Player {
     if (wish.lengthSq() > 0) wish.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
 
     // Sprint only while moving forward and not crouched.
-    this.sprinting = !this.crouching && f > 0 && inp.down('ShiftLeft', 'ShiftRight');
+    // Stamina gates sprinting; emptying it locks sprint until it partly refills.
+    this.sprinting = !this.crouching && f > 0 && inp.down('ShiftLeft', 'ShiftRight') && !this.exhausted;
+    this.updateStamina(dt, wish.lengthSq() > 0);
     const speed = this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
 
     const k = 1 - Math.exp(-PLAYER.accel * dt);
@@ -78,6 +89,21 @@ export class Player {
     this.eyeHeight += (targetEye - this.eyeHeight) * (1 - Math.exp(-PLAYER.crouchLerp * dt));
     this.camera.position.set(this.position.x, this.position.y + this.eyeHeight, this.position.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  updateStamina(dt, moving) {
+    if (this.sprinting) {
+      this.sinceSprint = 0;
+      this.stamina = Math.max(0, this.stamina - PLAYER.staminaDrain * dt);
+      if (this.stamina === 0) { this.exhausted = true; this.sprinting = false; }
+    } else {
+      this.sinceSprint += dt;
+      if (this.sinceSprint >= PLAYER.staminaRegenDelay) {
+        const rate = moving ? PLAYER.staminaRegenMove : PLAYER.staminaRegenRest;
+        this.stamina = Math.min(1, this.stamina + rate * dt);
+      }
+      if (this.exhausted && this.stamina >= PLAYER.staminaRecover) this.exhausted = false;
+    }
   }
 
   bodyBox(pos = this.position, height = this.height, out = new THREE.Box3()) {
