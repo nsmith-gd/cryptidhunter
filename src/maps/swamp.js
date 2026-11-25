@@ -4,6 +4,9 @@ import {
   rng, pixelMaterial, plankTexture, boardWallTexture, tinRoofTexture, barkTexture, mossTexture,
   foliageTexture, mudTexture, waterTexture, reedTexture, lilyTexture,
 } from '../art/pixelTex.js';
+import { snapTextureToPalette } from '../art/palette.js';
+import { cypressSprayCard, longMossCard, lilyFlowerCard, buildFogBanks } from '../art/swampArt.js';
+import { ForestKit } from '../art/forestKit.js';
 
 // Blackwater Swamp — greybox layout (L0) dressed with textured low-poly pieces.
 // Layout (north = -z): spawn dock in the south, a boardwalk spine running north to a central
@@ -38,6 +41,7 @@ export function buildSwampMap(scene) {
   const colliders = [];
   const decks = [];         // walkable dry tops (AABBs), for the connectivity check
   const r = rng(7);
+  const ra = rng(4040);     // art #40 dressing: separate stream so the layout above stays put
   const root = new THREE.Group();
   root.name = 'swamp';
   scene.add(root);
@@ -55,6 +59,10 @@ export function buildSwampMap(scene) {
     mud: pixelMaterial(mudTexture()),
     reeds: [0, 1].map((v) => pixelMaterial(reedTexture(v), { side: THREE.DoubleSide })),
     lily: pixelMaterial(lilyTexture(), { side: THREE.DoubleSide }),
+    // Art #40: matte (Lambert) foliage cards, like the forest kit.
+    spray: [0, 1].map((v) => new THREE.MeshLambertMaterial({ map: cypressSprayCard(v), alphaTest: 0.5, side: THREE.DoubleSide })),
+    longMoss: new THREE.MeshLambertMaterial({ map: longMossCard(), alphaTest: 0.5, side: THREE.DoubleSide }),
+    lilyFlower: new THREE.MeshLambertMaterial({ map: lilyFlowerCard(), alphaTest: 0.5, side: THREE.DoubleSide }),
   };
   // Tile a box's texture per metre so pixels stay the same size on every face.
   const boxUV = (geo, w, h, d, ppm) => {
@@ -191,7 +199,9 @@ export function buildSwampMap(scene) {
   // Mud islands: a textured slab with lumpy low-poly edges so they don't read as boxes.
   const lumpGeo = new THREE.DodecahedronGeometry(1, 0);
   const lumpBatch = batch('lump', lumpGeo, M.mud);
+  const islands = [];
   const island = (x0, z0, x1, z1) => {
+    islands.push([x0, z0, x1, z1]);
     solid(x0, z0, x1, z1, 0, D, { deck: true });
     const w = x1 - x0, d = z1 - z0;
     add(tiledBox(w, D, d, 0.5), M.mud, (x0 + x1) / 2, D / 2, (z0 + z1) / 2);
@@ -362,12 +372,23 @@ export function buildSwampMap(scene) {
   const limbGeo = tiledBox(0.12, 0.12, 1, 2);
   limbGeo.translate(0, 0, 0.5);
   const limbBatches = [batch('limb', limbGeo, M.bark), batch('deadlimb', limbGeo, M.deadBark)];
+  // Feathery foliage sprays hanging under each crown clump (two crossed cards, top at origin).
+  const sprayGeo = (() => {
+    const a = new THREE.PlaneGeometry(1.5, 1.5); a.translate(0, -0.6, 0);
+    return mergeGeometries([a, a.clone().rotateY(Math.PI / 2)]);
+  })();
+  const sprayBatches = M.spray.map((m, i) => batch(`spray${i}`, sprayGeo, m));
+  const longMossGeo = (() => {
+    const a = new THREE.PlaneGeometry(0.55, 2.4); a.translate(0, -1.2, 0);
+    return mergeGeometries([a, a.clone().rotateY(Math.PI / 2)]);
+  })();
+  const longMossBatch = batch('longMoss', longMossGeo, M.longMoss, { shadow: false });
   const kneeGeo = new THREE.ConeGeometry(0.12, 1, 5);
   kneeGeo.translate(0, 0.5, 0);
   const kneeBatch = batch('knee', kneeGeo, M.bark);
   const trunkGeos = [0, 1, 2].map((i) => trunkGeo(0.45, 1));   // unit height, scaled per tree
 
-  function tree(x, z, rad, h, dead) {
+  function tree(x, z, rad, h, dead, far = false) {
     const t = add(trunkGeos[0], dead ? M.deadBark : M.bark, x, -0.2, z, { ry: r() * 6 });
     t.scale.set(rad / 0.45, h, rad / 0.45);
     colliders.push(new THREE.Box3(new THREE.Vector3(x - rad, 0, z - rad), new THREE.Vector3(x + rad, h, z + rad)));
@@ -381,13 +402,25 @@ export function buildSwampMap(scene) {
         // A few overlapping clumps per limb end so the canopy reads as foliage, not plates.
         for (let c = 0; c < 3; c++) {
           const s = 0.6 + r() * 0.6, g = 0.8 + r() * 0.4;
-          put(crownBatch, ex + (r() - 0.5) * 1.4, ey + 0.1 + r() * 0.5, ez + (r() - 0.5) * 1.4, r() * 6, r(), 0, s * 1.2, s * 0.7, s * 1.2, new THREE.Color(g, g * 1.05, g));
+          const cx = ex + (r() - 0.5) * 1.4, cy = ey + 0.1 + r() * 0.5, cz = ez + (r() - 0.5) * 1.4;
+          put(crownBatch, cx, cy, cz, r() * 6, r(), 0, s * 1.2, s * 0.7, s * 1.2, new THREE.Color(g, g * 1.05, g));
+          // Feathery sprays drooping from under the clump break up its rounded silhouette.
+          for (let k = 0; k < (far ? 0 : 2); k++) {   // none on the far treeline (unseen detail, saves fill)
+            const a2 = ra() * 6.28, d2 = s * (0.6 + ra() * 0.5);
+            put(sprayBatches[ra() < 0.75 ? 0 : 1], cx + Math.cos(a2) * d2, cy - s * 0.2, cz + Math.sin(a2) * d2, ra() * 6, 0, 0, 0.8 + ra() * 0.6, 0.8 + ra() * 0.6, 1);
+          }
         }
       }
-      // Spanish moss hanging off the limb.
+      // Spanish moss hanging off the limb: short tufts and long trailing curtains.
+      // (Same draws from `r` as before so the layout doesn't shift; the choice comes from `ra`.)
       for (let m = 0; m < 2; m++) {
         const f = 0.4 + r() * 0.6;
-        put(mossBatch, x + (ex - x) * f, y + (ey - y) * f - 0.05, z + (ez - z) * f, r() * 3, 0, 0, 0.8 + r() * 0.6, 0.7 + r() * 0.9, 1);
+        const long = ra() < 0.45;
+        put(long ? longMossBatch : mossBatch, x + (ex - x) * f, y + (ey - y) * f - 0.05, z + (ez - z) * f, r() * 3, 0, 0, 0.8 + r() * 0.6, (long ? 0.6 : 0.7) + r() * 0.9, 1);
+      }
+      if (ra() < 0.6) {   // an extra trailing curtain on most limbs
+        const f = 0.5 + ra() * 0.5;
+        put(longMossBatch, x + (ex - x) * f, y + (ey - y) * f - 0.05, z + (ez - z) * f, ra() * 3, 0, 0, 0.8 + ra() * 0.5, 0.6 + ra() * 0.8, 1);
       }
     }
     if (!dead) for (let c = 0; c < 4; c++) put(crownBatch, x + (r() - 0.5) * 2, h + r() * 0.6, z + (r() - 0.5) * 2, r() * 6, r(), 0, 1.3, 0.8, 1.3, new THREE.Color(1, 1.05, 1));
@@ -409,7 +442,7 @@ export function buildSwampMap(scene) {
     const side = i % 4, t = (r() * 2 - 1) * H;
     const off = H + 1.5 + r() * 4;
     const [x, z] = side === 0 ? [t, -off] : side === 1 ? [t, off] : side === 2 ? [-off, t] : [off, t];
-    tree(x, z, 0.35 + r() * 0.3, 9 + r() * 8, r() < 0.2);
+    tree(x, z, 0.35 + r() * 0.3, 9 + r() * 8, r() < 0.2, true);
   }
 
   // ---- Reeds, cattails and lily pads ---------------------------------------------------------
@@ -446,11 +479,57 @@ export function buildSwampMap(scene) {
     }
   }
   const lilyBatch = batch('lily', new THREE.PlaneGeometry(0.5, 0.5).rotateX(-Math.PI / 2), M.lily, { shadow: false });
+  const lilyFlowerBatch = batch('lilyFlower', new THREE.PlaneGeometry(0.5, 0.5).rotateX(-Math.PI / 2), M.lilyFlower, { shadow: false });
   for (let i = 0; i < 60; i++) {
     const cx = (r() * 2 - 1) * (H - 2), cz = (r() * 2 - 1) * (H - 2);
     if (nearDeck(cx, cz, 0.4)) continue;
-    for (let k = 0; k < 6; k++) put(lilyBatch, cx + (r() - 0.5) * 2.5, W + 0.012, cz + (r() - 0.5) * 2.5, r() * 6, 0, 0, 0.6 + r() * 0.9, 1, 0.6 + r() * 0.9);
+    for (let k = 0; k < 6; k++) put(ra() < 0.14 ? lilyFlowerBatch : lilyBatch, cx + (r() - 0.5) * 2.5, W + 0.012, cz + (r() - 0.5) * 2.5, r() * 6, 0, 0, 0.6 + r() * 0.9, 1, 0.6 + r() * 0.9);
   }
+
+  // ---- Art #40 dressing from the forest kit: drowned logs, dead snags standing in the water,
+  // and undergrowth on the mud islands. Uses its own random stream (ra). ----------------------
+  const kit = new ForestKit(4041);
+  const inDeep = (x, z) => DEEP.some(([x0, z0, x1, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+  for (let i = 0, n = 0; i < 600 && n < 22; i++) {
+    const x = (ra() * 2 - 1) * (H - 4), z = (ra() * 2 - 1) * (H - 4), rot = ra() * Math.PI;
+    const len = 3 + ra() * 6, dia = 0.4 + ra() * 0.45;
+    const ends = [-0.5, 0.5].map((t) => [x + Math.cos(rot) * t * len, z - Math.sin(rot) * t * len]);
+    if (ends.some(([ex, ez]) => nearDeck(ex, ez, 1.2)) || nearDeck(x, z, 1.2)) continue;
+    // Mostly drowned: just the top of the log breaks the surface, one end often sunk deeper.
+    const sink = inDeep(x, z) ? 0.1 : 0.25;
+    kit.add(ra() < 0.6 ? 'log:1' : 'log:3', x, W - dia * sink, z, rot, [len, dia, dia], { x: 0, z: (ra() - 0.5) * 0.12 });
+    n++;
+  }
+  for (let i = 0, n = 0; i < 400 && n < 14; i++) {
+    const x = (ra() * 2 - 1) * (H - 4), z = (ra() * 2 - 1) * (H - 4);
+    if (nearDeck(x, z, 2.5)) continue;
+    const h = 5 + ra() * 7;
+    kit.add('snag:1', x, -0.3, z, ra() * 6.28, [h * 1.1, h, h * 1.1], { x: (ra() - 0.5) * 0.12, z: (ra() - 0.5) * 0.12 });
+    colliders.push(new THREE.Box3(new THREE.Vector3(x - 0.25, 0, z - 0.25), new THREE.Vector3(x + 0.25, h, z + 0.25)));
+    n++;
+  }
+  for (const [x0, z0, x1, z1] of islands) {
+    const area = (x1 - x0) * (z1 - z0);
+    for (let k = 0; k < area * 0.5; k++) {
+      const x = x0 + 0.3 + ra() * (x1 - x0 - 0.6), z = z0 + 0.3 + ra() * (z1 - z0 - 0.6);
+      const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+      if (edge > 1.6 && ra() < 0.6) continue;          // thickest around the rim
+      kit.add('grass:1', x, D, z, ra() * 6.28, 0.8 + ra() * 0.7);
+    }
+    for (let k = 0; k < area * 0.08; k++) {
+      const x = x0 + 0.5 + ra() * (x1 - x0 - 1), z = z0 + 0.5 + ra() * (z1 - z0 - 1);
+      kit.add(ra() < 0.6 ? 'fern:1' : 'fern:0', x, D, z, ra() * 6.28, 0.8 + ra() * 0.5);
+    }
+    for (let k = 0; k < Math.max(1, area * 0.02); k++) {
+      kit.add('rock:4', x0 + ra() * (x1 - x0), D - 0.08, z0 + ra() * (z1 - z0), ra() * 6.28, 0.5 + ra() * 0.6);
+    }
+  }
+  const kitGroup = kit.build(root);
+  const swayer = kitGroup.children.find((c) => c.name.startsWith('kit-grass')) ?? kitGroup.children[0];
+  if (swayer) swayer.onBeforeRender = () => { kit.wind.value = performance.now() / 1000; };
+
+  // ---- Swamp fog: drifting low mist banks over the water ---------------------------------
+  root.add(buildFogBanks({ half: H, water: W, rand: ra }));
 
   // ---- Fireflies over the water: tiny unlit pixels that drift (cheap ambience) --------------
   const nFly = 90, flyPos = new Float32Array(nFly * 3), flyBase = [];
@@ -484,6 +563,11 @@ export function buildSwampMap(scene) {
     im.computeBoundingSphere();
     root.add(im);
   }
+
+  // Style guide rule 2: every painted texture in the swamp uses master-palette colours only.
+  root.traverse((o) => {
+    for (const m of [].concat(o.material ?? [])) if (m?.map?.image?.getContext) snapTextureToPalette(m.map);
+  });
 
   /** What the player is standing in at (x, z, feetY): 'dry' | 'shallow' | 'deep'. */
   const surfaceAt = (x, z, y = 0) => {

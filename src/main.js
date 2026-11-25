@@ -97,7 +97,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bi
     });
     const summary = huntSummary(h);
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
-    return { summary, money: camp.state.money };
+    return { summary, money: camp.state.money, entry: h };
   },
   // First light: every cryptid bolts for cover and is gone from the area a little later.
   onDawn: () => {
