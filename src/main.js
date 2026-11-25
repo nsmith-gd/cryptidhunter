@@ -5,6 +5,7 @@ import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
 import { NightLighting } from './maps/nightLighting.js';
+import { Atmosphere, timeOfDayConfig } from './maps/atmosphere.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
@@ -107,7 +108,13 @@ showCampPanel(camp);
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 // Outdoor maps can opt into the night lighting baseline (moon, haze, ambient, sky).
-const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: map.environment.night }) : null;
+// ?time=dusk|night|dawn picks a palette grade for the sky, fog and light (outdoor maps).
+const timeOfDay = new URLSearchParams(location.search).get('time');
+const todConfig = timeOfDay ? timeOfDayConfig(mapId === 'swamp' ? 'swamp' : 'forest', timeOfDay) : null;
+const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: { ...map.environment.night, ...(todConfig ?? {}) } }) : null;
+// Forest atmosphere: ground mist + midground and background fog curtains (?noatmos turns it off).
+const atmosphere = mapId === 'forest' && !new URLSearchParams(location.search).has('noatmos')
+  ? new Atmosphere({ scene, camera, half: bounds, keepClear: map.keepClear, hazeColor: night?.cfg.skyHorizon, glowColor: night?.cfg.moonGlow }) : null;
 const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
 mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
@@ -284,6 +291,7 @@ function frame() {
   huntFailure.update();
   aiDebug.update(camera);
   night?.update(player.position, dt);
+  atmosphere?.update(dt);
   trailReader.update(dt);
   if (!nightVision.render()) renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -291,4 +299,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, atmosphere, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
