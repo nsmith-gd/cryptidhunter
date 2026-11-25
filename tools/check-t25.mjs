@@ -51,8 +51,11 @@ const dark = await sim({ ...deep, torch: false, seconds: 10, fear0: 0 });
 check('fear rises standing in the dark (torch off, no lamps)', dark.end > 25 && dark.reasons.includes('dark'), dark);
 const torch = await sim({ ...deep, torch: true, seconds: 10, fear0: 50 });
 check('turning the torch on lowers it slowly', torch.end < 50 && torch.end > 20, torch);
-const lamp = await sim({ x: L.cabin.x, z: L.cabin.z + 1, torch: false, seconds: 5, fear0: 50 });
-check('lamplight (the cabin) lowers it faster, even with the torch off', lamp.end < torch.end && lamp.reasons.includes('lamplight'), lamp);
+const lamp = await sim({ x: L.lookout.x, z: L.lookout.z + 4, torch: false, seconds: 5, fear0: 50 });
+check('lamplight (under the lookout lamp) lowers it faster than the torch, even with the torch off', lamp.end < torch.end && lamp.reasons.includes('lamplight'), lamp);
+const cabin = await sim({ x: L.cabin.x, z: L.cabin.z, torch: false, seconds: 3, fear0: 60 });
+const tent = await sim({ x: L.campsite.x + 4, z: L.campsite.z - 3, torch: false, seconds: 3, fear0: 60 });
+check('safe interiors (cabin, tent) drain fear fast', cabin.end < 25 && tent.end < 25 && cabin.reasons.includes('safe') && tent.reasons.includes('safe'), { cabin, tent });
 const exit = await page.evaluate(() => __game.HUNT.exit);
 const safe = await sim({ x: exit.x, z: exit.z, torch: true, seconds: 3, fear0: 60 });
 check('the van is a safe zone: fear drains fastest there', safe.end < 25 && safe.reasons.includes('safe'), safe);
@@ -81,7 +84,7 @@ const sway = (fearValue) => page.evaluate(async (v) => {
   return +max.toFixed(2);
 }, fearValue);
 const calmSway = await sway(0), scaredSway = await sway(95);
-check('high fear sways the view, calm does not', calmSway < 0.01 && scaredSway > 1, { calmSwayDeg: calmSway, terrifiedSwayDeg: scaredSway });
+check('high fear sways the view a little (half the photo shake), calm does not', calmSway < 0.01 && scaredSway > 0.8 && scaredSway < 2.2, { calmSwayDeg: calmSway, terrifiedSwayDeg: scaredSway });
 
 // Photo scores: same shot of Bigfoot calm vs terrified (6 shots each, real mouse buttons).
 const setupShot = () => page.evaluate(() => {
@@ -125,6 +128,15 @@ await page.evaluate(() => { __game.fear.value = 92; });
 await page.waitForTimeout(500);
 await shot('04-terrified-hud-vignette');
 
+// VR comfort: ?vr shows no shake at all, but terrified photos still come out shaky.
+await page.goto('http://localhost:4352/?map=forest&vr');
+await page.waitForFunction(() => window.__game);
+await page.evaluate(() => { const g = __game; g.overlay.classList.add('hidden'); g.input.locked = true; g.hunt.start(); g.aiDebug?.setVisible(false);
+  if (g.huntFailure) g.huntFailure.enabled = false; for (const c of [g.chupacabra, g.mothman]) if (c) { c.update = () => {}; if (c.mesh) c.mesh.visible = false; }
+  g.cryptids.cryptids[0].update = () => {}; });
+const vrSway = await sway(95);
+const vrScared = await shoot(95, 4);
+check('VR mode: no on-screen shake, but terrified photos still score low', vrSway < 0.01 && avg(vrScared) < avg(calm) * 0.7, { vrSwayDeg: vrSway, vrTerrified: vrScared });
 check('no page errors', errors.length === 0, errors);
 console.log(results.join('\n'));
 await browser.close();
