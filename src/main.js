@@ -37,6 +37,7 @@ import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
+import { CinematicLighting } from './maps/cinematicLighting.js';
 
 // Render at a low internal resolution (~360 rows) and upscale by an exact integer with
 // nearest-neighbour, snapping the view to whole pixels: see render/pixelPipeline.js.
@@ -243,6 +244,10 @@ chupacabra.onHit = () => {
   chupacabra.flash.style.display = 'none'; // the hunt's own hit flash / Caught screen replaces it
 };
 
+// Cinematic lighting (forest): key/fill/rim and light shafts. Built last so every material gets
+// the rim. ?nocine turns it off for comparison.
+const cine = mapId === 'forest' && !new URLSearchParams(location.search).has('nocine')
+  ? new CinematicLighting({ scene, camera, renderer, night, flashlight, map }) : null;
 const pixels = new PixelPipeline({ renderer, camera });
 const drawFrame = () => pixels.frame(() => { if (!nightVision.render()) renderer.render(scene, camera); });
 
@@ -313,6 +318,7 @@ function frame() {
   aiDebug.update(camera);
   night?.update(player.position, dt);
   atmosphere?.update(dt);
+  cine?.update(dt);
   trailReader.update(dt);
   drawFrame();
   requestAnimationFrame(frame);
@@ -320,4 +326,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, pixels, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
