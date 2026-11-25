@@ -27,7 +27,7 @@ const lum = () => page.evaluate(() => {
   return +(s / (d.length / 4)).toFixed(1);
 });
 const setup = async (q = '') => {
-  await page.goto(`http://localhost:4330/?nodebugai${q}`);
+  await page.goto(`http://localhost:4330/?nodebugai&loadout=nightVision,spareBatteries,bait,trailCamera${q}`); // pack the goggles (#27 loadout)
   await page.waitForFunction(() => window.__game);
   await page.evaluate(() => { const g = __game; g.overlay.classList.add('hidden'); g.input.locked = true; g.huntFailure.enabled = false; });
 };

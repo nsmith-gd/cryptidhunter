@@ -185,7 +185,9 @@ const trailCams = new TrailCameras({ scene, player, input, getSubjects: () => ph
 const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi, input, photo, notify: (m) => photo.toast(m) });
 // Loadout: 4 slots picked on the start screen from gear you own; 1-4 / wheel to pick, Q (or
 // left-click with the camera down) to use. Only slotted gear is carried.
-const loadout = new Loadout({ owned: packed, slots: camp.state.loadout, input,
+// ?loadout=nightVision,knockStick,... packs those items instead (testing / quick setups).
+const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',').filter(Boolean);
+const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input,
   gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight } });
 photo.onLoweredClick = () => loadout.use();
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange: (slots) => {
