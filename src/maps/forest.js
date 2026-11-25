@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ForestKit } from '../art/forestKit.js';
 
 // Pine Hollow Forest — greybox (L0). The starter hunting ground and Bigfoot's home.
 // Layout (north = -z), 300 x 300 m:
@@ -210,15 +211,13 @@ export function buildForestMap(scene) {
     for (const [dx, dz, r] of [[-2.5, 0, 0], [0, 2.5, Math.PI / 2]]) rotBox(x + dx, z + dz, 0.5, 2.2, 0, 0.45, r, COLORS.wood);
   }
 
-  // --- Boulder field. -----------------------------------------------------------------------
+  // --- Boulder field (the kit draws the rocks; see boulderSpots below). ----------------------
+  const boulderSpots = [];
   for (let i = 0; i < 9; i++) {
     const a = rng() * Math.PI * 2, d = 3 + rng() * 8, s = 1 + rng() * 2.2;
     const bx = L.boulders.x + Math.cos(a) * d, bz = L.boulders.z + Math.sin(a) * d;
-    const b = new THREE.Mesh(new THREE.DodecahedronGeometry(s), mat(rng() < 0.5 ? COLORS.rock : COLORS.rockDark));
-    b.position.set(bx, s * 0.6, bz);
-    b.castShadow = b.receiveShadow = true;
-    b.name = 'boulder';
-    scene.add(b);
+    rng();
+    boulderSpots.push({ x: bx, z: bz, s });
     colliders.push(new THREE.Box3(new THREE.Vector3(bx - s * 0.8, 0, bz - s * 0.8), new THREE.Vector3(bx + s * 0.8, s * 1.4, bz + s * 0.8)));
   }
 
@@ -240,7 +239,6 @@ export function buildForestMap(scene) {
   // --- Bigfoot's hollow: a ring of boulders, a huge fallen log, a crude nest. --------------
   {
     const { x, z } = L.hollow;
-    rotBox(x + 6, z - 4, 1.4, 14, 0, 1.4, 0.7, COLORS.snag, { name: 'fallen-log' });
     const nest = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.45, 5, 10), mat(0x3b2a1c));
     nest.rotation.x = -Math.PI / 2;
     nest.position.set(x - 3, 0.25, z + 2);
@@ -250,86 +248,163 @@ export function buildForestMap(scene) {
       const a = (i / 7) * Math.PI * 2 + 0.3, s = 1.2 + rng() * 1.3;
       const bx = x + Math.cos(a) * 13, bz = z + Math.sin(a) * 13;
       if (Math.abs(a - Math.PI * 0.5) < 0.6) continue; // opening toward the south trail
-      const b = new THREE.Mesh(new THREE.DodecahedronGeometry(s), mat(COLORS.rockDark));
-      b.position.set(bx, s * 0.6, bz);
-      b.castShadow = true;
-      scene.add(b);
+      boulderSpots.push({ x: bx, z: bz, s });
       colliders.push(new THREE.Box3(new THREE.Vector3(bx - s * 0.8, 0, bz - s * 0.8), new THREE.Vector3(bx + s * 0.8, s * 1.4, bz + s * 0.8)));
     }
   }
 
-  // --- Trees: instanced pines (trunk + two needle cones) and some dead snags. -------------
+  const creekLine = CREEK.map(([x, z]) => ({ x, z }));
+  // --- Trees and undergrowth: the forest kit (art/forestKit.js), instanced. --------------
   const keepClear = (x, z) => {
     for (const [c, r] of CLEARINGS) if (Math.hypot(x - c.x, z - c.z) < r) return true;
     for (const t of TRAILS) if (distToPolyline(x, z, t) < 3.2) return true;
-    if (distToPolyline(x, z, CREEK.map(([px, pz]) => ({ x: px, z: pz }))) < FOREST.creekHalfWidth + 1.5) return true;
+    if (distToPolyline(x, z, creekLine) < FOREST.creekHalfWidth + 1.5) return true;
     if (Math.abs(z - RIDGE_Z) < 17) return true; // ridge and its shoulders
     return false;
   };
+  // Softer rule for low undergrowth: may crowd trail edges and clearing rims, never the tread.
+  const onTread = (x, z) => {
+    for (const [c, r] of CLEARINGS) if (Math.hypot(x - c.x, z - c.z) < r * 0.62) return true;
+    for (const t of TRAILS) if (distToPolyline(x, z, t) < 2.1) return true;
+    if (distToPolyline(x, z, creekLine) < FOREST.creekHalfWidth + 0.4) return true;
+    if (Math.abs(z - RIDGE_Z) < 9) return true;
+    return false;
+  };
+  const near = (x, z) => ({
+    trail: Math.min(...TRAILS.map((t) => distToPolyline(x, z, t))),
+    creek: distToPolyline(x, z, creekLine),
+  });
+  const rnd = (a, b) => a + rng() * (b - a);
+  const choose = (weights) => { let t = rng() * weights.reduce((s, w) => s + w[1], 0); for (const [k, w] of weights) if ((t -= w) <= 0) return k; return weights[0][0]; };
+
   const trees = [];
   const SP = 6.2; // jittered grid spacing
   for (let gx = -H + 4; gx < H - 4; gx += SP) {
     for (let gz = -H + 4; gz < H - 4; gz += SP) {
       const x = gx + (rng() - 0.5) * SP * 0.8, z = gz + (rng() - 0.5) * SP * 0.8;
       if (keepClear(x, z)) continue;
-      trees.push({ x, z, r: 0.22 + rng() * 0.3, h: 9 + rng() * 9, snag: rng() < 0.07, rot: rng() * Math.PI });
+      trees.push({ x, z, r: 0.22 + rng() * 0.3, h: 9 + rng() * 9, snag: rng() < 0.07, rot: rng() * Math.PI * 2 });
     }
   }
-  const pines = trees.filter((t) => !t.snag), snags = trees.filter((t) => t.snag);
-  const trunkGeo = new THREE.CylinderGeometry(0.6, 1, 1, 6); trunkGeo.translate(0, 0.5, 0);
-  const coneGeo = new THREE.ConeGeometry(1, 1, 7); coneGeo.translate(0, 0.5, 0);
-  const trunks = new THREE.InstancedMesh(trunkGeo, mat(COLORS.bark), trees.length);
-  const lowCones = new THREE.InstancedMesh(coneGeo, mat(COLORS.needles), pines.length);
-  const highCones = new THREE.InstancedMesh(coneGeo, mat(COLORS.needlesDark), pines.length);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-  const put = (im, i, x, y, z, sx, sy, sz, rot) => {
-    q.setFromAxisAngle(up, rot);
-    im.setMatrixAt(i, m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(sx, sy, sz)));
-  };
-  trees.forEach((t, i) => {
-    put(trunks, i, t.x, 0, t.z, t.r, t.snag ? t.h * 0.7 : t.h, t.r, t.rot);
+  // Young pines filling gaps in the understory (and softening clearing edges).
+  for (let i = 0, n = 0; i < 2500 && n < 420; i++) {
+    const x = rnd(-H + 4, H - 4), z = rnd(-H + 4, H - 4);
+    if (onTread(x, z) || Math.abs(z - RIDGE_Z) < 12) continue;
+    if (trees.some((t) => Math.abs(t.x - x) < 2.2 && Math.abs(t.z - z) < 2.2)) continue;
+    trees.push({ x, z, r: 0.1 + rng() * 0.06, h: 2.4 + rng() * 3.8, young: true, rot: rng() * Math.PI * 2 });
+    n++;
+  }
+
+  const kit = new ForestKit(77);
+  for (const t of trees) {
+    const stretch = () => t.h * (0.88 + rng() * 0.26);
+    if (t.snag) kit.add(rng() < 0.5 ? 'snag:0' : 'snag:1', t.x, 0, t.z, t.rot, [t.h * 1.1, t.h, t.h * 1.1]);
+    else if (t.young) kit.add('pine:2', t.x, 0, t.z, t.rot, [stretch(), t.h, stretch()]);
+    else kit.add(choose([['pine:0', 4], ['pine:1', 3], ['pine:3', 3]]), t.x, 0, t.z, t.rot, [stretch(), t.h, stretch()]);
     colliders.push(new THREE.Box3(new THREE.Vector3(t.x - t.r, 0, t.z - t.r), new THREE.Vector3(t.x + t.r, t.h, t.z + t.r)));
-  });
-  pines.forEach((t, i) => {
-    const w = 1.8 + t.h * 0.12;
-    put(lowCones, i, t.x, t.h * 0.22, t.z, w, t.h * 0.55, w, t.rot);
-    put(highCones, i, t.x, t.h * 0.55, t.z, w * 0.7, t.h * 0.5, w * 0.7, t.rot + 1);
-  });
-  for (const im of [trunks, lowCones, highCones]) {
-    im.castShadow = im.receiveShadow = true;
-    im.instanceMatrix.needsUpdate = true;
-    im.computeBoundingSphere();
-    scene.add(im);
+    // Needle litter and fallen cones around most trunks.
+    if (!t.young && rng() < 0.75) kit.add('litter:0', t.x + rnd(-0.6, 0.6), 0, t.z + rnd(-0.6, 0.6), rng() * 6.28, [rnd(3, 5.5), 1, rnd(3, 5.5)]);
   }
-  trunks.name = 'tree-trunks'; lowCones.name = 'tree-canopy-low'; highCones.name = 'tree-canopy-high';
-  // Snags get a couple of bare limbs.
-  for (const t of snags) {
-    for (let k = 0; k < 2; k++) {
-      const limb = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 1.4 + rng() * 1.5), mat(COLORS.snag));
-      const a = rng() * Math.PI * 2;
-      limb.position.set(t.x + Math.sin(a) * 0.6, t.h * (0.4 + rng() * 0.25), t.z + Math.cos(a) * 0.6);
-      limb.rotation.set(-0.6, a, 0);
-      scene.add(limb);
+
+  // Ferns: thickest in shade under the pines and along the creek banks.
+  for (let i = 0, n = 0; i < 9000 && n < 1700; i++) {
+    const x = rnd(-H + 3, H - 3), z = rnd(-H + 3, H - 3);
+    if (onTread(x, z)) continue;
+    const d = near(x, z);
+    const bank = d.creek < FOREST.creekHalfWidth + 6;
+    if (!bank && rng() < 0.45) continue;
+    kit.add(choose([['fern:0', 5], ['fern:1', 3], ['fern:2', 2]]), x, 0, z, rng() * 6.28, rnd(0.75, 1.45) * (bank ? 1.15 : 1));
+    n++;
+  }
+  // Bushes: huckleberry and salal, clumping along trail edges where there's light.
+  for (let i = 0, n = 0; i < 6000 && n < 650; i++) {
+    const x = rnd(-H + 3, H - 3), z = rnd(-H + 3, H - 3);
+    if (onTread(x, z)) continue;
+    const d = near(x, z);
+    if (d.trail > 9 && rng() < 0.6) continue;
+    const s = rnd(0.7, 1.5);
+    kit.add(choose([['bush:0', 4], ['bush:1', 3], ['bush:2', 2]]), x, 0, z, rng() * 6.28, [s * rnd(0.9, 1.3), s, s * rnd(0.9, 1.3)]);
+    n++;
+  }
+  // Grass and sedge tufts: in clearings, on trail shoulders, and along the creek.
+  for (let i = 0, n = 0; i < 14000 && n < 4200; i++) {
+    const x = rnd(-H + 3, H - 3), z = rnd(-H + 3, H - 3);
+    const d = near(x, z);
+    let inClearing = false;
+    for (const [c, r] of CLEARINGS) if (Math.hypot(x - c.x, z - c.z) < r * 1.1) inClearing = true;
+    const trailEdge = d.trail > 1.4 && d.trail < 4.5;
+    const bank = d.creek > FOREST.creekHalfWidth + 0.2 && d.creek < FOREST.creekHalfWidth + 3;
+    if (!(inClearing || trailEdge || bank) && rng() < 0.9) continue;
+    if (d.trail < 1.3 || d.creek < FOREST.creekHalfWidth + 0.2) continue;
+    if (inClearing && CLEARINGS.some(([c, r]) => Math.hypot(x - c.x, z - c.z) < r * 0.45) && rng() < 0.7) continue;
+    kit.add(inClearing && rng() < 0.6 ? 'grass:1' : 'grass:0', x, 0, z, rng() * 6.28, rnd(0.7, 1.4));
+    n++;
+  }
+
+  // Fallen logs (solid): kept off trails, clearings and the creek.
+  const logCollider = (x, z, rot, len, dia) => {
+    const dx = Math.cos(rot), dz = -Math.sin(rot);
+    const segs = Math.max(1, Math.ceil(len / 1.2));
+    for (let s = 0; s < segs; s++) {
+      const t = (s + 0.5) / segs - 0.5, cx = x + dx * t * len, cz = z + dz * t * len, hw = Math.max(dia / 2, len / segs / 2 * 0.9);
+      colliders.push(new THREE.Box3(new THREE.Vector3(cx - hw, 0, cz - hw), new THREE.Vector3(cx + hw, dia * 0.9, cz + hw)));
+    }
+  };
+  const placeLog = (key, x, z, rot, len, dia) => {
+    kit.add(key, x, dia * 0.42, z, rot, [len, dia, dia], { x: 0, z: rnd(-0.03, 0.03) });
+    logCollider(x, z, rot, len, dia);
+  };
+  for (let i = 0, n = 0; i < 4000 && n < 85; i++) {
+    const x = rnd(-H + 8, H - 8), z = rnd(-H + 8, H - 8), rot = rng() * Math.PI, len = rnd(3.5, 10), dia = rnd(0.45, 0.95);
+    const ends = [-0.5, 0, 0.5].map((t) => [x + Math.cos(rot) * t * len, z - Math.sin(rot) * t * len]);
+    if (ends.some(([ex, ez]) => keepClear(ex, ez))) continue;
+    if (trees.some((t) => ends.some(([ex, ez]) => Math.hypot(t.x - ex, t.z - ez) < t.r + dia * 0.6 + 0.2))) continue;
+    placeLog(choose([['log:0', 2], ['log:1', 4], ['log:2', 2], ['log:3', 2]]), x, z, rot, len, dia);
+    n++;
+  }
+
+  // Rocks: lichen boulders through the woods, scree at the foot of the ridge, stones on the banks.
+  const placeRock = (key, x, z, s, solid = true) => {
+    const sc = [s * rnd(0.85, 1.2), s * rnd(0.85, 1.15), s * rnd(0.85, 1.2)];
+    kit.add(key, x, 0, z, rng() * 6.28, sc);
+    const tall = { 'rock:0': 0.7, 'rock:1': 0.55, 'rock:2': 0.32, 'rock:3': 1.1, 'rock:4': 0.35 }[key] * sc[1];
+    if (solid && tall > 0.3) colliders.push(new THREE.Box3(new THREE.Vector3(x - s * 0.5, 0, z - s * 0.5), new THREE.Vector3(x + s * 0.5, tall, z + s * 0.5)));
+  };
+  for (let i = 0, n = 0; i < 5000 && n < 160; i++) {
+    const x = rnd(-H + 5, H - 5), z = rnd(-H + 5, H - 5);
+    if (keepClear(x, z)) continue;
+    placeRock(choose([['rock:0', 4], ['rock:1', 3], ['rock:2', 2], ['rock:3', 1]]), x, z, rnd(0.8, 2.4));
+    n++;
+  }
+  for (let x = -H + 3; x < H - 3; x += rnd(2, 5)) {          // scree along both faces of the ridge
+    if (RIDGE_GAPS.some(([g0, g1]) => x > g0 - 2 && x < g1 + 2)) continue;
+    const zOff = Math.sin(x * 0.05) * 6;
+    for (const side of [1, -1]) {
+      const z = RIDGE_Z + zOff + side * rnd(8, 11);
+      placeRock(rng() < 0.3 ? 'rock:2' : rng() < 0.5 ? 'rock:1' : 'rock:0', x, z, rnd(0.9, 2.6));
+      if (rng() < 0.7) placeRock('rock:4', x + rnd(-1.5, 1.5), z + side * rnd(1, 2.5), rnd(0.4, 0.9), false);
     }
   }
-
-  // Ferns / undergrowth (dressing, no collision).
-  const fernGeo = new THREE.ConeGeometry(0.5, 0.5, 5);
-  const ferns = new THREE.InstancedMesh(fernGeo, mat(0x2f4a2a), 900);
-  let nf = 0;
-  for (let i = 0; i < 3000 && nf < 900; i++) {
-    const x = (rng() * 2 - 1) * (H - 3), z = (rng() * 2 - 1) * (H - 3);
-    if (keepClear(x, z) && rng() < 0.85) continue;
-    const s = 0.5 + rng() * 0.8;
-    put(ferns, nf++, x, 0.2 * s, z, s * 1.2, s * 0.8, s * 1.2, rng() * 6);
+  for (let i = 0, n = 0; i < 3000 && n < 140; i++) {        // creek stones
+    const a = CREEK[Math.floor(rng() * (CREEK.length - 1))], b = CREEK[CREEK.indexOf(a) + 1];
+    const t = rng(), cx = a[0] + (b[0] - a[0]) * t, cz = a[1] + (b[1] - a[1]) * t;
+    const ang = Math.atan2(b[1] - a[1], b[0] - a[0]) + Math.PI / 2, side = rng() < 0.5 ? -1 : 1;
+    const off = FOREST.creekHalfWidth + rnd(-0.6, 1.4);
+    const x = cx + Math.cos(ang) * off * side, z = cz + Math.sin(ang) * off * side;
+    if (TRAILS.some((tr) => distToPolyline(x, z, tr) < 2.4)) continue;
+    placeRock('rock:4', x, z, rnd(0.35, 1.0), false);
+    n++;
   }
-  ferns.count = nf;
-  ferns.instanceMatrix.needsUpdate = true;
-  ferns.computeBoundingSphere();
-  ferns.name = 'ferns';
-  scene.add(ferns);
+  // Re-skin the hand-placed boulder rings (boulder field, Bigfoot's hollow) with kit rocks.
+  for (const b of boulderSpots) placeRock(b.s > 1.8 ? 'rock:1' : 'rock:0', b.x, b.z, b.s * 1.9, false);
+  // Bigfoot's huge fallen log: the hollow one.
+  placeLog('log:3', L.hollow.x + 6, L.hollow.z - 4, 0.7 - Math.PI / 2, 14, 1.4);
 
-  const creekLine = CREEK.map(([x, z]) => ({ x, z }));
+  const kitGroup = kit.build(scene);
+  // Wind: advance the sway clock from the render loop (no extra hook needed in main).
+  const swayer = kitGroup.children.find((c) => c.name.startsWith('kit-fern')) ?? kitGroup.children[0];
+  if (swayer) swayer.onBeforeRender = () => { kit.wind.value = performance.now() / 1000; };
+
   /** 'dry' | 'shallow' — wading the creek (bridge and stones count as dry). */
   const surfaceAt = (x, z, y = 0) => {
     if (y > 0.1) return 'dry';
@@ -343,6 +418,7 @@ export function buildForestMap(scene) {
     surfaceAt,
     speedAt,
     trees: trees.length,
+    forestKit: kit.stats, // { draws, count } for the instanced foliage and props
     trails: TRAILS,
     playerStart: { x: L.trailhead.x, z: L.trailhead.z, yaw: 0 },
     // Level flow: where the extraction van is parked (walk into its ring to end the hunt) and the
