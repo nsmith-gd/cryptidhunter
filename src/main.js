@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
+import { Flashlight } from './flashlight.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -14,22 +15,23 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x7d8794);
-scene.fog = new THREE.Fog(0x7d8794, 20, 60);
+// Night: the test map is dark so the flashlight matters.
+scene.background = new THREE.Color(0x05070b);
+scene.fog = new THREE.Fog(0x05070b, 12, 45);
 
 const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 200);
 
-scene.add(new THREE.HemisphereLight(0xc8d2dc, 0x3a3630, 1.2));
-const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-sun.position.set(15, 25, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, far: 80 });
-scene.add(sun);
+// Faint moonlight so silhouettes are just readable without the flashlight.
+scene.add(new THREE.HemisphereLight(0x4a5a78, 0x0a0a0c, 0.12));
+const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
+moon.position.set(15, 25, 10);
+scene.add(moon);
 
 const { colliders } = buildTestMap(scene);
 const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
+scene.add(camera); // camera carries the flashlight
+const flashlight = new Flashlight(camera, input);
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -50,11 +52,11 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   player.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
-  hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s`;
+  hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}`;
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { player, input, scene, camera, renderer, overlay };
+window.__game = { player, flashlight, input, scene, camera, renderer, overlay };

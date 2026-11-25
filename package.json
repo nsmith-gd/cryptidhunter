@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check:t1": "vite build && node tools/check-t1.mjs"
+    "check:t1": "vite build && node tools/check-t1.mjs",
+    "check:t2": "vite build && node tools/check-t2.mjs"
   },
   "repository": {
     "type": "git",
