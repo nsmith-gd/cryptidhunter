@@ -26,6 +26,7 @@
     "check:t30": "vite build && node tools/check-t30.mjs",
     "check:t31": "vite build && node tools/check-t31.mjs",
     "check:t43": "vite build && node tools/check-t43.mjs",
+    "check:t44": "vite build && node tools/check-t44.mjs",
     "check:t21": "vite build && node tools/check-t21.mjs",
     "check:t3": "vite build && node tools/check-t3.mjs",
     "test": "node --test tests/*.test.js",

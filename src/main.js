@@ -25,6 +25,7 @@ import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
+import { Viewmodel } from './gear/viewmodel.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
 import { TextCard } from './story/textCard.js';
 import { StoryCards } from './story/storyCards.js';
@@ -248,6 +249,8 @@ const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange
   camp.state.loadout = slots; camp.save();
   loadout.setSlots(slots);
 } });
+// First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
+const viewmodel = new Viewmodel({ camera, player, flashlight, photo, nightVision, trailCams });
 
 // Getting touched by a cryptid ends the hunt.
 const huntFailure = new HuntFailure({
@@ -325,6 +328,7 @@ function frame() {
   photo.update(dt);
   rocks.update(dt);
   nightVision.update(dt);
+  viewmodel.update(dt);
   audioLures.update(dt);
   trailCams.update(dt);
   loadout.render();
@@ -354,4 +358,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
