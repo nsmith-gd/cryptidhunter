@@ -32,7 +32,7 @@ const model = await page.evaluate(() => {
   const box = new __game.THREE.Box3().setFromObject(c.mesh);
   return { capsule, meshes, bones: Object.keys(c.mesh.userData.bones ?? {}).length, height: +(box.max.y - box.min.y).toFixed(2) };
 });
-check('Bigfoot is the blockout model, not the capsule', !model.capsule && model.meshes > 15 && model.height > 2.1 && model.height < 2.7, model);
+check('Bigfoot is the blockout model, not the capsule', !model.capsule && model.meshes > 15 && model.height > 3.7 && model.height < 4.5, model);
 const swing = await page.evaluate(async () => {
   const c = __game.cryptids.cryptids.find((c) => c.profile.id === 'bigfoot');
   const b = c.mesh.userData.bones, seen = [];
@@ -86,18 +86,18 @@ const record = async (name, { speed, heading, frames, cycle, view }) => {
     '-vf', 'scale=360:-1:flags=neighbor,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=none', `${out}/${name}.gif`]);
   rmSync(dir, { recursive: true, force: true });
 };
-const side = [4.8, 1.3, -4, 0, 1.15, -4];
+const side = [6.5, 1.7, -4, 0, 1.6, -4];
 // Warm up the blend so the loop starts in stride.
 await page.evaluate(() => { for (let i = 0; i < 60; i++) __game.bf.mesh.userData.animate(1 / 30, 1.8, 'roam'); });
 await record('walk-cycle', { speed: 1.8, heading: 0, frames: 30, cycle: 2 * 1.5 / 1.8, view: side });
 await page.evaluate(() => { for (let i = 0; i < 60; i++) __game.bf.mesh.userData.animate(1 / 30, 8.5, 'flee'); });
 await record('run-cycle', { speed: 8.5, heading: 0, frames: 24, cycle: 2 * 1.5 * 1.9 / 8.5, view: side });
 await page.evaluate(() => { for (let i = 0; i < 60; i++) __game.bf.mesh.userData.animate(1 / 30, 0, 'roam'); });
-await record('idle', { speed: 0, heading: Math.PI + 0.6, frames: 30, cycle: 4, view: [3.2, 1.4, -1.2, 0, 1.3, -4] });
+await record('idle', { speed: 0, heading: Math.PI + 0.6, frames: 30, cycle: 4, view: [4.0, 1.6, -0.6, 0, 1.9, -4] });
 
 // Stills: front three-quarter, flashlight-only from player height (the in-game sighting), side run.
 await page.evaluate(() => { const c = __game.bf; c.mesh.rotation.y = Math.PI + 0.4; for (let i = 0; i < 30; i++) c.mesh.userData.animate(1 / 30, 0, 'observe'); });
-await cam(1.6, 1.6, -0.5, 0, 1.5, -4);
+await cam(1.4, 1.6, -0.9, 0, 3.0, -4);
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/01-face-three-quarter.png` });
 await page.evaluate(() => { __game.scene.remove(__game.fill); const c = __game.bf; c.mesh.position.set(0, 0, -11); c.mesh.rotation.y = Math.PI - 0.15; });
@@ -110,6 +110,14 @@ await page.evaluate(() => { __game.bf.mesh.rotation.y = 0; });
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/03-run-pose-side.png` });
 
+// Turnaround: idle pose, lit by the side lantern and the torch, four angles.
+await page.evaluate(() => { const c = __game.bf; c.mesh.position.set(0, 0, -4); __game.scene.add(__game.fill); for (let i = 0; i < 40; i++) c.mesh.userData.animate(1 / 30, 0, 'observe'); });
+await cam(0, 1.7, 2.6, 0, 1.75, -4);
+for (const [i, a] of [[0, Math.PI], [1, Math.PI * 1.5], [2, 0], [3, Math.PI * 0.5]]) {
+  await page.evaluate((a) => { __game.bf.mesh.rotation.y = a; }, a);
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: `${out}/turnaround-${i}-${['front', 'left', 'back', 'right'][i]}.png`, clip: { x: 230, y: 0, width: 500, height: 540 } });
+}
 check('no page errors', errors.length === 0, errors);
 console.log(results.join('\n'));
 await browser.close();

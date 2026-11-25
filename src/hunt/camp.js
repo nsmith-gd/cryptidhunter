@@ -2,7 +2,7 @@
 // Photos are "unsaved evidence" until you make it back to the van: get caught (or let dawn
 // catch you) and this hunt's photos are lost and earn nothing, but you keep your gear.
 // Stored in localStorage (one key); falls back to memory if storage is unavailable.
-// (When the save-file task lands, this state should move into it.)
+// Money lives in the save file (save/saveService.js): loaded on start, saved whenever it changes.
 
 export const CAMP = {
   storageKey: 'cryptidhunter.camp.v1',
@@ -15,12 +15,17 @@ export const CAMP = {
 const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery',
   trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick' };
 
+import { SaveService } from '../save/saveService.js';
+
 let memory = null;
 
 export class Camp {
-  constructor(storage = safeStorage()) {
+  constructor(storage = safeStorage(), saveService = new SaveService()) {
     this.storage = storage;
+    this.saveService = saveService;
     this.state = this.load();
+    // The save file is the source of truth for money.
+    this.state.money = this.saveService.load().money;
   }
 
   static fresh() {
@@ -39,6 +44,7 @@ export class Camp {
   }
 
   save() {
+    this.saveService.save({ money: this.state.money });
     const raw = JSON.stringify(this.state);
     memory = raw;
     try { this.storage?.setItem(CAMP.storageKey, raw); } catch { /* private mode etc. */ }
@@ -75,16 +81,19 @@ export class Camp {
    * photos: every HIT taken this hunt ({ subject, score }). gearLeft: what you still carry.
    * Only a hunt you drove home from (complete / abandoned) keeps its photos.
    */
-  settleHunt({ outcome, photos, gearLeft, target }) {
+  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0 }) {
     const keptPhotos = outcome === 'complete' || outcome === 'abandoned';
-    const { total, sold } = keptPhotos ? Camp.valuePhotos(photos, target) : { total: 0, sold: [] };
+    const { total: base, sold } = keptPhotos ? Camp.valuePhotos(photos, target) : { total: 0, sold: [] };
+    // Drive home before dawn and the photos are worth more (fresh story for the show).
+    const bonus = Math.round(base * dawnBonus);
+    const total = base + bonus;
     // Gear always comes home: what you carried at the end of the hunt is what camp owns.
     for (const [k, n] of Object.entries(gearLeft ?? {})) this.state.gear[k] = n;
     this.state.money += total;
     const entry = {
       n: this.state.hunts.length + 1, outcome, target,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
-      sold, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear },
+      sold, bonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear },
     };
     this.state.hunts.push(entry);
     if (this.state.hunts.length > 50) this.state.hunts.shift();
@@ -106,7 +115,8 @@ export function huntSummary(h) {
   const lost = h.photosLost ? `${h.photosLost} photo${h.photosLost > 1 ? 's' : ''} lost` : '';
   const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
-  return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`)].join('\n');
+  return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
+    ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : [])].join('\n');
 }
 
 /** BASE CAMP panel on the start screen: money, what happened last hunt, gear you own. */

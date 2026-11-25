@@ -39,7 +39,7 @@ const info = await page.evaluate(() => {
   const { map, scene } = __game;
   const names = new Set(); scene.traverse((o) => o.name && names.add(o.name));
   return { bounds: map.bounds, trees: map.trees, colliders: map.colliders.length, landmarks: Object.keys(map.landmarks),
-    has: ['footbridge', 'creek', 'ridge', 'cabin-roof', 'lookout-cab', 'bigfoot-nest', 'tree-trunks'].filter((n) => names.has(n)) };
+    has: ['footbridge', 'creek', 'ridge', 'cabin-roof', 'lookout-cab', 'bigfoot-nest', 'forest-kit'].filter((n) => names.has(n)) };
 });
 check('map is 300 x 300 m', info.bounds === 150, info.bounds);
 check('dense forest of blockout trees', info.trees > 1200, info.trees);

@@ -79,9 +79,13 @@ await shot('03-night-vision-on');
 check('night vision: slot + Q turns the goggles on', res.nightVision?.after.nvg === true, res.nightVision);
 // Mouse wheel cycles slots.
 await page.keyboard.press('Digit1');
-await page.mouse.wheel(0, 120); await page.waitForTimeout(300);
+await page.mouse.move(480, 300); await page.waitForTimeout(100); // the wheel needs the pointer over the page
+await page.keyboard.press('Digit1');
+// (slow headless frames can delay wheel events, so give each one time to land)
+await page.mouse.wheel(0, 120); await page.waitForFunction(() => __game.loadout.active === 1, null, { timeout: 8000 }).catch(() => {});
 const wheel1 = (await effects()).active;
-await page.mouse.wheel(0, -120); await page.waitForTimeout(300); await page.mouse.wheel(0, -120); await page.waitForTimeout(300);
+await page.mouse.wheel(0, -120); await page.waitForFunction(() => __game.loadout.active === 0, null, { timeout: 8000 }).catch(() => {});
+await page.mouse.wheel(0, -120); await page.waitForFunction(() => __game.loadout.active === 3, null, { timeout: 8000 }).catch(() => {});
 const wheel2 = (await effects()).active;
 check('mouse wheel switches slots', wheel1 === order[1] && wheel2 === order[3], { wheel1, wheel2, order });
 // Gear left at camp can't be used: R (spare battery) does nothing, K (knock stick) does nothing.

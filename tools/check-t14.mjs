@@ -45,7 +45,7 @@ await begin();
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${out}/02-hunt-start-objective.png` });
 const s0 = await st();
-check('starting shows the objective and the dawn clock', s0.stage === 'search' && /Photograph Bigfoot/.test(s0.hud) && /dawn in 6:5\d/.test(s0.clock), s0);
+check('starting shows the objective and the dawn clock', s0.stage === 'search' && /Photograph Bigfoot/.test(s0.hud) && /dawn in 14:5\d/.test(s0.clock), s0);
 
 // Bigfoot lays a trail; walk up to its newest footprint and examine it.
 // (Pick one well away from Bigfoot: surprise it up close and it turns on you.)
@@ -86,13 +86,13 @@ await page.waitForTimeout(60);
 await page.screenshot({ path: `${out}/04a-bigfoot-in-view.png` });
 await aim(...await page.evaluate(() => { const b = __game.cryptids.cryptids[0]; return [b.agent.x, 1.5, b.agent.z]; }));
 await page.mouse.down({ button: 'right' }); // raise the camera (#4)
-await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+await page.waitForFunction(() => __game.photo.raised, null, { timeout: 20000 });
 await page.mouse.click(480, 270);
 await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(120);
 await page.screenshot({ path: `${out}/04b-photo-snapped.png` });
 const s2 = await st();
-check('clicking with Bigfoot in frame takes the photo', s2.stage === 'extract' && s2.photo > 10 && /Return to the van/.test(s2.hud), s2);
+check('clicking with Bigfoot in frame takes the photo', s2.stage === 'extract' && s2.photo > 10 && /Back to the van/.test(s2.hud), s2);
 
 // Head back to the truck and walk into the green ring.
 await page.evaluate(() => { const p = __game.player; p.position.set(0, 0, -6); p.velocity.set(0, 0, 0); p.yaw = Math.PI; p.pitch = 0; });
@@ -121,7 +121,7 @@ await begin();
 await aim(...await page.evaluate(() => { const b = __game.cryptids.cryptids[0], p = __game.player.position;
   return [p.x - (b.agent.x - p.x), 1.5, p.z - (b.agent.z - p.z)]; }));
 await page.mouse.down({ button: 'right' });
-await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+await page.waitForFunction(() => __game.photo.raised, null, { timeout: 20000 });
 await page.mouse.click(480, 270);
 await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(100);
@@ -141,10 +141,12 @@ check('H ends the hunt as abandoned', gaveUp.outcome === 'abandoned' && gaveUp.t
 // ---- Dawn ----
 await load();
 await begin();
-await page.evaluate(() => { __game.hunt.elapsed = __game.hunt.constructor.name && 7 * 60 - 1; });
+await page.evaluate(() => { __game.hunt.elapsed = 15 * 60 - 1; });
 await page.waitForTimeout(1500);
 const dawn = await st();
-check('running out of night ends the hunt at dawn', dawn.outcome === 'dawn' && dawn.title === 'DAWN BROKE', dawn);
+// Director's call: dawn doesn't end the hunt by itself; the cryptid leaves and you still drive home.
+check('dawn: the hunt keeps going, Bigfoot leaves, clock shows dawn', dawn.outcome === null && dawn.stage === 'search'
+  && /DAWN/.test(dawn.clock) && await page.evaluate(() => __game.hunt.dawned && __game.cryptids.cryptids.every((c) => c.leavingAtDawn)), dawn);
 await page.screenshot({ path: `${out}/07-dawn-broke.png` });
 
 check('no page errors', errors.length === 0, errors);

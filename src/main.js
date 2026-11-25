@@ -23,6 +23,9 @@ import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
+import { TextCard } from './story/textCard.js';
+import { StoryCards } from './story/storyCards.js';
+import { ReputationStub } from './story/reputation.js';
 import { LevelFlow } from './hunt/levelFlow.js';
 import { PhotoCamera } from './hunt/photoCamera.js';
 import { TrailCameras } from './gear/trailCamera.js';
@@ -75,25 +78,31 @@ const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
 player.speedAt = map.speedAt ?? null;
 if (map.playerStart) { player.position.set(map.playerStart.x, 0, map.playerStart.z); player.yaw = map.playerStart.yaw ?? 0; }
-// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the van before dawn.
+// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the van and leave (before dawn for a bonus).
 // The extraction van parks at the map's exit spot (or 7 m behind the start). Built before the
 // cryptids so it's baked into their walkable grid.
 if (map.exit) HUNT.exit.set(map.exit.x, 0, map.exit.z);
 else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.position.z + Math.cos(player.yaw) * 7);
 // Base camp: money, owned gear and past hunts carry over between hunts. This hunt's photos only
-// count if you drive home from the van; getting caught (or dawn) loses them, gear comes home.
+// count if you drive home from the van; getting caught loses them, gear comes home.
 const camp = new Camp();
+addEventListener('pagehide', () => camp.save());   // save on quit (money is also saved whenever it changes)
 const packed = camp.packForHunt();
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot',
   onEnd: (outcome) => {
     const h = camp.settleHunt({
-      outcome, target: 'Bigfoot',
+      outcome, target: 'Bigfoot', dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
       gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
     });
     const summary = huntSummary(h);
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
-    return { summary, money: camp.state.money };
+    return { summary, money: camp.state.money, entry: h };
+  },
+  // First light: every cryptid bolts for cover and is gone from the area a little later.
+  onDawn: () => {
+    for (const c of cryptids.cryptids) { c.leavingAtDawn = true; c.enterFlee?.(player.position, 'dawn: leaving'); }
+    setTimeout(() => { for (const c of cryptids.cryptids) c.mesh.visible = false; cryptids.clear(); }, 20000);
   } });
 showCampPanel(camp);
 scene.add(camera); // camera carries the flashlight
@@ -221,11 +230,24 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
+// Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
+// once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
+// ?rep=<n> starts at n, F8 sets it to max, or __game.reputation.set(n).
+const textCard = new TextCard();
+const reputation = new ReputationStub(Number(new URLSearchParams(location.search).get('rep') ?? 0));
+// Automated browser checks skip the cards (they'd eat the first key press) unless ?cards is given.
+const cardsOn = !navigator.webdriver || new URLSearchParams(location.search).has('cards');
+const story = new StoryCards({ show: (id) => (cardsOn ? textCard.show(id) : null) });
+reputation.onChange((v, max) => story.reputationChanged(v, max));
+story.start(camp.state.hunts.length === 0 && camp.state.money === 0);
+story.reputationChanged(reputation.value, reputation.max);
+addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); reputation.set(reputation.max); } });
+
 const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => input.requestLock());
 document.addEventListener('pointerlockchange', () => {
   overlay.classList.toggle('hidden', input.locked);
-  if (input.locked) { hunt.start(); if (picker) picker.el.style.display = 'none'; }   // the dawn clock starts with the first click into the game
+  if (input.locked) { hunt.start(); if (picker) picker.el.style.display = 'none'; }   // the night clock starts with the first click into the game
 });
 
 const hud = document.getElementById('hud');
@@ -281,4 +303,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

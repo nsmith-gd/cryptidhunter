@@ -118,13 +118,14 @@ const rendered = await page.evaluate(async () => {
   const render = async (opts) => {
     const ctx = new OfflineAudioContext(2, 44100 * 2, 44100);
     const K = __game.knocks.constructor;
-    K.scheduleKnocks(ctx, ctx.destination, 0.05, { ...opts, buffers: await K.loadKnockBuffers(ctx) });
+    K.scheduleKnocks(ctx, ctx.destination, 0.05, { ...opts, buffers: opts.synth ? null : await K.loadKnockBuffers(ctx) });
     return toWav(await ctx.startRendering());
   };
   return {
     'bigfoot-knock-close': await render({ count: 3, distance: 15, pan: -0.4, heavy: true }),
     'bigfoot-knock-far': await render({ count: 2, distance: 90, pan: 0.6, heavy: true }),
     'player-knock-stick': await render({ count: 2, distance: 1, pan: 0, heavy: false }),
+    'fallback-synth-knock': await render({ count: 3, distance: 15, pan: 0, heavy: true, synth: true }),
   };
 }).catch((e) => ({ error: e.message }));
 if (rendered.error) check('knock sounds render', false, rendered);

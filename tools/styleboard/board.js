@@ -4,10 +4,12 @@ import * as THREE from 'three';
 import { RAMPS, TEXEL_DENSITY } from '../../src/art/palette.js';
 import { FOREST_TEXTURES as F } from '../../src/art/forestTex.js';
 import { pixelMaterial } from '../../src/art/pixelTex.js';
+import { GRADES } from '../../src/art/grading.js';
+import { PaletteQuantizer } from '../../src/art/paletteQuantize.js';
 
 const q = new URLSearchParams(location.search);
 const board = q.get('board') ?? 'palette';
-const W = 1280, H = 720;
+const W = 1280, H = q.get('tile') === '3' ? 1340 : 720;
 
 function canvas2d() {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -35,21 +37,21 @@ if (board === 'palette') {
 }
 
 if (board === 'textures') {
+  // Every tile drawn at the same texel scale, tiled N x N (?tile=3 for the 3x3 seam check).
+  const N = Number(q.get('tile') ?? 2), S = N === 3 ? 2 : 3;
   const g = canvas2d();
   g.fillStyle = '#d8d2c4'; g.font = 'bold 20px monospace';
-  g.fillText(`PINE HOLLOW TEXTURE SET · ${TEXEL_DENSITY} texels per metre · shown 2×2 tiled (no seams)`, 40, 44);
+  g.fillText(`PINE HOLLOW TEXTURE SET · ${TEXEL_DENSITY} texels per metre · shown ${N}×${N} tiled (no seams)`, 40, 44);
   const list = [
     ['bark (1×2 m)', F.pineBarkTexture()], ['dirt / trail (2 m)', F.dirtTexture()], ['leaf litter (2 m)', F.leafLitterTexture()],
     ['moss (1 m)', F.mossTexture()], ['granite (2 m)', F.rockTexture()], ['grass ground (2 m)', F.grassTexture()], ['pine needles (1 m)', F.needleTexture()], ['grass tuft card', F.grassTuftTexture()],
   ];
-  // Every tile drawn at the same texel scale (3 screen px per texel), tiled 2x2.
-  const S = 3;
   let x = 40, y = 70, rowH = 0;
   for (const [label, t] of list) {
-    const img = t.image, tw = img.width * 2 * S, th = img.height * 2 * S;
+    const img = t.image, tw = img.width * N * S, th = img.height * N * S;
     if (x + tw > W - 30) { x = 40; y += rowH + 34; rowH = 0; }
     if (label.startsWith('grass tuft')) { g.fillStyle = '#1d2a33'; g.fillRect(x, y, tw, th); }
-    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) g.drawImage(img, x + i * img.width * S, y + j * img.height * S, img.width * S, img.height * S);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) g.drawImage(img, x + i * img.width * S, y + j * img.height * S, img.width * S, img.height * S);
     g.fillStyle = '#b6aa96'; g.font = '12px monospace'; g.fillText(label, x, y + th + 16);
     x += tw + 26; rowH = Math.max(rowH, th);
   }
@@ -67,13 +69,15 @@ if (board === 'diorama') {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
   document.body.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(RAMPS.night[2]);
-  scene.fog = new THREE.FogExp2(RAMPS.night[2], 0.045);
+  // Colour grade (?grade=forest-dusk | forest-night | forest-dawn | swamp-...), all palette colours.
+  const G = GRADES[q.get('grade') ?? 'forest-night'] ?? GRADES['forest-night'];
+  scene.background = new THREE.Color(G.fog);
+  scene.fog = new THREE.FogExp2(G.fog, G.fogDensity);
   const camera = new THREE.PerspectiveCamera(70, W / H, 0.05, 200);
 
-  scene.add(new THREE.HemisphereLight(RAMPS.night[4], RAMPS.dirt[0], 0.55));
-  const moon = new THREE.DirectionalLight(RAMPS.night[6], 0.9);
-  moon.position.set(-12, 18, -20); moon.castShadow = true;
+  scene.add(new THREE.HemisphereLight(G.ambientSky, G.ambientGround, G.ambient));
+  const moon = new THREE.DirectionalLight(G.key, G.keyIntensity);
+  moon.position.set(G.keyDir[0] * 30, G.keyDir[1] * 30 + 4, G.keyDir[2] * 30); moon.castShadow = true;
   Object.assign(moon.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20 });
   moon.shadow.mapSize.set(1024, 1024);
   scene.add(moon);
@@ -123,9 +127,9 @@ if (board === 'diorama') {
   // Warm lantern hanging on a post by the trail.
   const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.8, 0.12), pixelMaterial(F.pineBarkTexture()));
   post.position.set(-1.6, 0.9, -6.5); post.castShadow = true; scene.add(post);
-  const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.16), new THREE.MeshBasicMaterial({ color: RAMPS.warm[4] }));
+  const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.16), new THREE.MeshBasicMaterial({ color: G.accent }));
   bulb.position.set(-1.45, 1.7, -6.5); scene.add(bulb);
-  const lantern = new THREE.PointLight(RAMPS.warm[3], 6, 10, 1.6);
+  const lantern = new THREE.PointLight(G.accent, 6, 10, 1.6);
   lantern.position.copy(bulb.position); lantern.castShadow = true; scene.add(lantern);
   // Flashlight from the camera (optional view).
   const torch = new THREE.SpotLight(0xfff1d6, 30, 30, THREE.MathUtils.degToRad(22), 0.5, 1.6);
@@ -137,6 +141,10 @@ if (board === 'diorama') {
   if (view === '0') { camera.position.set(0.4, 1.65, 3); camera.lookAt(-0.4, 1.2, -8); }
   if (view === '1') { camera.position.set(1.4, 1.65, -1.2); camera.lookAt(2.2, 0.6, -5); }
   if (view === '2') { camera.position.set(-0.4, 0.55, -3.4); camera.lookAt(-1.6, 1.1, -6.5); }
-  renderer.render(scene, camera);
-  requestAnimationFrame(() => { renderer.render(scene, camera); window.__ready = true; });
+  // ?quantize: every output pixel snapped to the master palette.
+  const quant = q.has('quantize') ? new PaletteQuantizer(renderer, { width: W / PIXEL_SCALE, height: H / PIXEL_SCALE }) : null;
+  const draw = () => (quant ? quant.render(scene, camera) : renderer.render(scene, camera));
+  draw();
+  window.__renderer = renderer;
+  requestAnimationFrame(() => { draw(); window.__ready = true; });
 }
