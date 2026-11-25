@@ -39,6 +39,7 @@ import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
+import { renderAlbum } from './hunt/album.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
 import { CinematicLighting } from './maps/cinematicLighting.js';
@@ -105,6 +106,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
     const summary = huntSummary(h);
     reputation.set(camp.state.reputation ?? 0);   // keep the live reputation in step with camp
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
+    if (outcome === 'caught') huntFailure.screen.append(renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: true, target: huntTarget }));
     return { summary, money: camp.state.money, entry: h };
   },
   // First light: every cryptid bolts for cover and is gone from the area a little later.
@@ -113,6 +115,9 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
     setTimeout(() => { for (const c of cryptids.cryptids) c.mesh.visible = false; cryptids.clear(); }, 20000);
   } });
 showCampPanel(camp);
+// End-of-hunt photo album: every frame shot this hunt (lost if you were caught).
+hunt.album = (outcome) => renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: outcome === 'caught' || outcome === 'dawn', target: huntTarget });
+hunt.screen.style.overflowY = 'auto';
 showMapPicker({ current: mapId, reputation: camp.state.reputation ?? 0, onPick: (id) => {
   camp.state.map = id; camp.save();
   location.href = location.pathname;            // reload into the chosen map (drops any ?map=)
@@ -217,6 +222,7 @@ levelFlow.setDebug(clueTrails.debug);
 // Camera: hold right mouse to raise it, left-click to snap. A shot is a HIT if a cryptid is
 // inside the viewfinder's frustum and not completely blocked.
 const photo = new PhotoCamera({
+  canvas: renderer.domElement,              // album thumbnails come from the rendered view
   camera, scene, input,
   getSubjects: () => [
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, object3d: c.mesh, radius: c.profile.radius,

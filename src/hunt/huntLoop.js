@@ -249,6 +249,7 @@ export class HuntLoop {
     cols.append(col(photos), col(rest));
     const h = col(head); h.style.textAlign = 'center';
     this.endBody.replaceChildren(h, cols);
+    if (this.album) this.endBody.append(this.album(this.outcome));   // every shot on the roll (#51)
     this.screen.style.display = 'flex';
   }
 
