@@ -30,6 +30,7 @@ import { TrailCameras } from './gear/trailCamera.js';
 import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
+import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
@@ -79,7 +80,22 @@ if (map.playerStart) { player.position.set(map.playerStart.x, 0, map.playerStart
 // cryptids so it's baked into their walkable grid.
 if (map.exit) HUNT.exit.set(map.exit.x, 0, map.exit.z);
 else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.position.z + Math.cos(player.yaw) * 7);
-const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot' });
+// Base camp: money, owned gear and past hunts carry over between hunts. This hunt's photos only
+// count if you drive home from the van; getting caught (or dawn) loses them, gear comes home.
+const camp = new Camp();
+const packed = camp.packForHunt();
+const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot',
+  onEnd: (outcome) => {
+    const h = camp.settleHunt({
+      outcome, target: 'Bigfoot',
+      photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      gearLeft: { bait: bait.carried, spareBatteries: flashlight.spares },
+    });
+    const summary = huntSummary(h);
+    if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
+    return { summary, money: camp.state.money };
+  } });
+showCampPanel(camp);
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 // Outdoor maps can opt into the night lighting baseline (moon, haze, ambient, sky).
@@ -91,11 +107,14 @@ const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
 chupacabra.lures = { lures: () => bait.lures(), consume: (b) => bait.consume(b) };
+bait.carried = packed.bait;               // carry what base camp owns
+flashlight.spares = packed.spareBatteries;
 // L sets an audio lure: it plays a Bigfoot call every few seconds and Bigfoot comes to check.
 const audioLures = new AudioLures({ scene, player, input, notify: (m) => photo?.toast(m) });
 // Fear: rises in the dark, near cryptids and on scares; light and the van calm you; high fear sways your aim.
 const fear = new Fear({
-  scene, player, flashlight, camera, safeZone: HUNT.exit,
+  scene, player, flashlight, camera, safeZone: HUNT.exit, safeZones: map.safeZones ?? [],
+  screenSway: new URLSearchParams(location.search).has('vr') ? 0 : undefined, // ?vr: no on-screen shake
   getThreats: () => [
     ...cryptids.cryptids.map((c) => ({ id: c.profile.name, x: c.agent.x, z: c.agent.z, state: c.state })),
     ...(sandbox ? [
@@ -278,4 +297,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, rocks, escalation, cryptidEvents, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, camp, rocks, escalation, cryptidEvents, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

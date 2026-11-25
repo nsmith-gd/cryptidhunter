@@ -12,22 +12,27 @@ export const FEAR = {
   nearRise: 16,           // per second with a cryptid right next to you (scaled by closeness)
   torchFall: 2,           // per second with your torch on and nothing near
   lampFall: 9,            // per second standing in lamp/fire light
-  safeFall: 15,           // per second in the safe zone by the van
-  safeRadius: 8,
+  safeFall: 15,           // per second in a safe interior (van, cabin, tent)
+  safeRadius: 8,          // around the van (other safe zones carry their own radius)
   scareRange: 10,         // a cryptid coming this close is a jump scare...
   scareAmount: 25,
   boltScare: 12,          // ...and one bolting away nearby is a smaller one
   scareCooldown: 20,      // seconds before the same cryptid can jump-scare you again
   swayStart: 35,          // fear above this sways the view
-  swayMaxDeg: 3.2,        // sway amplitude at 100 fear (degrees)
+  swayMaxDeg: 3.2,        // shake amplitude at 100 fear (degrees) — what the photo feels
+  screenSway: 0.5,        // share of that shake you actually see (comfort; 0 in VR)
 };
 
 export class Fear {
   /**
    * getThreats: () => [{ id, x, z, state? }] — cryptids that can frighten you.
-   * safeZone: { x, z } (the extraction point). scene: scanned for lamps (PointLights).
+   * safeZone: { x, z } (the extraction point). safeZones: [{ x, z, r, name }] safe interiors
+   * (cabin, tent). screenSway: share of the shake shown on screen (0 for VR).
+   * scene: scanned for lamps (PointLights).
    */
-  constructor({ scene, player, flashlight, camera, getThreats, safeZone }) {
+  constructor({ scene, player, flashlight, camera, getThreats, safeZone, safeZones = [], screenSway = FEAR.screenSway }) {
+    this.safeZones = safeZones;
+    this.screenSway = screenSway;
     this.scene = scene;
     this.player = player;
     this.flashlight = flashlight;
@@ -72,7 +77,8 @@ export class Fear {
 
   inSafeZone() {
     const p = this.player.position, s = this.safeZone;
-    return !!s && Math.hypot(p.x - s.x, p.z - s.z) < FEAR.safeRadius;
+    if (s && Math.hypot(p.x - s.x, p.z - s.z) < FEAR.safeRadius) return true;
+    return this.safeZones.some((z) => Math.hypot(p.x - z.x, p.z - z.z) < z.r);
   }
 
   /** Spike fear right now (other systems can call this: wood-knocks, roars, ...). */
@@ -104,7 +110,7 @@ export class Fear {
     }
 
     const lamp = this.lampLight(), torch = this.torchOn(), safe = this.inSafeZone();
-    const dark = !torch && lamp < 0.3;
+    const dark = !torch && lamp < 0.3 && !safe; // inside a tent/cabin/van the dark isn't frightening
     if (dark) { rate += FEAR.darkRise; reasons.push('dark'); }
     if (near > 0) { rate += FEAR.nearRise * near * near; reasons.push('cryptid near'); }
     if (near === 0) {
@@ -117,7 +123,8 @@ export class Fear {
     this.reasons = reasons;
   }
 
-  /** Add fear sway on top of the player's look (call after player.update each frame). */
+  /** Fear shake (call after player.update each frame). The full shake blurs photos (swaySpeed);
+   *  only screenSway of it is added to the view, to keep it comfortable (none in VR). */
   applySway(dt) {
     const k = Math.max(0, (this.value - FEAR.swayStart) / (100 - FEAR.swayStart));
     const amp = THREE.MathUtils.degToRad(FEAR.swayMaxDeg) * k * k;
@@ -127,7 +134,7 @@ export class Fear {
     const pitch = amp * (0.6 * Math.sin(t * 1.9 + 0.8) + 0.4 * Math.sin(t * 8.3) * Math.sin(t * 1.1 + 2));
     if (dt > 0) this.swaySpeed = THREE.MathUtils.radToDeg(Math.hypot(yaw - this.swayYaw, pitch - this.swayPitch)) / dt;
     this.swayYaw = yaw; this.swayPitch = pitch;
-    this.camera.rotation.y += yaw;
-    this.camera.rotation.x += pitch;
+    this.camera.rotation.y += yaw * this.screenSway;
+    this.camera.rotation.x += pitch * this.screenSway;
   }
 }

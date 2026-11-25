@@ -148,11 +148,32 @@ export class WoodKnocks {
   }
 }
 
-// Synthesised knock: a hollow wooden "tok" (filtered noise click + low body resonance),
-// quieter and duller with distance, panned left/right toward the source.
+// Recorded knocks: 5 dry, normalised CC0 wood hits per weight (Kenney "Impact Sounds"; source,
+// author and licence in public/audio/knock/CREDITS.md). Bigfoot and your knock stick use the same
+// set: Bigfoot's are the heavy hits pitched down with a forest echo, yours are the medium hits.
+// Distance (duller + quieter), pan, pitch and echo are all applied at playback.
+// If the files can't load, a synthesised wood knock is used instead (also used by tests).
+const KNOCK_FILES = {
+  heavy: [0, 1, 2, 3, 4].map((i) => `audio/knock/knock-heavy-${i}.ogg`),
+  light: [0, 1, 2, 3, 4].map((i) => `audio/knock/knock-medium-${i}.ogg`),
+};
+
+/** Fetch and decode the knock recordings once (works with live and offline contexts). */
+export async function loadKnockBuffers(ctx, base = import.meta.env?.BASE_URL ?? '/') {
+  const load = async (url) => {
+    const res = await fetch(base + url);
+    if (!res.ok) throw new Error(`${url}: ${res.status}`);
+    return ctx.decodeAudioData(await res.arrayBuffer());
+  };
+  const [heavy, light] = await Promise.all([Promise.all(KNOCK_FILES.heavy.map(load)), Promise.all(KNOCK_FILES.light.map(load))]);
+  return { heavy, light };
+}
+
 export class KnockAudio {
   constructor() {
     this.ctx = null;
+    this.buffers = null;
+    this.mode = 'loading';      // loading | recorded | synth
     const unlock = () => { this.ensure(); this.ctx?.resume?.(); };
     addEventListener('pointerdown', unlock);
     addEventListener('keydown', unlock);
@@ -162,52 +183,82 @@ export class KnockAudio {
     if (this.ctx) return this.ctx;
     const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
     if (!AC) return null;
-    try { this.ctx = new AC(); } catch { this.ctx = null; }
+    try { this.ctx = new AC(); } catch { this.ctx = null; return null; }
+    loadKnockBuffers(this.ctx).then((b) => { this.buffers = b; this.mode = 'recorded'; }).catch(() => { this.buffers = null; this.mode = 'synth'; });
     return this.ctx;
   }
 
   knock(opts) {
     const ctx = this.ensure();
     if (!ctx) return;
-    scheduleKnocks(ctx, ctx.destination, ctx.currentTime + 0.02, opts);
+    // Still loading or unavailable: fall back to the synthesised knock so a knock is never silent.
+    scheduleKnocks(ctx, ctx.destination, ctx.currentTime + 0.02, { ...opts, buffers: this.buffers });
   }
 }
 
-/** Schedule `count` knocks into `dest` (works with live and offline audio contexts). */
-export function scheduleKnocks(ctx, dest, t0, { count = 2, distance = 1, pan = 0, heavy = true }) {
-  const gain = Math.min(1, 6 / Math.max(6, distance)) * (heavy ? 1 : 0.6);
-  const cutoff = 3200 * Math.max(0.15, 1 - distance / 150);     // far knocks lose their crack
+/** Schedule `count` knocks into `dest`. Uses the recordings when `buffers` is given, else synthesis. */
+export function scheduleKnocks(ctx, dest, t0, { count = 2, distance = 1, pan = 0, heavy = true, buffers = null }) {
+  const gain = Math.min(1, 8 / Math.max(8, distance)) * (heavy ? 1 : 0.7);
+  const cutoff = 9000 * Math.max(0.08, 1 - distance / 130);       // far knocks lose their crack
   const out = ctx.createGain();
   out.gain.value = gain;
   let node = out;
   if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; out.connect(p); node = p; }
+  node.connect(dest);
   const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cutoff;
   lp.connect(out);
-  node.connect(dest);
-  const gap = heavy ? 0.55 : 0.32;
+  // Forest echo: a short feedback delay, stronger on Bigfoot's heavy knocks.
+  const wet = ctx.createGain(); wet.gain.value = heavy ? 0.32 : 0.16;
+  const delay = ctx.createDelay(1); delay.delayTime.value = heavy ? 0.19 : 0.13;
+  const fb = ctx.createGain(); fb.gain.value = 0.35;
+  const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 1800;
+  lp.connect(wet).connect(delay).connect(damp).connect(fb).connect(delay);
+  damp.connect(out);
+
+  const gap = heavy ? 0.62 : 0.34;
+  let last = -1;
   for (let i = 0; i < count; i++) {
-    const t = t0 + i * gap * (0.9 + Math.random() * 0.2);
-    // Body: a short, falling low tone (the trunk resonating).
-    const osc = ctx.createOscillator(), og = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(heavy ? 150 : 260, t);
-    osc.frequency.exponentialRampToValueAtTime(heavy ? 70 : 140, t + 0.18);
-    og.gain.setValueAtTime(0.0001, t);
-    og.gain.exponentialRampToValueAtTime(0.9, t + 0.004);
-    og.gain.exponentialRampToValueAtTime(0.0001, t + (heavy ? 0.35 : 0.2));
-    osc.connect(og).connect(lp);
-    osc.start(t); osc.stop(t + 0.4);
-    // Crack: a burst of band-passed noise (the strike).
-    const len = Math.floor(ctx.sampleRate * 0.05);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let k = 0; k < len; k++) data[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 4);
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = heavy ? 900 : 1500; bp.Q.value = 1.2;
-    const ng = ctx.createGain(); ng.gain.value = heavy ? 0.7 : 0.5;
-    src.connect(bp).connect(ng).connect(lp);
-    src.start(t);
+    const t = t0 + i * gap * (0.92 + Math.random() * 0.16);
+    if (buffers) {
+      const set = heavy ? buffers.heavy : buffers.light;
+      let k = Math.floor(Math.random() * set.length);
+      if (k === last) k = (k + 1) % set.length;              // never the same take twice in a row
+      last = k;
+      const src = ctx.createBufferSource();
+      src.buffer = set[k];
+      src.playbackRate.value = (heavy ? 0.8 : 1) * (0.96 + Math.random() * 0.08);   // bigger tree, lower tok
+      src.connect(lp);
+      src.start(t);
+    } else synthKnock(ctx, lp, t, heavy);
   }
 }
 
+/** Fallback wood knock: a short noisy strike plus a damped body with a few inharmonic partials. */
+export function synthKnock(ctx, dest, t, heavy = true) {
+  const base = (heavy ? 210 : 330) * (0.95 + Math.random() * 0.1);
+  const decay = heavy ? 0.16 : 0.1;
+  for (const [ratio, amp] of [[1, 0.8], [1.58, 0.45], [2.31, 0.3], [3.17, 0.15]]) {   // wood: inharmonic modes
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(base * ratio, t);
+    osc.frequency.exponentialRampToValueAtTime(base * ratio * 0.97, t + decay);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(amp, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + decay / ratio * 1.4);
+    osc.connect(g).connect(dest);
+    osc.start(t); osc.stop(t + decay * 1.5);
+  }
+  const len = Math.floor(ctx.sampleRate * 0.025);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let k = 0; k < len; k++) data[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 6);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = heavy ? 1600 : 2400; bp.Q.value = 0.9;
+  const ng = ctx.createGain(); ng.gain.value = 0.6;
+  src.connect(bp).connect(ng).connect(dest);
+  src.start(t);
+}
+
 WoodKnocks.scheduleKnocks = scheduleKnocks;   // for tools that render the sounds offline
+WoodKnocks.loadKnockBuffers = loadKnockBuffers;
+WoodKnocks.synthKnock = synthKnock;

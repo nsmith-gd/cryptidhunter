@@ -69,6 +69,8 @@ check('Bigfoot knocks (and you are told where from)', before.knocks === 1 && /kn
 await page.keyboard.press('k');
 const pressed = await page.evaluate(() => __game.knocks.log.filter((k) => k.who === 'player').length);
 check('K knocks back with your stick', pressed === 1, { playerKnocks: pressed });
+const loaded = await page.waitForFunction(() => __game.knocks.audio.buffers?.heavy?.length === 5 && __game.knocks.audio.buffers.light.length === 5, null, { timeout: 10000 }).then(() => true).catch(() => false);
+check('the recorded knock sounds load in game', loaded, {});
 await simulate(3);
 const replied = await bf();
 await shot('02-it-answers');
@@ -115,13 +117,15 @@ const rendered = await page.evaluate(async () => {
   };
   const render = async (opts) => {
     const ctx = new OfflineAudioContext(2, 44100 * 2, 44100);
-    __game.knocks.constructor.scheduleKnocks(ctx, ctx.destination, 0.05, opts);
+    const K = __game.knocks.constructor;
+    K.scheduleKnocks(ctx, ctx.destination, 0.05, { ...opts, buffers: opts.synth ? null : await K.loadKnockBuffers(ctx) });
     return toWav(await ctx.startRendering());
   };
   return {
     'bigfoot-knock-close': await render({ count: 3, distance: 15, pan: -0.4, heavy: true }),
     'bigfoot-knock-far': await render({ count: 2, distance: 90, pan: 0.6, heavy: true }),
     'player-knock-stick': await render({ count: 2, distance: 1, pan: 0, heavy: false }),
+    'fallback-synth-knock': await render({ count: 3, distance: 15, pan: 0, heavy: true, synth: true }),
   };
 }).catch((e) => ({ error: e.message }));
 if (rendered.error) check('knock sounds render', false, rendered);
