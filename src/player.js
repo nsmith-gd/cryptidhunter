@@ -19,6 +19,13 @@ export const PLAYER = {
   staminaRegenRest: 0.3,     // per second while standing still
   staminaRegenDelay: 0.8,    // pause after sprinting before refilling starts
   staminaRecover: 0.3,       // once emptied, sprint is locked until this much is back
+  // Noise (0..1) the player makes each tick; cryptid AI reads player.noise / player.noiseRadius.
+  noiseCrouch: 0.15,
+  noiseWalk: 0.45,
+  noiseSprint: 1.0,
+  noiseMaxRadius: 20,        // metres a full-volume (1.0) noise carries
+  noiseRise: 12,             // how fast noise follows a louder gait
+  noiseFall: 4,              // how fast it fades when you go quieter/stop
   maxPitch: Math.PI / 2 - 0.01,
 };
 
@@ -41,6 +48,8 @@ export class Player {
     this.stamina = 1;
     this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
     this.sinceSprint = 99;
+    this.noise = 0;           // 0 silent .. 1 sprinting
+    this.noiseRadius = 0;     // metres the current noise carries
     camera.rotation.order = 'YXZ';
   }
 
@@ -83,12 +92,31 @@ export class Player {
     this.grounded = false;
     this.moveAxis('y', this.velocity.y * dt);
     if (this.position.y <= 0) { this.position.y = 0; this.velocity.y = 0; this.grounded = true; }
+    this.updateNoise(dt, speed);
 
     // Camera.
     const targetEye = this.height - PLAYER.eyeOffset;
     this.eyeHeight += (targetEye - this.eyeHeight) * (1 - Math.exp(-PLAYER.crouchLerp * dt));
     this.camera.position.set(this.position.x, this.position.y + this.eyeHeight, this.position.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  // Gait sets the noise level, scaled by how fast you're actually going (walking into a wall is quiet).
+  updateNoise(dt, gaitSpeed) {
+    const gait = this.crouching ? PLAYER.noiseCrouch : this.sprinting ? PLAYER.noiseSprint : PLAYER.noiseWalk;
+    const moving = Math.hypot(this.velocity.x, this.velocity.z);
+    const target = gait * Math.min(1, moving / gaitSpeed);
+    const rate = target > this.noise ? PLAYER.noiseRise : PLAYER.noiseFall;
+    this.noise += (target - this.noise) * (1 - Math.exp(-rate * dt));
+    if (this.noise < 0.005) this.noise = 0;
+    this.noiseRadius = this.noise * PLAYER.noiseMaxRadius;
+  }
+
+  // How loud the player is at a world position: 0 (out of earshot) .. noise (right next to them).
+  noiseAt(pos) {
+    if (this.noiseRadius <= 0) return 0;
+    const d = Math.hypot(pos.x - this.position.x, pos.z - this.position.z);
+    return Math.max(0, this.noise * (1 - d / this.noiseRadius));
   }
 
   updateStamina(dt, moving) {
