@@ -345,6 +345,23 @@ export function buildForestMap(scene) {
     trees: trees.length,
     trails: TRAILS,
     playerStart: { x: L.trailhead.x, z: L.trailhead.z, yaw: 0 },
+    // Level flow: where the extraction van is parked (walk into its ring to end the hunt) and the
+    // zones the hunt picks from at the start of each night (see hunt/levelFlow.js).
+    exit: { x: L.trailhead.x + 9, z: L.trailhead.z + 5, name: 'trailhead parking' },
+    spawnZones: {
+      // Where Bigfoot beds down for the night (one is picked per hunt).
+      bigfoot: [
+        { name: "Bigfoot's hollow", x: L.hollow.x, z: L.hollow.z, r: 10 },
+        { name: 'woods below the lookout', x: L.lookout.x - 14, z: L.lookout.z - 4, r: 8 },
+        { name: 'the boulder field', x: L.boulders.x, z: L.boulders.z, r: 9 },
+      ],
+      // Where its fresh trail starts: it passed through here shortly before you arrived.
+      clues: [
+        { name: 'the old campsite', x: L.campsite.x - 4, z: L.campsite.z - 6, r: 6 },
+        { name: 'behind the cabin', x: L.cabin.x - 20, z: L.cabin.z - 22, r: 6 },
+        { name: 'the creek trail', x: 30, z: -8, r: 6 },
+      ],
+    },
     spawns: { bigfoot: { x: L.hollow.x, z: L.hollow.z } },
     landmarks: { ...L },
     environment: { background: 0x070a0d, fog: { color: 0x0b1014, near: 10, far: 60 } },
