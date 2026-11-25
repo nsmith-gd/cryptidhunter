@@ -26,6 +26,7 @@ export class HuntLoop {
     this.photo = null;            // best photo of the target: { subject, distance, score, source, at }
     this.photos = [];             // every photo of the target this hunt (handheld + gear)
     this.missedShots = 0;
+    this.shotsTaken = 0;          // every photo you took this hunt (handheld camera), hit or miss
     this.outcome = null;          // complete | abandoned | caught
     this.inZone = false;
     this.buildVan(scene, colliders);
@@ -60,6 +61,7 @@ export class HuntLoop {
   // Hook for every camera (handheld or gear): { subject, distance, score?, source? }.
   onPhoto({ subject, distance, score = null, source = 'handheld camera' }) {
     if (this.stage !== 'search' && this.stage !== 'extract') return;
+    if (source === 'handheld camera') this.shotsTaken++;
     if (subject !== this.target) { if (source === 'handheld camera') this.missedShots++; return; }
     const shot = { subject, distance, score: score ?? 0, source, at: this.elapsed };
     this.photos.push(shot);
@@ -223,7 +225,7 @@ export class HuntLoop {
     this.endTitle = document.createElement('div');
     Object.assign(this.endTitle.style, { fontSize: '44px', letterSpacing: '6px' });
     this.endBody = document.createElement('div');
-    this.endBody.style.fontSize = '15px';
+    Object.assign(this.endBody.style, { fontSize: '15px', textAlign: 'left' });
     const hint = Object.assign(document.createElement('div'), { textContent: 'Click or press Space to start a new hunt' });
     Object.assign(hint.style, { fontSize: '13px', color: '#aaa', marginTop: '10px' });
     s.append(this.endTitle, this.endBody, hint);
@@ -239,19 +241,62 @@ export class HuntLoop {
     const [title, color] = titles[this.outcome];
     this.endTitle.textContent = title;
     this.endTitle.style.color = color;
-    const t = Math.floor(this.elapsed);
-    const v = this.journal?.verdict?.();
-    const lines = [];
-    if (this.outcome === 'complete') lines.push(this.leftBeforeDawn ? `Home before dawn: +${Math.round(HUNT.dawnBonus * 100)}% bonus on your photos.` : 'You drove home after dawn: no before-dawn bonus.');
-    if (this.outcome === 'abandoned') lines.push('You drove home empty-handed.');
-    const best = this.photo && this.outcome === 'complete' ? this.photo : null;
-    lines.push('', `Best photo of ${this.target}:  ${best ? `score ${best.score} (${best.source}, ${best.distance.toFixed(0)} m)` : 'none'}`);
-    if (best && this.photos.length > 1) lines.push(`Photos of ${this.target} taken:  ${this.photos.length}`);
-    lines.push(`Clues logged:  ${this.journal?.entries.length ?? 0}`);
-    if (v?.likely) lines.push(`Journal verdict:  ${v.likely.name}`);
-    lines.push(`Time out:  ${Math.floor(t / 60)}m ${String(t % 60).padStart(2, '0')}s`);
-    if (this.settlement) lines.push('', 'BASE CAMP', this.settlement.summary, `Money: $${this.settlement.money}`);
-    this.endBody.textContent = lines.join('\n');
+    // Two columns so everything fits on a small screen: photos on the left, clues + money right.
+    const [head, photos, rest] = this.resultsText().split('\n\n§\n');
+    const col = (text) => Object.assign(document.createElement('div'), { textContent: text });
+    const cols = document.createElement('div');
+    Object.assign(cols.style, { display: 'flex', gap: '48px', alignItems: 'flex-start', marginTop: '10px' });
+    cols.append(col(photos), col(rest));
+    const h = col(head); h.style.textAlign = 'center';
+    this.endBody.replaceChildren(h, cols);
     this.screen.style.display = 'flex';
   }
+
+  /** The results summary. Every number comes from this hunt's records and base camp's settlement. */
+  resultsText() {
+    const pad = (label, value) => `${label.padEnd(22, ' ')}${value}`;
+    const r = this.results();
+    const lines = [];
+    if (this.outcome === 'complete') lines.push(this.leftBeforeDawn ? `You made it home before dawn: +${Math.round(HUNT.dawnBonus * 100)}% bonus on your photos.` : 'You drove home after dawn: no before-dawn bonus.');
+    if (this.outcome === 'abandoned') lines.push(r.photosOfTarget ? 'You drove home early.' : 'You drove home empty-handed.');
+    lines.push('', '§', 'PHOTOS');
+    lines.push(pad('Taken', `${r.shotsTaken}${r.gearShots ? ` (+${r.gearShots} from trail cams)` : ''}`));
+    lines.push(pad(`Of ${this.target}`, String(r.photosOfTarget)));
+    for (const p of r.list) lines.push(`  ${p.best ? '★' : '·'} score ${String(p.score).padStart(3)}  ${p.source}, ${p.distance} m`);
+    lines.push(pad('Best score', r.bestScore == null ? 'none' : `${r.bestScore} / 100`));
+    lines.push('', '§', 'CLUES');
+    lines.push(pad('Found', `${r.clues}${r.clueTypes ? `  (${r.clueTypes})` : ''}`));
+    if (r.verdict) lines.push(pad('Journal verdict', r.verdict));
+    lines.push('', 'MONEY · BASE CAMP');
+    if (r.money) {
+      lines.push(pad('Photos sold', `$${r.money.photoValue}`));
+      if (this.outcome === 'complete') lines.push(pad('Before-dawn bonus', `$${r.money.bonus}`));
+      lines.push(pad('Earned this hunt', `$${r.money.earned}`));
+      lines.push(pad('Total money', `$${r.money.total}`));
+    }
+    lines.push('', pad('Time out', `${Math.floor(r.seconds / 60)}m ${String(r.seconds % 60).padStart(2, '0')}s`));
+    return lines.join('\n');
+  }
+
+  /** Structured results (also used by the automated check). */
+  results() {
+    const s = this.settlement?.entry ?? null;
+    const sorted = [...this.photos].sort((a, b) => b.score - a.score || a.distance - b.distance);
+    const counts = {};
+    for (const e of this.journal?.entries ?? []) counts[e.label] = (counts[e.label] ?? 0) + 1;
+    const v = this.journal?.verdict?.();
+    return {
+      shotsTaken: this.shotsTaken,
+      gearShots: this.photos.filter((p) => p.source !== 'handheld camera').length,
+      photosOfTarget: this.photos.length,
+      list: sorted.slice(0, 6).map((p, i) => ({ score: p.score, source: p.source, distance: Math.round(p.distance), best: i === 0 })),
+      bestScore: this.photo ? this.photo.score : null,
+      clues: this.journal?.entries.length ?? 0,
+      clueTypes: Object.entries(counts).map(([k, n]) => `${k} ×${n}`).join(', '),
+      verdict: v?.likely?.name ?? null,
+      money: s ? { photoValue: s.earned - (s.bonus ?? 0), bonus: s.bonus ?? 0, earned: s.earned, total: s.moneyAfter } : null,
+      seconds: Math.floor(this.elapsed),
+    };
+  }
+
 }
