@@ -1,5 +1,5 @@
 import { pixelTexture as paint } from './pixelTex.js';
-import { PALETTE } from './palette.js';
+import { snapTextureToPalette } from './palette.js';
 
 // Pixel-art textures for the Pine Hollow forest kit (trees, ferns, bushes, logs, rocks, ground
 // cover). Same approach as pixelTex.js: tiny canvases, small hue-shifted ramps (shadows lean
@@ -7,32 +7,7 @@ import { PALETTE } from './palette.js';
 // Style guide rule 2: every texel is snapped to the master palette (art/palette.js) after
 // painting, so the kit sits in the same colour world as the rest of the forest.
 
-const PAL_RGB = PALETTE.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
-function nearest(r, g, b) {
-  let best = PAL_RGB[0], bd = Infinity;
-  for (const p of PAL_RGB) {
-    // Weighted RGB distance (cheap perceptual approximation).
-    const dr = r - p[0], dg = g - p[1], db = b - p[2];
-    const d = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
-    if (d < bd) { bd = d; best = p; }
-  }
-  return best;
-}
-function pixelTexture(...args) {
-  const tex = paint(...args);
-  if (tex.userData.paletteSnapped) return tex;
-  const c = tex.image, g = c.getContext('2d');
-  const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i + 3] === 0) continue;
-    const p = nearest(d[i], d[i + 1], d[i + 2]);
-    d[i] = p[0]; d[i + 1] = p[1]; d[i + 2] = p[2];
-  }
-  g.putImageData(img, 0, 0);
-  tex.needsUpdate = true;
-  tex.userData.paletteSnapped = true;
-  return tex;
-}
+const pixelTexture = (...args) => snapTextureToPalette(paint(...args));
 
 const pick = (r, arr) => arr[Math.floor(r() * arr.length) % arr.length];
 
