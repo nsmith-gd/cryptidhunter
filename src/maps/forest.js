@@ -307,7 +307,7 @@ export function buildForestMap(scene) {
       // neighbours never read as copies (#60).
       const keys = t.young ? youngKeys : pineKeys;
       const lean = { x: rnd(-0.035, 0.035), z: rnd(-0.035, 0.035) };
-      const v = rnd(0.78, 1.1), warm = rnd(-0.06, 0.06);
+      const v = rnd(0.68, 0.98), warm = rnd(-0.06, 0.06);
       const tint = new THREE.Color(v * (1 + warm), v, v * (1 - warm * 1.5));
       kit.add(keys[Math.floor(rng() * keys.length)], t.x, 0, t.z, t.rot, [stretch(), t.h, stretch()], lean, tint);
     }
