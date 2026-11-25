@@ -340,6 +340,8 @@ function simulate(dt) {
   if (ended()) return;                       // world freezes behind the end screens
   player.update(dt);
   fear.update(dt);
+  fear.applySway(dt);                        // after the player sets the view; sim-timed so photos blur the same at any fps
+  photo.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
   bait.update(dt);
@@ -361,8 +363,6 @@ function simulate(dt) {
 function present(dt) {
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) { drawFrame(); return; }
-  fear.applySway(dt);
-  photo.update(dt);
   nightVision.update(dt);
   viewmodel.update(dt);
   loadout.render();

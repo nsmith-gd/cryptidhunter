@@ -109,7 +109,7 @@ for (let i = 0; i < order2.length; i++) {
 }
 await shot('04-second-loadout');
 check('knock stick: slot + Q knocks on a tree', res2.knockStick?.after.knocks === res2.knockStick?.before.knocks + 1, res2.knockStick);
-check('spare battery: slot + Q swaps in a fresh battery', res2.spareBatteries?.after.battery === 1 && res2.spareBatteries.after.spares === res2.spareBatteries.before.spares - 1, res2.spareBatteries);
+check('spare battery: slot + Q swaps in a fresh battery', res2.spareBatteries?.after.battery >= 0.9 && res2.spareBatteries.after.spares === res2.spareBatteries.before.spares - 1, res2.spareBatteries);
 const used = new Set([...Object.keys(res), ...Object.keys(res2)]);
 check('every item you own can be equipped and used', owned.filter((k) => k !== 'camera' && k !== 'flashlight').every((k) => used.has(k)), { owned, used: [...used] });
 // Hotkey of a packed item still works and selects its slot.

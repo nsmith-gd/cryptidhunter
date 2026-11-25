@@ -18,6 +18,7 @@ export const PHOTO = {
 const _v = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
+const LOOK_WINDOW = 0.15;  // seconds of view rotation averaged for photo blur
 
 export class PhotoCamera {
   /**
@@ -63,11 +64,16 @@ export class PhotoCamera {
 
   update(dt) {
     this.cooldown = Math.max(0, this.cooldown - dt);
-    // Track how fast the view is turning (degrees/second, smoothed) for motion blur in photos.
+    // How fast the view is turning (degrees/second) for motion blur in photos: total rotation
+    // over the last LOOK_WINDOW seconds of simulation, so it reads the same at any frame rate.
     this.camera.getWorldQuaternion(_q);
     if (this._lastQ && dt > 0) {
-      const deg = THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(1, Math.abs(_q.dot(this._lastQ))))) / dt;
-      this.lookSpeed += (deg - this.lookSpeed) * Math.min(1, dt * 12);
+      const deg = THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(1, Math.abs(_q.dot(this._lastQ)))));
+      (this._turns ??= []).push([deg, dt]);
+      let span = 0, sum = 0;
+      for (const [d, t] of this._turns) { sum += d; span += t; }
+      while (this._turns.length > 1 && span - this._turns[0][1] >= LOOK_WINDOW) { const [d, t] = this._turns.shift(); sum -= d; span -= t; }
+      this.lookSpeed = span > 0 ? sum / Math.max(span, LOOK_WINDOW) : 0;
     }
     (this._lastQ ??= new THREE.Quaternion()).copy(_q);
     const target = this.wantRaised && this.enabled ? 1 : 0;
