@@ -15,6 +15,7 @@ import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
+import { HuntFailure } from './hunt/huntFailure.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -67,6 +68,20 @@ const journal = new Journal();
 const clueFinder = new ClueFinder(camera, clues, journal, input);
 const journalUI = new JournalUI(journal, clueFinder);
 
+// Getting touched by a cryptid ends the hunt.
+const huntFailure = new HuntFailure({
+  player,
+  getThreats: () => [
+    ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, z: c.agent.z, y0: 0, y1: c.profile.height, radius: c.profile.radius })),
+    { name: 'The Mothman', x: mothman.mesh.position.x, z: mothman.mesh.position.z, y0: mothman.mesh.position.y - 0.8, y1: mothman.mesh.position.y + 0.8, radius: 0.8 },
+    { name: 'The Chupacabra', x: chupacabra.position.x, z: chupacabra.position.z, y0: 0, y1: 0.55, radius: 0.45 },
+  ],
+});
+chupacabra.onHit = () => {
+  huntFailure.caught('The Chupacabra');
+  if (huntFailure.isCaught) chupacabra.flash.style.display = 'none'; // the Caught screen replaces the hit flash
+};
+
 function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(Math.ceil(w / PIXEL_SCALE), Math.ceil(h / PIXEL_SCALE), false);
@@ -84,6 +99,11 @@ const hud = document.getElementById('hud');
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
+  if (huntFailure.isCaught) {          // world freezes behind the Caught screen
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
   player.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
@@ -101,10 +121,11 @@ function frame() {
   noiseRing.update();
   clueFinder.update();
   journalUI.update(dt);
+  huntFailure.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
