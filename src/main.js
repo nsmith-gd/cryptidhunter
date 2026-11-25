@@ -17,6 +17,8 @@ import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
+import { Wallet } from './hunt/wallet.js';
+import { HuntEnd } from './hunt/huntEnd.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
@@ -103,6 +105,18 @@ chupacabra.onHit = () => {
   if (huntFailure.isCaught) chupacabra.flash.style.display = 'none'; // the Caught screen replaces the hit flash
 };
 
+// H heads back to camp: the best photo score becomes money, added to the wallet across hunts.
+const wallet = new Wallet();
+const huntEnd = new HuntEnd({
+  camera, wallet,
+  canEnd: () => !huntFailure.isCaught,
+  getSubjects: () => [
+    ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, y: c.profile.height * 0.6, z: c.agent.z })),
+    { name: 'The Mothman', x: mothman.mesh.position.x, y: mothman.mesh.position.y, z: mothman.mesh.position.z },
+    { name: 'The Chupacabra', x: chupacabra.position.x, y: 0.3, z: chupacabra.position.z },
+  ],
+});
+
 function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(Math.ceil(w / PIXEL_SCALE), Math.ceil(h / PIXEL_SCALE), false);
@@ -120,7 +134,7 @@ const hud = document.getElementById('hud');
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (huntFailure.isCaught) {          // world freezes behind the Caught screen
+  if (huntFailure.isCaught || huntEnd.isOver) {          // world freezes behind the Caught screen
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
@@ -138,7 +152,7 @@ function frame() {
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
-  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)` +
+  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)   $${wallet.money}  [H] end hunt` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
   bars.update();
@@ -146,10 +160,11 @@ function frame() {
   clueFinder.update();
   journalUI.update(dt);
   huntFailure.update();
+  huntEnd.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
+window.__game = { THREE, wallet, huntEnd, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
