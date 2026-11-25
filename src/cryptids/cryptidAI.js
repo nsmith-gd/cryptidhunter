@@ -3,13 +3,17 @@ import { NavAgent } from './navAgent.js';
 import { DEFAULT_PROFILE } from './profiles.js';
 import { Perception } from './perception.js';
 
-const FLEE_TINT = new THREE.Color(0xc0392b);
+// Body tint per state (greybox readability); roam/investigate keep the cryptid's own colour.
+const STATE_TINT = {
+  observe: new THREE.Color(0xb08a3a),
+  flee: new THREE.Color(0xc0392b),
+  aggress: new THREE.Color(0xe0581a),
+};
 
-// Shared cryptid brain (L0 greybox): wander between random walkable points around home,
-// bolt away when the player gets inside the flee distance, calm down once safe.
-// Lures (bait) it can smell pull it off its roam: it walks over, eats, then roams from there.
-// With senses (L1) it bolts when it actually detects the player (hearing + sight, see
-// perception.js) instead of at a fixed distance.
+// Shared cryptid brain. With senses (L1) it runs a behaviour state machine -
+// Roam / Investigate / Observe / Flee / Aggress - driven by what it hears and sees
+// (perception.js) and tuned per cryptid by the profile's `behavior` block (profiles.js).
+// Without senses it falls back to the L0 rules: roam, eat bait, flee at a fixed distance.
 export class CryptidAI {
   /**
    * @param {object} o { scene, grid, profile, x, z, getPlayerPosition: () => THREE.Vector3, rand,
@@ -31,6 +35,13 @@ export class CryptidAI {
     });
     this.home = { x: spot.x, z: spot.z };
     this.state = 'roam';
+    this.lastWhy = '';
+    this.stateTime = 0;
+    this.clock = 0;
+    this.history = [];       // [{ t, from, to, why }] newest last, for the debug overlay
+    this.target = null;      // noise spot being investigated
+    this.lookLeft = 0;
+    this.observeCooldown = 0;
     this.pauseLeft = 0;
     this.replanTimer = 0;
     this.playerDistance = Infinity;
@@ -49,22 +60,87 @@ export class CryptidAI {
     const p = this.getPlayerPosition?.();
     this.playerDistance = p ? Math.hypot(p.x - this.agent.x, p.z - this.agent.z) : Infinity;
     this.perception?.update(dt, this.agent.x, this.agent.z, this.agent.heading);
+    this.stateTime += dt;
+    this.clock += dt;
 
-    if (this.state === 'roam' || this.state === 'investigate') {
-      if (this.noticesPlayer()) this.enterFlee(p);
-      else if (this.state === 'investigate') this.tickInvestigate(dt);
-      else if (!this.findLure()) this.tickRoam(dt);
-    } else {
-      if (this.playerDistance > this.profile.fleeSafeDistance) this.enterRoam();
-      else this.tickFlee(dt, p);
-    }
+    if (this.perception) this.think(dt, p);
+    else this.thinkL0(dt, p);
     this.agent.update(dt);
     this.syncMesh();
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Behaviour state machine (with senses):
+  //   ROAM        wander around home; bait pulls it to INVESTIGATE
+  //   INVESTIGATE walk to a noise it heard (or bait), then look around there
+  //   OBSERVE     glimpsed something: stop, face it and stare while it makes up its mind
+  //   FLEE        detected you and it's shy: run until far away and calm
+  //   AGGRESS     detected you and it's hostile: come straight for you, give up after a while
+  // ---------------------------------------------------------------------------------------
+  think(dt, p) {
+    const B = this.profile.behavior, pc = this.perception;
+    const calm = this.state === 'roam' || this.state === 'investigate' || this.state === 'observe';
+
+    // Detection overrides everything calm.
+    if (calm && this.noticesPlayer()) {
+      if (B.onDetect === 'aggress') this.enterAggress('detected you');
+      else this.enterFlee(p, 'detected you');
+      return;
+    }
+    // Glimpsed you (not sure yet): stop and stare.
+    this.observeCooldown = Math.max(0, this.observeCooldown - dt);
+    if ((this.state === 'roam' || this.state === 'investigate') && pc.seen && pc.awareness >= B.observeAt && this.observeCooldown <= 0) {
+      this.enterObserve('glimpsed you');
+      return;
+    }
+
+    switch (this.state) {
+      case 'roam':
+        if (pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.enterInvestigateNoise(pc.lastHeard, 'heard a noise');
+        else if (!this.findLure()) this.tickRoam(dt);
+        break;
+      case 'investigate':
+        // A fresh, louder noise updates where it's heading.
+        if (!this.lure && pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.retargetNoise(pc.lastHeard);
+        this.tickInvestigate(dt);
+        break;
+      case 'observe':
+        this.tickObserve(dt, p);
+        break;
+      case 'flee':
+        if (this.playerDistance > this.profile.fleeSafeDistance && !pc.detected) this.enterRoam('lost you');
+        else this.tickFlee(dt, p);
+        break;
+      case 'aggress':
+        this.tickAggress(dt, p);
+        break;
+    }
+  }
+
+  // L0 behaviour (no senses): roam / bait / flee at a fixed distance.
+  thinkL0(dt, p) {
+    if (this.state === 'roam' || this.state === 'investigate') {
+      if (this.playerDistance < this.profile.fleeTriggerDistance) this.enterFlee(p, 'too close');
+      else if (this.state === 'investigate') this.tickInvestigate(dt);
+      else if (!this.findLure()) this.tickRoam(dt);
+    } else if (this.playerDistance > this.profile.fleeSafeDistance) this.enterRoam('far enough');
+    else this.tickFlee(dt, p);
   }
 
   // With senses: only once it has actually detected you. Without: the old fixed trigger distance.
   noticesPlayer() {
     return this.perception ? this.perception.detected : this.playerDistance < this.profile.fleeTriggerDistance;
+  }
+
+  setState(state, why = '') {
+    if (state === this.state && why === this.lastWhy) return;
+    this.history.push({ t: this.clock, from: this.state, to: state, why });
+    if (this.history.length > 12) this.history.shift();
+    this.state = state;
+    this.lastWhy = why;
+    this.stateTime = 0;
+    const tint = STATE_TINT[state];
+    this.mesh.userData.body.material.color.copy(tint ?? this.baseColor);
   }
 
   tickRoam(dt) {
@@ -92,8 +168,9 @@ export class CryptidAI {
     if (!best) return false;
     const spot = this.agent.grid.sample(best.x, best.z, 2);
     if (!spot || !this.agent.setDestination(spot.x, spot.z)) { this.unreachable.add(best); return false; }
-    this.state = 'investigate';
+    this.setState('investigate', 'smelled bait');
     this.lure = best;
+    this.target = null;
     best.claimedBy = this;
     this.eatLeft = this.lureSource.eatTime ?? 5;
     this.pauseLeft = 0;
@@ -101,14 +178,43 @@ export class CryptidAI {
     return true;
   }
 
+  // Walk over to where a noise came from, then look around there for a while.
+  enterInvestigateNoise(spot, why) {
+    this.releaseLure();
+    this.target = null;
+    this.setState('investigate', why);
+    this.lookLeft = this.profile.behavior.lookAround;
+    this.agent.speed = this.profile.roamSpeed * this.profile.behavior.investigateSpeed;
+    this.retargetNoise(spot);
+  }
+
+  retargetNoise(spot) {
+    if (this.target && Math.hypot(spot.x - this.target.x, spot.z - this.target.z) < 2) return;
+    const s = this.agent.grid.sample(spot.x, spot.z, 3);
+    this.target = s ? { x: s.x, z: s.z } : null;
+    if (this.target) this.agent.setDestination(this.target.x, this.target.z);
+  }
+
   tickInvestigate(dt) {
+    if (!this.lure) {
+      // Noise investigation.
+      const t = this.target;
+      if (!t) { this.enterRoam('nothing there'); return; }
+      if (Math.hypot(t.x - this.agent.x, t.z - this.agent.z) > 1.5 && this.agent.hasPath) return;
+      // At the spot: stop and turn slowly, looking around.
+      this.agent.stop();
+      this.agent.heading += dt * 1.2;
+      this.lookLeft -= dt;
+      if (this.lookLeft <= 0) { this.target = null; this.enterRoam('found nothing'); }
+      return;
+    }
     const l = this.lure;
-    if (!l || l.gone) { this.releaseLure(); this.enterRoam(); return; }
+    if (l.gone) { this.releaseLure(); this.enterRoam('bait gone'); return; }
     const d = Math.hypot(l.x - this.agent.x, l.z - this.agent.z);
     if (d > this.profile.radius + 1.2) {
       if (!this.agent.hasPath) {
         const spot = this.agent.grid.sample(l.x, l.z, 2);
-        if (!spot || !this.agent.setDestination(spot.x, spot.z)) { this.unreachable.add(l); this.releaseLure(); this.enterRoam(); }
+        if (!spot || !this.agent.setDestination(spot.x, spot.z)) { this.unreachable.add(l); this.releaseLure(); this.enterRoam('can\'t reach bait'); }
       }
       return;
     }
@@ -119,7 +225,7 @@ export class CryptidAI {
     if (this.eatLeft <= 0) {
       this.lureSource.consume(l);
       this.releaseLure();
-      this.enterRoam();
+      this.enterRoam('ate the bait');
     }
   }
 
@@ -128,19 +234,67 @@ export class CryptidAI {
     this.lure = null;
   }
 
-  enterFlee(player) {
+  // Stop and stare toward where it last saw/heard you.
+  enterObserve(why) {
     this.releaseLure();
-    this.state = 'flee';
+    this.setState('observe', why);
+    this.agent.stop();
+  }
+
+  tickObserve(dt, p) {
+    const pc = this.perception, B = this.profile.behavior;
+    const spot = pc.seen ? p : (pc.lastSeen ?? pc.lastHeard ?? p);
+    this.faceToward(spot.x, spot.z, dt, 3);
+    if (pc.awareness < B.observeAt * 0.5 || this.stateTime > B.observeTime) {
+      // Lost sight / lost interest: go and check where it last saw you, or roam on.
+      if (pc.lastSeen && this.stateTime <= B.observeTime) this.enterInvestigateNoise(pc.lastSeen, 'lost sight of you');
+      else this.enterRoam('lost interest');
+      this.observeCooldown = 4; // don't immediately stop and stare again
+    }
+  }
+
+  enterAggress(why) {
+    this.releaseLure();
+    this.setState('aggress', why);
+    this.agent.speed = this.profile.behavior.aggressSpeed;
+    this.replanTimer = 0;
+  }
+
+  tickAggress(dt, p) {
+    const B = this.profile.behavior;
+    if (this.stateTime > B.aggressTime || this.playerDistance > B.aggressGiveUp) {
+      this.perception.reset();
+      if (B.afterAggress === 'flee') this.enterFlee(p, 'gave up the chase');
+      else this.enterRoam('gave up the chase');
+      return;
+    }
+    this.replanTimer -= dt;
+    if (this.replanTimer <= 0 || !this.agent.hasPath) {
+      this.replanTimer = 0.4;
+      const s = this.agent.grid.sample(p.x, p.z, 2);
+      if (s) this.agent.setDestination(s.x, s.z);
+    }
+  }
+
+  faceToward(x, z, dt, rate) {
+    const want = Math.atan2(-(x - this.agent.x), -(z - this.agent.z));
+    let d = want - this.agent.heading;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.agent.heading += Math.sign(d) * Math.min(Math.abs(d), rate * dt);
+  }
+
+  enterFlee(player, why = 'detected you') {
+    this.releaseLure();
+    this.setState('flee', why);
     this.pauseLeft = 0;
     this.agent.speed = this.profile.fleeSpeed;
-    this.mesh.userData.body.material.color.copy(FLEE_TINT);
     this.pickFleePoint(player);
   }
 
-  enterRoam() {
-    this.state = 'roam';
+  enterRoam(why = '') {
+    this.setState('roam', why);
+    this.target = null;
     this.agent.speed = this.profile.roamSpeed;
-    this.mesh.userData.body.material.color.copy(this.baseColor);
     // New home where it ended up, so it doesn't wander straight back toward the player.
     this.home = { x: this.agent.x, z: this.agent.z };
     this.pickRoamPoint();
