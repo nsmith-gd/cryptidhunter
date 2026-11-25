@@ -238,7 +238,7 @@ export function buildBigfootModel(profile) {
     runBlend += (run - runBlend) * k;
     fleeW += ((state === 'flee' ? 1 : 0) - fleeW) * k;
     invW += ((state === 'investigate' ? 1 : 0) - invW) * k;
-    stareW += ((state === 'observe' || state === 'aggress' ? 1 : 0) - stareW) * k;
+    stareW += ((state === 'observe' || state === 'aggress' || state === 'warn' ? 1 : 0) - stareW) * k;   // warn: rears up and stares
     const stride = lerp(STRIDE, STRIDE * 1.9, runBlend) * (1 - 0.25 * invW);   // short, careful steps when investigating
     phase += (speed / stride) * Math.PI * dt;
     const sw = Math.sin(phase), cw = Math.cos(phase);
