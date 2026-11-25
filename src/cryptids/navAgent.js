@@ -73,6 +73,10 @@ export class NavAgent {
     if (dist > 1e-4) {
       const nx = this.x + (dx / dist) * step, nz = this.z + (dz / dist) * step;
       if (this.grid.isWalkable(nx, nz)) { this.x = nx; this.z = nz; }
+      // A smoothed path line can clip the corner of a blocked cell (common among dense trees):
+      // slide along one axis instead of giving up.
+      else if (this.grid.isWalkable(nx, this.z)) this.x = nx;
+      else if (this.grid.isWalkable(this.x, nz)) this.z = nz;
       else this.path = null; // map changed under us; AI will re-plan
     }
   }

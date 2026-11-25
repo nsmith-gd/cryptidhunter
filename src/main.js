@@ -3,6 +3,7 @@ import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
+import { buildForestMap } from './maps/forest.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
@@ -45,8 +46,8 @@ const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
 
-// Pick the map with ?map=swamp (default: the greybox test map).
-const MAPS = { test: buildTestMap, swamp: buildSwampMap };
+// Pick the map with ?map=forest or ?map=swamp (default: the greybox test map).
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap };
 const mapId = new URLSearchParams(location.search).get('map') ?? 'test';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
 const { colliders, bounds, spawns } = map;
