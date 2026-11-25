@@ -7,12 +7,14 @@
 export const CAMP = {
   storageKey: 'cryptidhunter.camp.v1',
   ratePerPoint: 2,          // $ per photo-score point
+  greatPhoto: 70,           // a target photo scoring this much earns double reputation
   targetBonus: 3,           // the hunt's target cryptid is worth this many times more
   // Starter kit: consumables are topped back up to this at camp before every hunt.
-  starter: { camera: 1, flashlight: 1, bait: 3, spareBatteries: 1 },
+  starter: { camera: 1, flashlight: 1, bait: 3, spareBatteries: 1, trailCamera: 2, audioLure: 1, nightVision: 1, knockStick: 1 },
 };
 
-const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery' };
+const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery',
+  trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick' };
 
 import { SaveService } from '../save/saveService.js';
 
@@ -28,7 +30,7 @@ export class Camp {
   }
 
   static fresh() {
-    return { money: 0, gear: { ...CAMP.starter }, hunts: [] };
+    return { money: 0, gear: { ...CAMP.starter }, hunts: [], reputation: 0, map: null };
   }
 
   load() {
@@ -89,10 +91,14 @@ export class Camp {
     // Gear always comes home: what you carried at the end of the hunt is what camp owns.
     for (const [k, n] of Object.entries(gearLeft ?? {})) this.state.gear[k] = n;
     this.state.money += total;
+    // Reputation (#47): bringing home a photo of the night's target earns +1, a great one (70+) +2.
+    const best = sold.find((s) => s.subject === target)?.score ?? 0;
+    const repGain = outcome === 'complete' && best > 0 ? (best >= CAMP.greatPhoto ? 2 : 1) : 0;
+    this.state.reputation = (this.state.reputation ?? 0) + repGain;
     const entry = {
       n: this.state.hunts.length + 1, outcome, target,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
-      sold, bonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear },
+      sold, bonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation,
     };
     this.state.hunts.push(entry);
     if (this.state.hunts.length > 50) this.state.hunts.shift();
@@ -103,8 +109,9 @@ export class Camp {
 
 export function gearList(gear) {
   return Object.entries(gear).filter(([, n]) => n > 0)
-    .map(([k, n]) => (k === 'camera' || k === 'flashlight' ? GEAR_NAMES[k]
-      : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}` : `${n} ${GEAR_NAMES[k] ?? k}`)).join(', ');
+    .map(([k, n]) => (['camera', 'flashlight', 'nightVision', 'knockStick'].includes(k) ? GEAR_NAMES[k]
+      : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}`
+        : `${n} ${GEAR_NAMES[k] ?? k}${n > 1 && k !== 'bait' ? 's' : ''}`)).join(', ');
 }
 
 /** One-paragraph summary of a settled hunt for end screens and the camp panel. */
@@ -114,7 +121,7 @@ export function huntSummary(h) {
   const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
   return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
-    ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : [])].join('\n');
+    ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : []), ...(h.repGain ? [`  Reputation +${h.repGain} (now ${h.reputation})`] : [])].join('\n');
 }
 
 /** BASE CAMP panel on the start screen: money, what happened last hunt, gear you own. */
@@ -129,6 +136,9 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
     last ? `Last hunt (#${last.n}): ${huntSummary(last)}` : 'First night out. No photos sold yet.',
     `Gear: ${gearList(s.gear)}`].join('\n');
   root.prepend(el);
+  // The start screen is taller now: let it scroll instead of spilling off the top.
+  const overlay = root.parentElement;
+  if (overlay) { overlay.style.alignItems = 'safe center'; overlay.style.overflowY = 'auto'; root.style.padding = '12px 0'; }
   return el;
 }
 

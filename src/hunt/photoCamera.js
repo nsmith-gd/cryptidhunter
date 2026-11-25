@@ -69,7 +69,7 @@ export class PhotoCamera {
   /** Take a photo (only while raised). Returns the logged entry, or null if no shot was taken. */
   snap() {
     if (!this.enabled || !this.raised || this.cooldown > 0) {
-      if (this.enabled && !this.raised) this.toast('Hold right mouse to raise the camera');
+      if (this.enabled && !this.raised) { if (this.onLoweredClick) this.onLoweredClick(); else this.toast('Hold right mouse to raise the camera'); }
       return null;
     }
     this.cooldown = PHOTO.cooldown;

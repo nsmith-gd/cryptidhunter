@@ -42,13 +42,13 @@ const setup = (bx, bz, px, pz, yawOff = 0) => page.evaluate(([bx, bz, px, pz, ya
 }, [bx, bz, px, pz, yawOff]);
 const raise = async () => {
   await page.mouse.down({ button: 'right' });
-  await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+  await page.waitForFunction(() => __game.photo.raised, null, { timeout: 20000 });
   await page.waitForTimeout(150);
 };
 const lower = () => page.mouse.up({ button: 'right' });
 const snap = async () => {
   const before = await page.evaluate(() => __game.photo.log.length);
-  await page.waitForFunction(() => __game.photo.cooldown === 0, null, { timeout: 3000 });
+  await page.waitForFunction(() => __game.photo.cooldown === 0, null, { timeout: 20000 });
   await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
   await page.waitForTimeout(450); // let the shutter flash fade before captures
   return page.evaluate((n) => {

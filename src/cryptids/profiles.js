@@ -22,6 +22,9 @@ export const DEFAULT_PROFILE = Object.freeze({
   turnRate: 7,             // radians / second
   lureRange: 45,           // smells bait this far away (metres)
   catchHits: 1,            // touches before you're caught (Danger & Hunt Failure)
+  // Does it frighten you (Fear meter)? Only cryptids that can hurt or catch you do; shy,
+  // harmless ones don't raise fear however close they get.
+  threatening: false,
   // Clue data for the clues system (not dropped at L0). null = leaves none.
   clues: null,
   // Behaviour state machine (L1, used with senses). See cryptidAI.js.
@@ -52,6 +55,8 @@ export function makeProfile(overrides = {}) {
 export const BIGFOOT = makeProfile({
   id: 'bigfoot',
   name: 'Bigfoot',
+  homeLevel: 1,            // the first hunt: forgiving, it warns before it gets dangerous
+  brain: 'bigfoot',        // bespoke behaviour tree (brains/bigfootBrain.js)
   height: 4.0,             // towering: ~4 m to the top of its crest, shoulders ~1.6 m across
   radius: 0.65,
   color: 0x4a3626,
@@ -60,6 +65,7 @@ export const BIGFOOT = makeProfile({
   roamPause: [2, 6],
   fleeTriggerDistance: 15, // shy: bolts well before you get close (used only without senses)
   catchHits: 1,            // huge: one grab and the hunt is over
+  threatening: true,       // it can turn and charge
   senses: Object.freeze({ hearing: 1.4, sightRange: 32, viewAngle: 65 }), // keen ears and eyes (see perception.js)
   // Shy but curious: checks out noises, stops and stares when it glimpses you (the classic
   // sighting, and your photo chance), then bolts once it's sure.
@@ -90,6 +96,7 @@ export const PROWLER = makeProfile({
   roamRadius: 15,
   roamSpeed: 1.4,
   catchHits: 2,
+  threatening: true,
   senses: Object.freeze({ hearing: 1.0, sightRange: 22, viewAngle: 55 }),
   behavior: { onDetect: 'aggress', aggressSpeed: 4.6, aggressTime: 7, aggressGiveUp: 22, afterAggress: 'roam', observeTime: 2 },
 });

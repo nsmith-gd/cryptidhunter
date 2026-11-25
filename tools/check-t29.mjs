@@ -27,7 +27,7 @@ const lum = () => page.evaluate(() => {
   return +(s / (d.length / 4)).toFixed(1);
 });
 const setup = async (q = '') => {
-  await page.goto(`http://localhost:4330/?nodebugai${q}`);
+  await page.goto(`http://localhost:4330/?nodebugai&loadout=nightVision,spareBatteries,bait,trailCamera${q}`); // pack the goggles (#27 loadout)
   await page.waitForFunction(() => window.__game);
   await page.evaluate(() => { const g = __game; g.overlay.classList.add('hidden'); g.input.locked = true; g.huntFailure.enabled = false; });
 };
@@ -63,8 +63,8 @@ const drain = await page.evaluate(() => {
   return { after9s: +f.battery.toFixed(3), torchOn: f.on };
 });
 check('night vision drains the battery, faster than the torch (10% in 9 s vs 7.5%)', !drain.torchOn && Math.abs(drain.after9s - 0.9) < 0.002, drain);
-await page.evaluate(() => { __game.flashlight.battery = 0.004; });
-await page.waitForTimeout(1200);
+await page.evaluate(() => { __game.flashlight.battery = 0.004; __game.nightVision.update(1); });   // 1 s of game time
+await page.waitForTimeout(300);
 const dead = await page.evaluate(() => ({ on: __game.nightVision.on, fov: __game.camera.fov, battery: __game.flashlight.battery }));
 check('at 0% battery the goggles switch off and the view widens again', !dead.on && dead.fov === fov0, dead);
 await page.keyboard.press('KeyV');
@@ -73,11 +73,12 @@ check('they won\'t switch on with a dead battery', !stillOff, { stillOff });
 
 // ---- The camera still zooms from the goggle view ----
 await page.evaluate(() => { __game.flashlight.battery = 1; __game.nightVision.toggle(true); });
+// (Wait for the zoom to settle: the forest renders slowly under software GL.)
 await page.mouse.down({ button: 'right' });
-await page.waitForTimeout(500);
+await page.waitForFunction(() => __game.camera.fov < 40.5, null, { timeout: 15000 }).catch(() => {});
 const raised = await page.evaluate(() => __game.camera.fov);
 await page.mouse.up({ button: 'right' });
-await page.waitForTimeout(500);
+await page.waitForFunction(() => __game.camera.fov > 49.5, null, { timeout: 15000 }).catch(() => {});
 const lowered = await page.evaluate(() => __game.camera.fov);
 check('raising the photo camera through the goggles zooms in, then back to the goggle view', raised < 45 && Math.abs(lowered - 50) < 0.5, { raised, lowered });
 

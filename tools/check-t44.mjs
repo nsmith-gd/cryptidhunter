@@ -18,7 +18,7 @@ const results = [];
 const check = (name, ok, s) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${JSON.stringify(s)}`);
 const shot = (n) => page.screenshot({ path: `${out}/${n}.png` });
 
-await page.goto('http://localhost:4414/?map=forest&nodebugai');
+await page.goto('http://localhost:4414/?map=forest&nodebugai&loadout=nightVision,trailCamera,bait,knockStick');
 await page.waitForFunction(() => window.__game, null, { timeout: 180000 });
 await page.evaluate(() => {
   const g = __game;

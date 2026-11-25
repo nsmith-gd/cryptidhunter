@@ -76,6 +76,9 @@ check('the trail starts in the clue zone and examining it says which way Bigfoot
 await shot('03-trail-hint');
 
 // Find Bigfoot in its zone and photograph it from a spot with a clear view.
+// (This check is about the level flow, not its behaviour: hold it still while the camera comes up,
+// which takes real seconds under software rendering.)
+await page.evaluate(() => { __game.cryptids.cryptids[0].think = () => {}; });
 let lined = false;
 for (let i = 0; i < 16 && !lined; i++) {
   lined = await page.evaluate((i) => {
@@ -94,7 +97,7 @@ await page.evaluate(() => { const g = __game, b = g.cryptids.cryptids[0], c = g.
   const dx = b.agent.x - c.x, dz = b.agent.z - c.z; p.yaw = Math.atan2(-dx, -dz); p.pitch = Math.atan2(1.5 - c.y, Math.hypot(dx, dz)); });
 await page.waitForTimeout(40);
 await page.mouse.down({ button: 'right' }); // raise the camera (#4: hold right mouse, left-click to snap)
-await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+await page.waitForFunction(() => __game.photo.raised, null, { timeout: 20000 });
 await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
 await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(150);
