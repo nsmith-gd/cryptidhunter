@@ -17,6 +17,8 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4320/');
 await page.waitForFunction(() => window.__game);
+// This check repeats hits on purpose; don't end the hunt on the first one.
+await page.evaluate(() => { if (__game.huntFailure) __game.huntFailure.enabled = false; });
 
 // Player stands in the open at (20,0,10) facing -z; the stalker is placed `d` metres ahead.
 const setup = (d) => page.evaluate((d) => {

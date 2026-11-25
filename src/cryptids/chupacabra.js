@@ -127,6 +127,7 @@ export class Chupacabra {
 
   hitPlayer() {
     this.hits++;
+    this.onHit?.();
     const shove = this.chargeDir.clone().multiplyScalar(CHUPA.knockback);
     this.player.velocity.x += shove.x * 3;
     this.player.velocity.z += shove.z * 3;
