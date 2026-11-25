@@ -11,6 +11,7 @@ import { ClueTrails } from './clues/clueTrail.js';
 import { Journal } from './journal/journal.js';
 import { ClueFinder } from './journal/clueFinder.js';
 import { JournalUI } from './journal/journalUI.js';
+import { TrailReader } from './clues/trailReader.js';
 import { Mothman, MOTHMAN } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
@@ -96,6 +97,8 @@ addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); 
 // Field journal: aim at a clue within reach and press E to log it; J opens the journal.
 const journal = new Journal();
 const clueFinder = new ClueFinder(camera, clues, journal, input);
+// Examining a clue also says how fresh it is and which way the cryptid went (compass at top).
+const trailReader = new TrailReader({ clues, clueTrails, journal, player });
 const journalUI = new JournalUI(journal, clueFinder);
 hunt.journal = journal;
 
@@ -179,10 +182,11 @@ function frame() {
   clueFinder.update();
   journalUI.update(dt);
   huntFailure.update();
+  trailReader.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
+window.__game = { THREE, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
