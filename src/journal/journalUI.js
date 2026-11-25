@@ -94,7 +94,7 @@ export class JournalUI {
         v.ranking.map((r) => `<div class="bar"><span>${r.name}</span><div class="track"><div class="fill" style="width:${pct(r.confidence)}"></div></div><span>${pct(r.confidence)}</span></div>`).join('');
     }
     const items = j.entries.slice().reverse().map((e) =>
-      `<li><span class="type">${e.label}</span>: ${e.description}<br><span class="age">${formatAge(j.ageOf(e))} · logged ${formatAge(j.time - e.foundAt).replace(' old', ' ago')}</span></li>`).join('');
+      `<li><span class="type">${e.label}</span>: ${e.description}${e.hint ? `<br><i>${e.hint}</i>` : ''}<br><span class="age">${formatAge(j.ageOf(e))} · logged ${formatAge(j.time - e.foundAt).replace(' old', ' ago')}</span></li>`).join('');
     this.panel.innerHTML = `<h2>FIELD JOURNAL</h2><p class="sub">Pine Hollow · ${j.entries.length} clue${j.entries.length === 1 ? '' : 's'} logged</p>
       <div class="verdict">${verdict}</div>
       ${items ? `<ol reversed>${items}</ol>` : '<p class="empty">No clues logged.</p>'}
