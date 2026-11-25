@@ -15,7 +15,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto('http://localhost:4319/');
+await page.goto('http://localhost:4319/?sandbox');
 await page.waitForFunction(() => window.__game);
 // Park the stalker so it can't interfere with this check.
 await page.evaluate(() => { if (__game.chupacabra) __game.chupacabra.update = () => {}; });

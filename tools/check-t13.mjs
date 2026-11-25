@@ -18,7 +18,7 @@ page.on('pageerror', (e) => errors.push(e.message));
 const results = [];
 const check = (name, ok, s) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${JSON.stringify(s)}`);
 const load = async () => {
-  await page.goto('http://localhost:4323/');
+  await page.goto('http://localhost:4323/?sandbox');
   await page.waitForFunction(() => window.__game);
   await page.evaluate(() => { __game.overlay.classList.add('hidden'); __game.input.locked = true; });
 };
