@@ -9,6 +9,8 @@ import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
 import { Mothman } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
+import { BatteryPickups } from './pickups.js';
+import { Hud } from './hud.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -40,6 +42,8 @@ scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
+const batteries = new BatteryPickups(scene, player, flashlight);
+const bars = new Hud(player, flashlight);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position });
@@ -71,6 +75,8 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   player.update(dt);
+  flashlight.update(dt);
+  batteries.update(dt);
   cryptids.update(dt);
   clueTrails.update();
   clues.update(dt);
@@ -80,10 +86,11 @@ function frame() {
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
+  bars.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, flashlight, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, input, scene, camera, renderer, overlay };
