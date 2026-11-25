@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { rng, pixelMaterial, barkTexture } from './pixelTex.js';
 import {
-  pineBarkTexture, pineNeedleTexture, pineBranchCard, fernFrondTexture, bushLeafTexture, bushSprigCard,
+  pineBarkTexture, pineNeedleTexture, pineBranchCard, pineSprayCard, fernFrondTexture, bushLeafTexture, bushSprigCard,
   grassTuftCard, logEndTexture, logBarkTexture, mossCarpetTexture, rockTexture, needleLitterTexture,
 } from './forestKitTex.js';
 
@@ -41,8 +41,8 @@ export class ForestKit {
       logBark: pixelMaterial(logBarkTexture()),
       needles0: leafMaterial(pineNeedleTexture(0)),
       needles1: leafMaterial(pineNeedleTexture(1)),
-      branch0: leafMaterial(pineBranchCard(0), card),
-      branch1: leafMaterial(pineBranchCard(1), card),
+      branch0: leafMaterial(pineSprayCard(0), card),
+      branch1: leafMaterial(pineSprayCard(1), card),
       fern0: leafMaterial(fernFrondTexture(0), card),
       fern1: leafMaterial(fernFrondTexture(1), card),
       bush0: leafMaterial(bushLeafTexture(0), { flatShading: true }),
@@ -78,7 +78,7 @@ export class ForestKit {
       };
       mat.customProgramCacheKey = () => `sway${amp}${freq}`;
     };
-    for (const k of ['branch0', 'branch1']) sway(m[k], 0.02, 0.9);
+    for (const k of ['branch0', 'branch1']) sway(m[k], 0.0035, 0.9);
     for (const k of ['fern0', 'fern1']) sway(m[k], 0.06, 1.6);
     for (const k of ['grass0', 'grass1']) sway(m[k], 0.12, 2.1);
     for (const k of ['sprig0', 'sprig1']) sway(m[k], 0.04, 1.4);
@@ -96,13 +96,16 @@ export class ForestKit {
     this.instances.set(key, []);
   }
 
-  /** Queue one placement. rotY in radians; s = uniform scale or [sx, sy, sz]. */
-  add(key, x, y, z, rotY = 0, s = 1, tilt = null) {
+  /**
+   * Queue one placement. rotY in radians; s = uniform scale or [sx, sy, sz]; tilt = { x, z } lean;
+   * tint = optional THREE.Color multiplied into this instance (per-tree colour variation).
+   */
+  add(key, x, y, z, rotY = 0, s = 1, tilt = null, tint = null) {
     const list = this.instances.get(key);
     if (!list) throw new Error(`forest kit: no prototype ${key}`);
     const sc = Array.isArray(s) ? new THREE.Vector3(...s) : new THREE.Vector3(s, s, s);
     const e = new THREE.Euler(tilt?.x ?? 0, rotY, tilt?.z ?? 0, 'YXZ');
-    list.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(e), sc));
+    list.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(e), sc), tint });
   }
 
   variants(prefix) { return [...this.protos.keys()].filter((k) => k.startsWith(`${prefix}:`)); }
@@ -118,7 +121,12 @@ export class ForestKit {
       count += list.length;
       for (const part of proto.parts) {
         const im = new THREE.InstancedMesh(part.geo, part.mat, list.length);
-        list.forEach((m, i) => im.setMatrixAt(i, m));
+        list.forEach((e, i) => im.setMatrixAt(i, e.m));
+        if (list.some((e) => e.tint)) {
+          const white = new THREE.Color(1, 1, 1);
+          list.forEach((e, i) => im.setColorAt(i, e.tint ?? white));
+          im.instanceColor.needsUpdate = true;
+        }
         im.instanceMatrix.needsUpdate = true;
         im.castShadow = proto.cast;
         im.receiveShadow = true;
@@ -138,11 +146,11 @@ export class ForestKit {
   // --- prototypes --------------------------------------------------------------------------
   buildPrototypes() {
     const r = this.r;
-    // Pines: tall & narrow, full & broad, young, and a fir with bluer needles and a droopier crown.
-    this.define('pine:0', this.pine({ tiers: 9, r0: 0.2, y0: 0.2, tierH: 0.16, droop: 0.35, n: 0 }));
-    this.define('pine:1', this.pine({ tiers: 7, r0: 0.27, y0: 0.14, tierH: 0.2, droop: 0.45, n: 0 }));
-    this.define('pine:2', this.pine({ tiers: 6, r0: 0.3, y0: 0.08, tierH: 0.25, droop: 0.3, n: 0, trunkR: 0.035 }));
-    this.define('pine:3', this.pine({ tiers: 10, r0: 0.19, y0: 0.24, tierH: 0.15, droop: 0.6, n: 1 }));
+    // Pines (#60): 12 grown trees with different silhouettes (classic, columnar, broad, windswept,
+    // sparse, broken-topped, forked ...) and 4 young ones, each built from whorls of drooping
+    // branch sprays around a bent trunk rather than stacked cones.
+    for (let v = 0; v < 12; v++) this.define(`pine:${v}`, this.pineWhorl(v));
+    for (let v = 0; v < 4; v++) this.define(`youngPine:${v}`, this.pineWhorl(v, { young: true }));
     // Snags: a broken-topped dead pine and a bare silver one with stubby limbs.
     this.define('snag:0', this.snag({ limbs: 6, top: 0.7, bark: 'bark1' }));
     this.define('snag:1', this.snag({ limbs: 9, top: 1, bark: 'snagWood' }));
@@ -160,53 +168,136 @@ export class ForestKit {
     this.define('litter:0', { litter: [xform(new THREE.PlaneGeometry(1, 1), { r: [-Math.PI / 2, 0, 0], p: [0, 0.009, 0] })] }, { cast: false });
   }
 
-  pine({ tiers, r0, y0, tierH, droop, n, trunkR = 0.022 }) {
-    const r = this.r;
-    const bark = [], needles = [], branch = [];
-    const trunk = new THREE.CylinderGeometry(trunkR * 0.25, trunkR, 1, 7, 6, true);
-    trunk.translate(0, 0.5, 0);
-    scaleUV(trunk, 4, 14);   // ≈32 texels/m on a 14 m pine
+  /**
+   * A pine grown from whorls of branch sprays (unit height; instance scale = height in metres).
+   * Each variant draws its shape from its own seed, so no two prototypes share a silhouette.
+   */
+  pineWhorl(v, { young = false } = {}) {
+    const r = rng(9001 + v * 131 + (young ? 7000 : 0));
+    const pick = (a, b) => a + r() * (b - a);
+    const styles = young ? ['young', 'young', 'sparseYoung', 'young'] : ['classic', 'columnar', 'broad', 'windswept', 'sparse', 'broken', 'classic', 'fork', 'columnar', 'broad', 'windswept', 'sparse'];
+    const style = styles[v % styles.length];
+    const P = {
+      classic: { base: 0.16, r0: 0.2, shape: 1.0, whorls: 10, per: 5, skip: 0.12, asym: 0.14, droop: 0.42, stubs: 3 },
+      columnar: { base: 0.24, r0: 0.13, shape: 0.55, whorls: 12, per: 5, skip: 0.1, asym: 0.1, droop: 0.55, stubs: 4 },
+      broad: { base: 0.07, r0: 0.28, shape: 1.3, whorls: 9, per: 6, skip: 0.1, asym: 0.12, droop: 0.32, stubs: 1 },
+      windswept: { base: 0.22, r0: 0.21, shape: 0.9, whorls: 10, per: 5, skip: 0.2, asym: 0.5, droop: 0.38, stubs: 3, bend: 0.07 },
+      sparse: { base: 0.4, r0: 0.18, shape: 0.9, whorls: 8, per: 4, skip: 0.32, asym: 0.22, droop: 0.48, stubs: 8 },
+      broken: { base: 0.18, r0: 0.22, shape: 0.8, whorls: 8, per: 5, skip: 0.18, asym: 0.18, droop: 0.4, stubs: 3, top: 0.8 },
+      fork: { base: 0.2, r0: 0.2, shape: 0.95, whorls: 9, per: 5, skip: 0.15, asym: 0.16, droop: 0.42, stubs: 2, fork: true },
+      young: { base: 0.04, r0: 0.3, shape: 1.05, whorls: 6, per: 5, skip: 0.08, asym: 0.16, droop: 0.22, stubs: 0 },
+      sparseYoung: { base: 0.12, r0: 0.26, shape: 0.9, whorls: 5, per: 4, skip: 0.25, asym: 0.3, droop: 0.3, stubs: 1 },
+    }[style];
+    const n = !young && v % 3 === 2 ? 1 : 0;                 // every third grown pine is a bluer fir
+    const top = (P.top ?? 1) * pick(0.97, 1.0);
+    const bark = [], branch = [], core = [], dead = [];
+    const trunkR = (young ? 0.034 : 0.021) * pick(0.85, 1.2);
+    const bendDir = r() * TAU, bend = (P.bend ?? 0) + pick(0, 0.035);
+    const center = (y) => [Math.cos(bendDir) * bend * y * y, Math.sin(bendDir) * bend * y * y];
+
+    // Trunk: tapered, gently bent, with a root flare.
+    const trunk = new THREE.CylinderGeometry(trunkR * 0.22, trunkR, top, 7, 8, true);
+    trunk.translate(0, top / 2, 0);
+    { const p = trunk.attributes.position; for (let i = 0; i < p.count; i++) { const [cx, cz] = center(p.getY(i)); p.setX(i, p.getX(i) + cx); p.setZ(i, p.getZ(i) + cz); } }
+    trunk.computeVertexNormals();
+    scaleUV(trunk, 4, 14 * top);
     bark.push(trunk);
     const flare = new THREE.CylinderGeometry(trunkR * 1.05, trunkR * 1.9, 0.035, 7, 1, true);
-    flare.translate(0, 0.0175, 0);
-    scaleUV(flare, 2, 0.4);
-    bark.push(flare);
+    flare.translate(0, 0.0175, 0); scaleUV(flare, 2, 0.4); bark.push(flare);
 
-    for (let k = 0; k < tiers; k++) {
-      const t = k / (tiers - 1);
-      const yc = y0 + t * (0.97 - y0);
-      const rad = r0 * Math.pow(1 - t * 0.9, 1.05) + 0.015;
-      const th = tierH * (1 - 0.35 * t);
-      const cone = new THREE.ConeGeometry(rad, th, 11, 2, true);
-      jitterRim(cone, th, droop, r);
-      cone.rotateY(r() * TAU);
-      cone.translate(0, yc, 0);
-      scaleUV(cone, 3, 1.4);
-      needles.push(cone);
-      // Shadowed underside so the tier reads solid from below (faces down: gets only ground light).
-      const under = new THREE.CircleGeometry(rad * 0.86, 11);
-      under.rotateX(Math.PI / 2);
-      under.translate(0, yc - th * 0.5 - droop * th * 0.35, 0);
-      scaleUV(under, 2, 2);
-      needles.push(under);
-      // Ragged branch tips hanging off the rim.
-      const m = Math.round(5 + 8 * (1 - t));
-      for (let j = 0; j < m; j++) {
-        const a = (j / m) * TAU + r() * 0.5;
-        const w = rad * (0.55 + r() * 0.25) + 0.02, hgt = w * 0.5;
-        const c = new THREE.PlaneGeometry(w, hgt);
-        c.translate(w / 2, -hgt * 0.2, 0);
-        c.rotateZ(-0.25 - r() * 0.35);           // droop
-        c.rotateY(-a);
-        c.translate(Math.cos(a) * rad * 0.55, yc - th * 0.42 - r() * 0.02, Math.sin(a) * rad * 0.55);
-        branch.push(c);
+    // One branch spray: a drooping, tapering card along +x, plus a smaller vertical fin across it
+    // so it has volume from the side. Placed at height y, pointing out at azimuth az, length L.
+    const spray = (y, az, L, droop, fin = true) => {
+      const w = Math.max(0.04, L * pick(0.75, 0.95));
+      const mk = (vertical) => {
+        const g = new THREE.PlaneGeometry(L, vertical ? w * 0.55 : w, 2, 1);
+        g.translate(L / 2, 0, 0);
+        if (!vertical) g.rotateX(-Math.PI / 2);           // lie flat
+        const p = g.attributes.position;
+        for (let i = 0; i < p.count; i++) {
+          const u = p.getX(i) / L;
+          const side = vertical ? 0 : p.getZ(i);
+          const lift = vertical ? p.getY(i) : 0;
+          // taper toward the tip, droop down the length, cup the sides up a little
+          p.setXYZ(i, p.getX(i), (lift * (1 - 0.6 * u)) + L * (0.06 * u - droop * u * u) + Math.abs(side) * 0.18, side * (1 - 0.65 * u));
+        }
+        g.computeVertexNormals();
+        return g;
+      };
+      const [cx, cz] = center(y);
+      for (const g of fin ? [mk(false), mk(true)] : [mk(false)]) {
+        g.rotateY(-az);
+        g.translate(cx, y, cz);
+        branch.push(g);
+      }
+    };
+    // A branch: the main spray plus two side sprays forking off halfway, so the crown is a mass of
+    // overlapping twigs instead of single sticks.
+    const limb = (y, az, L, droop) => {
+      spray(y, az, L, droop);
+      for (const sgn of [-1, 1]) {
+        if (r() < 0.25) continue;
+        const f = pick(0.35, 0.55), Ls = L * pick(0.45, 0.65);
+        const bx = Math.cos(az) * L * f, bz = Math.sin(az) * L * f;
+        const by = y + L * (0.06 * f - droop * f * f) - 0.004;
+        const before = branch.length;
+        spray(by, az + sgn * pick(0.55, 0.9), Ls, droop * 1.1, false);
+        // shift the side spray out to its fork point on the main branch
+        for (let i = before; i < branch.length; i++) branch[i].translate(bx, 0, bz);
+      }
+    };
+
+    // Whorls of branches up the trunk, lengths from a crown profile with per-variant asymmetry.
+    const asymDir = r() * TAU;
+    const W = Math.round(P.whorls * 1.1) + Math.round(pick(-1, 1));
+    for (let k = 0; k < W; k++) {
+      const t = k / (W - 1);
+      const y = P.base + t * (top * 0.96 - P.base) + pick(-0.012, 0.012);
+      const R = P.r0 * Math.pow(1 - t * 0.9, P.shape) + 0.022;   // tops stay bushy, not a bare spike
+      const per = P.per + Math.round(pick(-1, 1));
+      const az0 = k * 2.39996 + r();                        // golden-angle spiral between whorls
+      for (let j = 0; j < per; j++) {
+        if (r() < P.skip * 0.6 && t < 0.85) continue;       // missing branches: gaps in the crown
+        const az = az0 + (j / per) * TAU + pick(-0.35, 0.35);
+        const L = R * (1 + P.asym * Math.cos(az - asymDir)) * pick(0.78, 1.18);
+        limb(y, az, Math.max(0.025, L), P.droop * pick(0.75, 1.25) * (1 - 0.4 * t));
       }
     }
-    // Leader at the very top.
-    const tip = new THREE.ConeGeometry(0.012, 0.06, 5, 1, true);
-    tip.translate(0, 0.99, 0);
-    needles.push(tip);
-    return { [`bark${0}`]: bark, [`needles${n}`]: needles, [`branch${n}`]: branch };
+    // A dark inner core so you can't see daylight straight through the middle of the crown.
+    const coreH = (top - P.base) * 0.9;
+    const cone = new THREE.ConeGeometry(P.r0 * 0.32, coreH * 0.72, 6, 1, true);   // fills the crown's heart, stops short of the top
+    cone.translate(0, P.base + coreH * 0.36, 0);
+    { const p = cone.attributes.position; for (let i = 0; i < p.count; i++) { const [cx, cz] = center(p.getY(i)); p.setX(i, p.getX(i) + cx); p.setZ(i, p.getZ(i) + cz); } }
+    scaleUV(cone, 3, 4);
+    core.push(cone);
+
+    // Top: a leader, a broken snapped top with a side shoot curling up, or a fork.
+    const [tx, tz] = center(top);
+    const leader = (ox, oz, lean) => {
+      const g = new THREE.ConeGeometry(0.012, 0.04, 5, 1, true);
+      g.translate(0, 0.02, 0); g.rotateZ(lean); g.translate(tx + ox, top - 0.01, tz + oz);
+      core.push(g);
+    };
+    if (P.top) {
+      for (let i = 0; i < 3; i++) {
+        const s = new THREE.ConeGeometry(0.006, 0.03 + r() * 0.04, 4, 1, true);
+        s.translate(0, 0.02, 0); s.rotateZ((r() - 0.5) * 0.5); s.translate(tx, top - 0.005, tz);
+        dead.push(s);
+      }
+      leader(0.03, 0, -0.5);
+    } else if (P.fork) { leader(-0.012, 0, 0.35); leader(0.012, 0, -0.35); }
+    else leader(0, 0, pick(-0.15, 0.15));
+
+    // Dead lower limbs: bare stubs on the trunk below the crown.
+    for (let i = 0; i < P.stubs; i++) {
+      const y = pick(0.06, Math.max(0.08, P.base));
+      const len = pick(0.03, 0.09);
+      const l = new THREE.CylinderGeometry(0.0015, 0.004, len, 4, 1, true);
+      l.translate(0, len / 2, 0); l.rotateZ(-(1.1 + r() * 0.6)); l.rotateY(r() * TAU);
+      const [cx, cz] = center(y); l.translate(cx, y, cz);
+      dead.push(l);
+    }
+    return { bark0: bark, [`branch${n}`]: branch, [`needles${n}`]: core, snagWood: dead };
   }
 
   snag({ limbs, top, bark }) {

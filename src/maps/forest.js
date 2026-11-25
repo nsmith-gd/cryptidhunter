@@ -298,11 +298,19 @@ export function buildForestMap(scene) {
   }
 
   const kit = new ForestKit(77);
+  const pineKeys = kit.variants('pine'), youngKeys = kit.variants('youngPine');
   for (const t of trees) {
     const stretch = () => t.h * (0.88 + rng() * 0.26);
     if (t.snag) kit.add(rng() < 0.5 ? 'snag:0' : 'snag:1', t.x, 0, t.z, t.rot, [t.h * 1.1, t.h, t.h * 1.1]);
-    else if (t.young) kit.add('pine:2', t.x, 0, t.z, t.rot, [stretch(), t.h, stretch()]);
-    else kit.add(choose([['pine:0', 4], ['pine:1', 3], ['pine:3', 3]]), t.x, 0, t.z, t.rot, [stretch(), t.h, stretch()]);
+    else {
+      // Any of the pine shapes, each tree leaning a touch and tinted a little differently, so
+      // neighbours never read as copies (#60).
+      const keys = t.young ? youngKeys : pineKeys;
+      const lean = { x: rnd(-0.035, 0.035), z: rnd(-0.035, 0.035) };
+      const v = rnd(0.78, 1.1), warm = rnd(-0.06, 0.06);
+      const tint = new THREE.Color(v * (1 + warm), v, v * (1 - warm * 1.5));
+      kit.add(keys[Math.floor(rng() * keys.length)], t.x, 0, t.z, t.rot, [stretch(), t.h, stretch()], lean, tint);
+    }
     colliders.push(new THREE.Box3(new THREE.Vector3(t.x - t.r, 0, t.z - t.r), new THREE.Vector3(t.x + t.r, t.h, t.z + t.r)));
     // Needle litter and fallen cones around most trunks.
     if (!t.young && rng() < 0.75) kit.add('litter:0', t.x + rnd(-0.6, 0.6), 0, t.z + rnd(-0.6, 0.6), rng() * 6.28, [rnd(3, 5.5), 1, rnd(3, 5.5)]);
