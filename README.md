@@ -21,4 +21,6 @@ Add `?map=swamp` to the URL for Blackwater Swamp (greybox): boardwalks, wading w
 
 `npm run check:t2` checks the flashlight toggle in the dark map and writes screenshots to `.ballast/media/t2/`.
 
+`npm run check:t14` plays the full greybox hunt loop. Open `/?sandbox` to also get the Mothman and Chupacabra placeholders.
+
 `npm run check:t1` builds, opens the greybox map headlessly, drives the player and writes screenshots to `.ballast/media/t1/`.
