@@ -25,7 +25,7 @@ export class HuntLoop {
     this.buildHud();
     this.buildEndScreen();
     addEventListener('keydown', (e) => {
-      if (e.code === 'KeyG' && !e.repeat && this.canGiveUp()) this.end('abandoned');
+      if (e.code === 'KeyH' && !e.repeat && this.canGiveUp()) this.end('abandoned');
       if ((e.code === 'Space' || e.code === 'Enter') && this.stage === 'ended' && this.outcome !== 'caught') this.restart();
     });
   }
@@ -136,7 +136,7 @@ export class HuntLoop {
         const lines = [`OBJECTIVE: Photograph ${this.target}`,
           n === 0 ? 'Search for tracks with your flashlight. Aim at one and press E to examine it.'
             : `Clues logged: ${n}. Follow the trail; when you see ${this.target}, click to take a photo.`];
-        if (this.canGiveUp()) lines.push('[G] Drive home without a photo');
+        if (this.canGiveUp()) lines.push('[H] Head home without a photo');
         return lines.join('\n');
       }
       case 'extract':

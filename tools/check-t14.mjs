@@ -110,15 +110,15 @@ await page.waitForTimeout(100);
 const miss = await st();
 check('a photo of nothing keeps you searching', miss.stage === 'search' && miss.photo === null, miss);
 
-// ---- Walking to the truck without a photo doesn't end it, but G (after a while) gives up ----
-await page.evaluate(() => { __game.player.position.set(0, 0, 5); __game.hunt.elapsed = 25; });
+// ---- Walking to the truck without a photo doesn't end it, but H (after a while) gives up ----
+await page.evaluate(() => { __game.player.position.set(0, 0, 5.5); __game.hunt.elapsed = 25; });
 await page.waitForTimeout(200);
 const atTruck = await st();
-check('truck without a photo: still hunting, give-up offered', atTruck.stage === 'search' && /\[G\]/.test(await page.evaluate(() => __game.hunt.hud.textContent)), atTruck);
-await page.keyboard.press('KeyG');
+check('truck without a photo: still hunting, give-up offered', atTruck.stage === 'search' && /\[H\]/.test(await page.evaluate(() => __game.hunt.hud.textContent)), atTruck);
+await page.keyboard.press('KeyH');
 await page.waitForTimeout(150);
 const gaveUp = await st();
-check('G ends the hunt as abandoned', gaveUp.outcome === 'abandoned' && gaveUp.title === 'HUNT ABANDONED', gaveUp);
+check('H ends the hunt as abandoned', gaveUp.outcome === 'abandoned' && gaveUp.title === 'HUNT ABANDONED', gaveUp);
 
 // ---- Dawn ----
 await load();
