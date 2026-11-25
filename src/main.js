@@ -18,6 +18,7 @@ import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
+import { BaitManager, BAIT } from './gear/bait.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -63,11 +64,14 @@ const flashlight = new Flashlight(camera, input);
 const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
 const batteries = new BatteryPickups(scene, player, flashlight);
+// G drops bait; cryptids that smell it come to investigate.
+const bait = new BaitManager(scene, player, input);
 const bars = new Hud(player, flashlight);
 const noiseRing = new NoiseRing(scene, player);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
-const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position });
+const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position,
+  lures: { lures: () => bait.lures(), consume: (b) => bait.consume(b), eatTime: BAIT.eatTime } });
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 if (mapId !== 'swamp') {
   const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
@@ -127,6 +131,7 @@ function frame() {
   player.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
+  bait.update(dt);
   cryptids.update(dt);
   clueTrails.update();
   clues.update(dt);
@@ -136,7 +141,7 @@ function frame() {
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
-  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
+  hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
   bars.update();
@@ -151,4 +156,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

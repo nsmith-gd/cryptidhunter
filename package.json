@@ -18,6 +18,7 @@
     "check:t20": "vite build && node tools/check-t20.mjs",
     "check:t13": "vite build && node tools/check-t13.mjs",
     "check:t10": "vite build && node tools/check-t10.mjs",
+    "check:t11": "vite build && node tools/check-t11.mjs",
     "check:t3": "vite build && node tools/check-t3.mjs",
     "test": "node --test tests/*.test.js"
   },

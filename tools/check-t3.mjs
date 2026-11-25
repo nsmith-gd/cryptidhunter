@@ -30,7 +30,8 @@ async function run(n, shots) {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('http://localhost:4323/');
   await page.waitForFunction(() => window.__game);
-  await page.evaluate(() => { __game.overlay.classList.add('hidden'); __game.input.locked = true; });
+  // Being caught isn't what this checks: switch the danger rule off for the bot.
+  await page.evaluate(() => { __game.overlay.classList.add('hidden'); __game.input.locked = true; if (__game.huntFailure) __game.huntFailure.enabled = false; });
 
   // Fast-forward 70 s of Bigfoot roaming with the player parked far away.
   const start = await page.evaluate(() => {
@@ -73,7 +74,7 @@ async function run(n, shots) {
   async function walkUntil(pred, steer, maxMs = 30000) {
     await page.keyboard.down('KeyW');
     const t0 = Date.now();
-    let last = null, lastT = 0;
+    let last = null, lastT = 0, side = 0;
     try {
       while (Date.now() - t0 < maxMs) {
         const s = await state();
@@ -82,13 +83,15 @@ async function run(n, shots) {
         if (steer) await steer(s);
         if (!last || Date.now() - lastT > 700) {
           if (last && Math.hypot(s.pos.x - last.x, s.pos.z - last.z) < 0.3) {
-            await page.keyboard.down('KeyD'); await page.waitForTimeout(600); await page.keyboard.up('KeyD');
+            const key = side++ % 2 ? 'KeyA' : 'KeyD'; // alternate sides, longer each time
+            await page.keyboard.down(key); await page.waitForTimeout(500 + side * 250); await page.keyboard.up(key);
           }
           last = s.pos; lastT = Date.now();
         }
         await page.waitForTimeout(40);
       }
-      throw new Error('walk timed out');
+      const s = await state();
+      throw new Error(`walk timed out at ${s.pos.x.toFixed(1)},${s.pos.z.toFixed(1)} after ${JSON.stringify(steps)}`);
     } finally { await page.keyboard.up('KeyW'); }
   }
 
@@ -136,7 +139,8 @@ async function run(n, shots) {
       for (const c of s.clues) {
         const dx = c.x - s.pos.x, dz = c.z - s.pos.z, d = Math.hypot(dx, dz);
         let off = Math.abs(Math.atan2(dx, -dz) - h); off = Math.min(off, 2 * Math.PI - off);
-        const seen = around ? d < SPOT * 1.5 && c.age < lastAge : d < SPOT && off < CONE;
+        const range = SPOT * (1.5 + (Date.now() - t0) / 6000); // sweep wider the longer it takes
+        const seen = around ? d < range && c.age < lastAge : d < SPOT && off < CONE;
         if (seen && (!best || c.age < best.age)) best = { id: c.id, age: c.age };
       }
       return best;

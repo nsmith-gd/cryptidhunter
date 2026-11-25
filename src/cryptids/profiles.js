@@ -20,6 +20,7 @@ export const DEFAULT_PROFILE = Object.freeze({
   fleeStep: 14,            // how far ahead each flee destination is picked
   acceleration: 10,
   turnRate: 7,             // radians / second
+  lureRange: 45,           // smells bait this far away (metres)
   // Clue data for the clues system (not dropped at L0). null = leaves none.
   clues: null,
 });
