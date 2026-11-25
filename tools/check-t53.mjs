@@ -82,17 +82,19 @@ check('it shadows you from the treeline, keeping its distance as you move', sh.s
 // D. Level 1: corner it and it BLUFF charges — stops short and roars, you survive.
 await load('nodebugai', true);
 await bigfootLane(3.5, { light: true });
+await page.evaluate(() => { __game.cryptids.cryptids[0].rand = () => 0.99; });   // this roll: the bluff (75% at level 1)
 const bluff = await until(() => ({ ok: __game.cryptidEvents.some((e) => e.type === 'roar'), caught: __game.huntFailure.isCaught }), 8000);
 await page.waitForTimeout(150);
 await page.screenshot({ path: `${out}/02-bigfoot-bluff-charge-roar.png` });
 const bluffAfter = await until(() => { const b = __game.cryptids.cryptids[0]; return { ok: b.state === 'flee', state: b.state, why: b.lastWhy, caught: __game.huntFailure.isCaught }; }, 5000);
-check('level 1: cornered, it bluff-charges — stops short, roars, then runs (you are not caught)', bluff.ok && !bluff.caught && bluffAfter.ok && !bluffAfter.caught, { bluff, bluffAfter });
+check('a bluff charge comes at full speed, pulls up in your face and roars, then runs (you are not caught)', bluff.ok && !bluff.caught && bluffAfter.ok && !bluffAfter.caught, { bluff, bluffAfter });
 
 // E. Level 3: corner it and the charge is real.
 await load('nodebugai&tier=3', true);
 await bigfootLane(5, { light: true });
+await page.evaluate(() => { __game.cryptids.cryptids[0].rand = () => 0; });      // this roll: the real one (80% at level 3)
 const real = await until(() => ({ ok: __game.huntFailure.isCaught, by: __game.huntFailure.caughtBy, events: __game.cryptidEvents.map((e) => e.type) }), 10000);
-check('level 3: no bluff — cornered, it charges for real and takes you', real.ok && real.by === 'Bigfoot' && !real.events.includes('roar'), real);
+check('a real charge comes all the way and takes you', real.ok && real.by === 'Bigfoot' && !real.events.includes('roar'), real);
 
 // F. Level 3 warning is aimed: the rock comes down right by you.
 await load('nodebugai&tier=3');
@@ -174,3 +176,4 @@ console.log(results.join('\n'));
 await browser.close();
 server.kill();
 process.exit(results.some((r) => r.startsWith('FAIL')) ? 1 : 0);
+
