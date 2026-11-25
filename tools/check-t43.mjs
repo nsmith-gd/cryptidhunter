@@ -1,7 +1,7 @@
 // Bigfoot animation set check (#43). Run: npm run check:t43 [outDir]   (dev server; ffmpeg for GIFs)
 // Verifies: every behaviour state maps to a clip; state changes (and a real wood knock) play the
 // right clip; idle/walk/run (and the other gaits) loop seamlessly; poses are stepped at the
-// pixel-art pose rate; the knock has anticipation and follow-through; the rig adapts to proportion
+// fluid (every-frame) posing with follow-through; the knock has anticipation and follow-through; the rig adapts to proportion
 // changes. Records a GIF of every clip from the animation viewer (lookdev/bigfoot-anim.html).
 import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
@@ -56,9 +56,10 @@ const loops = await page.evaluate(async () => {
   for (const [clip, state, speed] of [['idle', 'roam', 0], ['walk', 'roam', 1.8], ['run', 'roam', 5.5], ['flee', 'flee', 8.5], ['investigate', 'investigate', 1.2], ['prowl', 'shadow', 0.9]]) {
     snap = () => snapWith(['flee', 'investigate', 'prowl'].includes(clip));
     for (let i = 0; i < 400; i++) anim.animate(1 / 60, speed, state);           // let blends settle fully
+    for (let i = 0; i < 1200; i++) anim.animate(1 / 240, speed, state);         // springs settle at the measuring step
     if (clip === 'idle') {
       const a = snap();
-      for (let i = 0; i < A.IDLE_PERIOD * 60; i++) anim.animate(1 / 60, speed, state);
+      for (let i = 0; i < A.IDLE_PERIOD * 240; i++) anim.animate(1 / 240, speed, state);
       res[clip] = +delta(a, snap()).toExponential(2);
       continue;
     }
@@ -80,14 +81,27 @@ const loops = await page.evaluate(async () => {
 for (const c of ['idle', 'walk', 'run']) check(`${c} loops seamlessly (pose after one full cycle matches the start)`, loops[c] < 1e-3, { maxDelta: loops[c] });
 check('flee, investigate and prowl bodies loop seamlessly too (head looks around on its own clock)', ['flee', 'investigate', 'prowl'].every((c) => loops[c] < 1e-3), loops);
 
-// ---- 3) Stepped posing: limbs pose at the pixel-art rate, held in between ----------------------
-const stepped = await page.evaluate(() => {
-  const anim = __viewer.animator, b = __viewer.bf.userData.bones.thighL;
-  let changes = 0, prev = b.rotation.x;
-  for (let i = 0; i < 60; i++) { anim.animate(1 / 60, 1.8, 'roam'); if (b.rotation.x !== prev) { changes++; prev = b.rotation.x; } }
-  return { posesPerSecond: changes, poseFps: anim.poseFps };
+// ---- 3) Fluid motion with personality (director: hero animation should be fluid) ---------------
+const fluid = await page.evaluate(() => {
+  const anim = __viewer.animator, bones = __viewer.bf.userData.bones;
+  anim.poseFps = 0;
+  let changes = 0, prev = bones.thighL.rotation.x;
+  for (let i = 0; i < 60; i++) { anim.animate(1 / 60, 1.8, 'roam'); if (bones.thighL.rotation.x !== prev) { changes++; prev = bones.thighL.rotation.x; } }
+  // Follow-through: run, then stop dead; the head should swing past where it settles, then come back.
+  for (let i = 0; i < 180; i++) anim.animate(1 / 60, 5.5, 'roam');
+  const trace = [];
+  for (let i = 0; i < 240; i++) { anim.animate(1 / 60, 0, 'roam'); trace.push(bones.neck.rotation.x); }
+  const settled = trace[trace.length - 1];
+  const dir = Math.sign(settled - trace[0]);
+  const overshoot = Math.max(...trace.map((v) => (v - settled) * dir));
+  // Idle fidgets: the head tilts (listening) at some point in the idle loop.
+  let maxTilt = 0;
+  for (let i = 0; i < 6 * 60; i++) { anim.animate(1 / 60, 0, 'roam'); maxTilt = Math.max(maxTilt, Math.abs(bones.neck.rotation.z)); }
+  return { posesPerSecond: changes, overshoot: +overshoot.toFixed(4), maxIdleHeadTilt: +maxTilt.toFixed(3) };
 });
-check('walking poses snap at the pixel-art rate (about 12 poses per second, held between)', stepped.posesPerSecond >= 10 && stepped.posesPerSecond <= 13, stepped);
+check('poses update every frame (fluid, not stepped)', fluid.posesPerSecond >= 55, fluid);
+check('follow-through: the head swings past its rest pose and settles when he stops running', fluid.overshoot > 0.005, fluid);
+check('idle has personality: a listening head tilt within the idle loop', fluid.maxIdleHeadTilt > 0.12, fluid);
 
 // ---- 4) Knock: anticipation (arm draws back first) and follow-through (overshoot, settle) -------
 const knock = await page.evaluate(async () => {
@@ -156,7 +170,7 @@ check('every state/speed the AI feeds the model plays the mapped clip', inGame.w
 check('a real AI state change plays the matching clip', inGame.afterFlee.clip === inGame.afterFlee.want, inGame.afterFlee);
 check('a real wood knock plays the knock clip, then returns to normal', inGame.knockStarted === 'knock' && inGame.knockAfter === null, { started: inGame.knockStarted, after: inGame.knockAfter });
 
-// ---- 7) GIFs of every clip from the viewer (side view, stepped posing as in game) --------------
+// ---- 7) GIFs of every clip from the viewer (side view, fluid posing as in game) -----------------
 const frames = `${out}/_frames`;
 const clips = ['idle', 'walk', 'run', 'flee', 'investigate', 'prowl', 'stare', 'knock'];
 const stills = [];
