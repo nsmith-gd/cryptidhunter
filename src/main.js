@@ -23,6 +23,9 @@ import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
+import { TextCard } from './story/textCard.js';
+import { StoryCards } from './story/storyCards.js';
+import { ReputationStub } from './story/reputation.js';
 import { LevelFlow } from './hunt/levelFlow.js';
 import { PhotoCamera } from './hunt/photoCamera.js';
 import { TrailCameras } from './gear/trailCamera.js';
@@ -211,6 +214,19 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
+// Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
+// once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
+// ?rep=<n> starts at n, F8 sets it to max, or __game.reputation.set(n).
+const textCard = new TextCard();
+const reputation = new ReputationStub(Number(new URLSearchParams(location.search).get('rep') ?? 0));
+// Automated browser checks skip the cards (they'd eat the first key press) unless ?cards is given.
+const cardsOn = !navigator.webdriver || new URLSearchParams(location.search).has('cards');
+const story = new StoryCards({ show: (id) => (cardsOn ? textCard.show(id) : null) });
+reputation.onChange((v, max) => story.reputationChanged(v, max));
+story.start(camp.state.hunts.length === 0 && camp.state.money === 0);
+story.reputationChanged(reputation.value, reputation.max);
+addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); reputation.set(reputation.max); } });
+
 const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => input.requestLock());
 document.addEventListener('pointerlockchange', () => {
@@ -270,4 +286,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
