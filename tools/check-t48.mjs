@@ -76,6 +76,9 @@ check('the trail starts in the clue zone and examining it says which way Bigfoot
 await shot('03-trail-hint');
 
 // Find Bigfoot in its zone and photograph it from a spot with a clear view.
+// (This check is about the level flow, not its behaviour: hold it still while the camera comes up,
+// which takes real seconds under software rendering.)
+await page.evaluate(() => { __game.cryptids.cryptids[0].think = () => {}; });
 let lined = false;
 for (let i = 0; i < 16 && !lined; i++) {
   lined = await page.evaluate((i) => {

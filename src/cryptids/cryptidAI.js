@@ -3,9 +3,16 @@ import { NavAgent } from './navAgent.js';
 import { DEFAULT_PROFILE } from './profiles.js';
 import { Perception } from './perception.js';
 import { buildBigfootModel } from './bigfootModel.js';
+import { genericBrain } from './brains/genericBrain.js';
+import { bigfootBrain, BIGFOOT_TIERS } from './brains/bigfootBrain.js';
+
+// Bespoke behaviour trees per cryptid (lore first, then the rules the player must learn).
+const BRAINS = { bigfoot: bigfootBrain };
 
 // Body tint per state (greybox readability); roam/investigate keep the cryptid's own colour.
 const STATE_TINT = {
+  warn: new THREE.Color(0xd0702a),
+  shadow: new THREE.Color(0x5a4a3a),
   observe: new THREE.Color(0xb08a3a),
   flee: new THREE.Color(0xc0392b),
   aggress: new THREE.Color(0xe0581a),
@@ -22,7 +29,14 @@ export class CryptidAI {
    *   senses: { player, flashlight, camera, colliders, lightLevel } (optional: enables hearing + sight),
    *   calls: audio lures playing a call (optional; only calls for this cryptid's species count) }
    */
-  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null, senses = null, calls = null }) {
+  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null, senses = null, calls = null, level = null, rocks = null, onEvent = null }) {
+    this.level = level ?? profile.homeLevel ?? 1;   // escalation level (1 forgiving .. 3 relentless)
+    this.rocks = rocks;
+    this.onEvent = onEvent;      // (type, data) for the game: 'whoop', 'rock', 'rock-hit', 'roar', 'charge'
+    this.agitation = 0;          // 0 calm .. 1 furious; rises each time it's provoked, slowly calms
+    this.lastWarn = -99;
+    this.bluffed = false;
+    this.dt = 0; this.p = null;
     this.callSource = calls;       // audio lures: { sounding(): [{x, z, species, range, id, seq}] }
     this.heardCalls = new Map();   // lure -> last call seq reacted to
     this.perception = senses ? new Perception(profile, senses) : null;
@@ -58,6 +72,7 @@ export class CryptidAI {
     this.baseColor = new THREE.Color(profile.color);
     this.pickRoamPoint();
     this.syncMesh();
+    this.brain = (BRAINS[profile.brain ?? profile.id] ?? genericBrain)(this);
   }
 
   get position() { return { x: this.agent.x, z: this.agent.z }; }
@@ -80,59 +95,105 @@ export class CryptidAI {
   }
 
   // ---------------------------------------------------------------------------------------
-  // Behaviour state machine (with senses):
-  //   ROAM        wander around home; bait pulls it to INVESTIGATE
-  //   INVESTIGATE walk to a noise it heard (or bait), then look around there
-  //   OBSERVE     glimpsed something: stop, face it and stare while it makes up its mind
-  //   FLEE        detected you and it's shy: run until far away and calm
-  //   AGGRESS     detected you and it's hostile: come straight for you, give up after a while
+  // Behaviour (with senses): each cryptid runs its own behaviour tree (brains/*.js), re-evaluated
+  // every tick. Moods it can be in: roam, investigate, observe, shadow, warn, flee, aggress.
   // ---------------------------------------------------------------------------------------
   think(dt, p) {
-    const B = this.profile.behavior, pc = this.perception;
-    const calm = this.state === 'roam' || this.state === 'investigate' || this.state === 'observe';
-
-    // Detection overrides everything calm.
-    if (calm && this.noticesPlayer()) {
-      if (B.onDetect === 'aggress') this.enterAggress('detected you');
-      else if (B.turnWithin > 0 && this.playerDistance <= B.turnWithin) this.enterAggress('cornered');
-      else if (B.turnAfterFlees > 0 && this.flees >= B.turnAfterFlees) this.enterAggress('fed up with you');
-      else { this.flees++; this.enterFlee(p, 'detected you'); }
-      return;
-    }
-    // Glimpsed you (not sure yet): stop and stare.
+    this.dt = dt; this.p = p;
     this.observeCooldown = Math.max(0, this.observeCooldown - dt);
-    if ((this.state === 'roam' || this.state === 'investigate') && pc.seen && pc.awareness >= B.observeAt && this.observeCooldown <= 0) {
-      this.enterObserve('glimpsed you');
-      return;
-    }
+    const calm = (BIGFOOT_TIERS[this.level]?.calmRate ?? 0.01);
+    if (this.state !== 'aggress' && this.state !== 'warn') this.agitation = Math.max(0, this.agitation - calm * dt);
+    this.brain.tick();
+  }
 
-    switch (this.state) {
-      case 'roam': {
-        const call = this.hearCall();
-        if (call) this.enterInvestigateNoise(call, 'heard a call');
-        else if (pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.enterInvestigateNoise(pc.lastHeard, 'heard a noise');
-        else if (!this.findLure()) this.tickRoam(dt);
-        break;
+  emit(type, data = {}) { this.onEvent?.(type, { cryptid: this, name: this.profile.name, ...data }); }
+
+  agitate(amount, why) {
+    const before = this.agitation;
+    this.agitation = Math.min(1, this.agitation + amount);
+    if (why && Math.floor(before * 10) !== Math.floor(this.agitation * 10)) this.lastAgitation = why;
+  }
+
+  // --- Charge: a bluff stops short with a roar and then runs; a real one comes all the way. ---
+  startCharge({ bluff, why }) {
+    this.enterAggress(why);
+    this.charge = { bluff, roared: false, hold: 0 };
+    if (bluff) this.bluffed = true;
+    this.emit('charge', { bluff });
+    return 'running';
+  }
+
+  tickCharge(dt, p) {
+    const ch = this.charge ?? { bluff: false };
+    if (ch.bluff) {
+      if (!ch.roared && (this.playerDistance <= 3.2 || this.stateTime > 4)) {
+        ch.roared = true; this.agent.stop(); this.emit('roar', { distance: this.playerDistance });
       }
-      case 'investigate': {
-        // A fresh, louder noise (or another call) updates where it's heading.
-        const call = this.lure ? null : this.hearCall();
-        if (call) { this.retargetNoise(call); this.lookLeft = B.lookAround; }
-        else if (!this.lure && pc.heard && pc.hearLevel >= B.investigateHear && pc.lastHeard) this.retargetNoise(pc.lastHeard);
-        this.tickInvestigate(dt);
-        break;
+      if (ch.roared) {
+        this.faceToward(p.x, p.z, dt, 6);
+        ch.hold += dt;
+        if (ch.hold > 1.3) { this.perception.reset(); this.enterFlee(p, 'bluff over'); }
+        return 'running';
       }
-      case 'observe':
-        this.tickObserve(dt, p);
-        break;
-      case 'flee':
-        if (this.playerDistance > this.profile.fleeSafeDistance && !pc.detected) this.enterRoam('lost you');
-        else this.tickFlee(dt, p);
-        break;
-      case 'aggress':
-        this.tickAggress(dt, p);
-        break;
     }
+    this.tickAggress(dt, p);
+    return 'running';
+  }
+
+  // --- Warning: rear up, whoop, throw a rock that lands near you, then leave. -------------------
+  startWarn(miss) {
+    this.releaseLure();
+    this.setState('warn', 'warning you off');
+    this.agent.stop();
+    this.warn = { t: 0, thrown: false, miss };
+    this.lastWarn = this.clock;
+    this.emit('whoop');
+    return 'running';
+  }
+
+  tickWarn(dt, p) {
+    const w = this.warn;
+    w.t += dt;
+    this.faceToward(p.x, p.z, dt, 5);
+    if (!w.thrown && w.t >= 0.7) {
+      w.thrown = true;
+      const a = this.rand() * Math.PI * 2, r = w.miss * (0.75 + this.rand() * 0.5);
+      const to = { x: p.x + Math.cos(a) * r, z: p.z + Math.sin(a) * r };
+      const from = { x: this.agent.x - Math.sin(this.agent.heading) * 0.6, y: this.profile.height * 0.9, z: this.agent.z - Math.cos(this.agent.heading) * 0.6 };
+      const land = (at) => {
+        const pp = this.getPlayerPosition(), d = Math.hypot(at.x - pp.x, at.z - pp.z);
+        this.emit('rock', { x: at.x, z: at.z, distance: d });
+        if (d < 1.0) this.emit('rock-hit', { x: at.x, z: at.z });
+      };
+      if (this.rocks) this.rocks.throw(from, to, { onLand: land }); else land(to);
+      this.thrownAt = to;
+    }
+    if (w.t >= 1.9) this.enterFlee(p, 'warned you');
+    return 'running';
+  }
+
+  // --- Shadowing: pace the hunter from ~20 m away, sliding sideways out of the light. --------------
+  enterShadow(time) {
+    this.setState('shadow', 'following you');
+    this.shadow = { left: time, replan: 0, side: this.rand() < 0.5 ? -1 : 1 };
+    this.agent.speed = this.profile.roamSpeed * 1.15;
+  }
+
+  tickShadow(dt, p) {
+    const sh = this.shadow;
+    sh.left -= dt; sh.replan -= dt;
+    if (sh.left <= 0 || this.playerDistance > 60) { this.enterRoam('lost interest'); return 'ok'; }
+    if (this.perception.beamLevel > 0) { sh.side = -sh.side; sh.replan = 0; } // slip out of the beam
+    if (sh.replan <= 0 || !this.agent.hasPath) {
+      sh.replan = 1.5;
+      let dx = this.agent.x - p.x, dz = this.agent.z - p.z;
+      const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
+      const keep = 21, slide = 5 * sh.side;
+      const want = { x: p.x + dx * keep - dz * slide, z: p.z + dz * keep + dx * slide };
+      const s = this.agent.grid.sample(want.x, want.z, 4);
+      if (s) this.agent.setDestination(s.x, s.z);
+    }
+    return 'running';
   }
 
   // L0 behaviour (no senses): roam / bait / flee at a fixed distance.
@@ -215,6 +276,7 @@ export class CryptidAI {
   enterInvestigateNoise(spot, why) {
     this.releaseLure();
     this.target = null;
+    this.cautious = null;
     this.setState('investigate', why);
     this.lookLeft = this.profile.behavior.lookAround;
     this.agent.speed = this.profile.roamSpeed * this.profile.behavior.investigateSpeed;
@@ -233,6 +295,17 @@ export class CryptidAI {
       // Noise investigation.
       const t = this.target;
       if (!t) { this.enterRoam('nothing there'); return; }
+      const cz = this.cautious;
+      if (cz && Math.hypot(t.x - this.agent.x, t.z - this.agent.z) > 1.5) {
+        // Stalk-and-listen: every few metres it stops dead for a moment, then moves on.
+        cz.from ??= { x: this.agent.x, z: this.agent.z };
+        if (cz.listen > 0) {
+          cz.listen -= dt; this.agent.stop();
+          if (cz.listen <= 0) { cz.from = { x: this.agent.x, z: this.agent.z }; this.agent.setDestination(t.x, t.z); }
+          return;
+        }
+        if (Math.hypot(this.agent.x - cz.from.x, this.agent.z - cz.from.z) >= cz.every) { cz.listen = cz.pause; cz.stops = (cz.stops ?? 0) + 1; return; }
+      }
       if (Math.hypot(t.x - this.agent.x, t.z - this.agent.z) > 1.5 && this.agent.hasPath) return;
       // At the spot: stop and turn slowly, looking around.
       this.agent.stop();

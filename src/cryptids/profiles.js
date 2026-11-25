@@ -52,6 +52,8 @@ export function makeProfile(overrides = {}) {
 export const BIGFOOT = makeProfile({
   id: 'bigfoot',
   name: 'Bigfoot',
+  homeLevel: 1,            // the first hunt: forgiving, it warns before it gets dangerous
+  brain: 'bigfoot',        // bespoke behaviour tree (brains/bigfootBrain.js)
   height: 4.0,             // towering: ~4 m to the top of its crest, shoulders ~1.6 m across
   radius: 0.65,
   color: 0x4a3626,

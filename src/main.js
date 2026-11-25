@@ -5,10 +5,12 @@ import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
 import { NightLighting } from './maps/nightLighting.js';
+import { Atmosphere, timeOfDayConfig } from './maps/atmosphere.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
 import { AIDebug } from './cryptids/aiDebug.js';
+import { Rocks } from './cryptids/rocks.js';
 import { WoodKnocks } from './cryptids/woodKnock.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
@@ -35,11 +37,11 @@ import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { BaitManager, BAIT } from './gear/bait.js';
+import { PixelPipeline } from './render/pixelPipeline.js';
+import { CinematicLighting } from './maps/cinematicLighting.js';
 
-// Render at a low internal resolution and upscale with nearest-neighbour:
-// the base of the game's 3D pixel-art look.
-const PIXEL_SCALE = 3;
-
+// Render at a low internal resolution (~360 rows) and upscale by an exact integer with
+// nearest-neighbour, snapping the view to whole pixels: see render/pixelPipeline.js.
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
@@ -108,13 +110,20 @@ showCampPanel(camp);
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 // Outdoor maps can opt into the night lighting baseline (moon, haze, ambient, sky).
-const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: map.environment.night }) : null;
-const mothman = new Mothman(scene, player, flashlight);
-const chupacabra = new Chupacabra(scene, player, camera, colliders);
+// ?time=dusk|night|dawn picks a palette grade for the sky, fog and light (outdoor maps).
+const timeOfDay = new URLSearchParams(location.search).get('time');
+const todConfig = timeOfDay ? timeOfDayConfig(mapId === 'swamp' ? 'swamp' : 'forest', timeOfDay) : null;
+const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: { ...map.environment.night, ...(todConfig ?? {}) } }) : null;
+// Forest atmosphere: ground mist + midground and background fog curtains (?noatmos turns it off).
+const atmosphere = mapId === 'forest' && !new URLSearchParams(location.search).has('noatmos')
+  ? new Atmosphere({ scene, camera, half: bounds, keepClear: map.keepClear, hazeColor: night?.cfg.skyHorizon, glowColor: night?.cfg.moonGlow }) : null;
+const mothman = new Mothman(scene, player, flashlight, { camera, level: null, onEvent: (t, e) => cryptidEvent(t, e) });
+const chupacabra = new Chupacabra(scene, player, camera, colliders, { flashlight, onEvent: (t, e) => cryptidEvent(t, e) });
 mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
 const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
+chupacabra.lures = { lures: () => bait.lures(), consume: (b) => bait.consume(b) };
 // L sets an audio lure: it plays a Bigfoot call every few seconds and Bigfoot comes to check.
 const audioLures = new AudioLures({ scene, player, input, notify: (m) => photo?.toast(m) });
 // Fear: rises in the dark, near cryptids and on scares; light and the van calm you; high fear sways your aim.
@@ -133,9 +142,33 @@ const bars = new Hud(player, flashlight, fear);
 const noiseRing = new NoiseRing(scene, player);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
+// Escalation level for this hunt: 1 Pine Hollow (forgiving) .. 3 (relentless).
+const MAP_LEVEL = { forest: 1, swamp: 2 };  // the test yard uses each cryptid's own home level
+const escalation = Number(new URLSearchParams(location.search).get('tier')) || map.level || MAP_LEVEL[mapId] || null;
+const rocks = new Rocks(scene);
+if (escalation) { mothman.level = escalation; chupacabra.level = escalation; }
+// What cryptids do that the player should feel: captions, sound and fear.
+const cryptidEvents = [];   // recent events, for the debug hook / checks
+function cryptidEvent(type, e) {
+  cryptidEvents.push({ type, name: e.name, distance: e.distance, why: e.why, bluff: e.bluff, t: performance.now() });
+  if (cryptidEvents.length > 50) cryptidEvents.shift();
+  const where = (x, z) => { const d = Math.hypot(x - player.position.x, z - player.position.z); return `${d.toFixed(0)} m away`; };
+  if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
+  if (type === 'rock') { fear.scare(e.distance < 3 ? 22 : 12, 'rock'); photo.toast(`A rock slams into the ground ${e.distance.toFixed(0)} m from you. Back off.`); }
+  if (type === 'rock-hit') { fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
+  if (type === 'roar') { fear.scare(30, 'roar'); photo.toast(`${e.name} stops short and ROARS in your face.`); }
+  if (type === 'hiss') { fear.scare(10, 'hiss'); photo.toast('A wet HISS behind you…'); }
+  if (type === 'screech') { fear.scare(15, 'screech'); photo.toast('A shriek overhead: it is coming down at your light!'); }
+  if (type === 'swoop-pass') fear.scare(25, 'swoop');
+  if (type === 'vanish') photo.toast(e.why === 'photographed' ? 'The flash catches it, and it is gone into the dark.' : 'It unfolds and is gone over the trees.');
+  if (type === 'fed') photo.toast('Something is feeding on your bait…');
+}
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position,
   lures: { lures: () => bait.lures(), consume: (b) => bait.consume(b), eatTime: BAIT.eatTime },
   calls: audioLures,
+  // Escalation: each hunting ground is a level (?tier=1..3 overrides it for testing).
+  level: escalation, rocks,
+  onEvent: (type, e) => cryptidEvent(type, e),
   // Hearing + sight: they notice your noise, your silhouette and your flashlight.
   // ?nosenses falls back to the L0 fixed flee distance (used by older mechanic checks).
   senses: new URLSearchParams(location.search).has('nosenses') ? null
@@ -143,7 +176,8 @@ const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPla
 // State-machine debug overlay (F4 toggles; ?nodebugai starts it hidden).
 // Bigfoot knocks on trees now and then; K knocks back with your stick and can draw it closer.
 const knocks = new WoodKnocks({ cryptids, player, camera, fear, input });
-const aiDebug = new AIDebug(scene, cryptids, { visible: !new URLSearchParams(location.search).has('nodebugai') });
+const aiDebug = new AIDebug(scene, cryptids, { visible: !new URLSearchParams(location.search).has('nodebugai'),
+  others: () => (sandbox ? [mothman, chupacabra] : []) });
 
 // Clues: cryptids drop footprints / hair / scratch marks along the route they actually take.
 // F3 (or ?debug in the URL) draws that true route as a yellow line for checking.
@@ -182,13 +216,13 @@ const photo = new PhotoCamera({
       { name: 'Chupacabra', object3d: chupacabra.mesh, radius: 0.5, center: chupacabra.position.clone() },
     ] : []),
   ],
-  onPhoto: (r) => hunt.onPhoto(r),
+  onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); },
   getShake: () => fear.swaySpeed,
 });
 // T sets a trail camera facing where you look: it photographs any cryptid that walks into its
 // view, on its own (grainy shots, lower score).
 const trailCams = new TrailCameras({ scene, player, input, getSubjects: () => photo.getSubjects(),
-  onPhoto: (r) => hunt.onPhoto(r), notify: (m) => photo.toast(m) });
+  onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); }, notify: (m) => photo.toast(m) });
 // V toggles night-vision goggles: see in the dark (green, narrow view) without light; shares the
 // flashlight's battery. Cryptids can't see it, unlike the torch.
 const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi, input, photo, notify: (m) => photo.toast(m) });
@@ -221,14 +255,12 @@ chupacabra.onHit = () => {
   chupacabra.flash.style.display = 'none'; // the hunt's own hit flash / Caught screen replaces it
 };
 
-function resize() {
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(Math.ceil(w / PIXEL_SCALE), Math.ceil(h / PIXEL_SCALE), false);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-}
-addEventListener('resize', resize);
-resize();
+// Cinematic lighting (forest): key/fill/rim and light shafts. Built last so every material gets
+// the rim. ?nocine turns it off for comparison.
+const cine = mapId === 'forest' && !new URLSearchParams(location.search).has('nocine')
+  ? new CinematicLighting({ scene, camera, renderer, night, flashlight, map }) : null;
+const pixels = new PixelPipeline({ renderer, camera });
+const drawFrame = () => pixels.frame(() => { if (!nightVision.render()) renderer.render(scene, camera); });
 
 // Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
 // once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
@@ -256,7 +288,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (huntFailure.isCaught || hunt.stage === 'ended') {   // world freezes behind the end screens
-    if (!nightVision.render()) renderer.render(scene, camera);
+    drawFrame();
     requestAnimationFrame(frame);
     return;
   }
@@ -276,6 +308,7 @@ function frame() {
     chupacabra.update(dt);
   }
   photo.update(dt);
+  rocks.update(dt);
   nightVision.update(dt);
   audioLures.update(dt);
   trailCams.update(dt);
@@ -296,11 +329,13 @@ function frame() {
   huntFailure.update();
   aiDebug.update(camera);
   night?.update(player.position, dt);
+  atmosphere?.update(dt);
+  cine?.update(dt);
   trailReader.update(dt);
-  if (!nightVision.render()) renderer.render(scene, camera);
+  drawFrame();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

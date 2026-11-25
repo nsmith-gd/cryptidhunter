@@ -43,13 +43,13 @@ const check = (name, ok, s) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${J
 await setup(12);
 await page.waitForTimeout(3000);
 const watched = await st();
-check('frozen while watched (12 m)', watched.watched && watched.state === 'stalk' && watched.dist > 11.9, watched);
+check('frozen while watched (12 m)', watched.watched && watched.state === 'freeze' && watched.dist > 11.9, watched);
 
 // 2. Watching it inside charge range: still no charge.
 await setup(5);
 await page.waitForTimeout(3000);
 const close = await st();
-check('no charge while watched at 5 m', close.hits === 0 && close.state === 'stalk', close);
+check('no charge while watched at 5 m', close.hits === 0 && close.state === 'freeze', close);
 await page.screenshot({ path: `${out}/01-watching-it-at-5m.png` });
 
 // 3. Look away from 12 m: it closes in, winds up and charges.
