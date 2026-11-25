@@ -191,50 +191,93 @@ export function buildBigfootModel(profile) {
   root.add(proxy);
   root.userData.body = proxy;
 
-  // ---- Procedural animation -------------------------------------------------------------
-  let phase = 0, idleT = Math.random() * 10, runBlend = 0, moveBlend = 0;
+  // ---- Procedural animation (#43) -------------------------------------------------------
+  // Locomotion layer (blended by real speed): idle -> walk -> run.
+  // State layer (blended by AI state):      flee (deep lean, looks back over its shoulder),
+  //                                          investigate (low, slow, head scanning and sniffing),
+  //                                          stare (observe / aggress: straightens, locks on).
+  // Action layer (one-shots on top):         knock (rears back and clubs a trunk, N strikes).
+  // Every cycle is driven by a phase or clock, so walk/run/idle loop seamlessly.
+  let phase = 0, idleT = Math.random() * 10, runBlend = 0, moveBlend = 0, fleeW = 0, invW = 0, stareW = 0;
+  let action = null;                    // { name, t, count }
   const STRIDE = 1.5 * BIGFOOT_SCALE;   // world metres per step pair, matched to the bigger body
+  const KNOCK = { windup: 0.38, gap: 0.62, recover: 0.45 };
+  const ease = (x) => x * x * (3 - 2 * x);
+  const lerp = THREE.MathUtils.lerp;
+  /** Start a one-shot action. knock: { count } strikes; the first lands ~KNOCK.windup s in. */
+  root.userData.play = (name, opts = {}) => { action = { name, t: 0, count: opts.count ?? 2 }; };
+  root.userData.knockTiming = KNOCK;
+  Object.defineProperty(root.userData, 'action', { get: () => action?.name ?? null });
   root.userData.animate = (dt, speed = 0, state = 'roam') => {
     idleT += dt;
+    const k = Math.min(1, dt * 4);
     const moving = THREE.MathUtils.clamp(speed / 0.6, 0, 1);
     moveBlend += (moving - moveBlend) * Math.min(1, dt * 6);
     const run = THREE.MathUtils.clamp((speed - 2.6) / 2.5, 0, 1);
-    runBlend += (run - runBlend) * Math.min(1, dt * 4);
-    const stride = THREE.MathUtils.lerp(STRIDE, STRIDE * 1.9, runBlend);
+    runBlend += (run - runBlend) * k;
+    fleeW += ((state === 'flee' ? 1 : 0) - fleeW) * k;
+    invW += ((state === 'investigate' ? 1 : 0) - invW) * k;
+    stareW += ((state === 'observe' || state === 'aggress' || state === 'warn' ? 1 : 0) - stareW) * k;   // warn: rears up and stares
+    const stride = lerp(STRIDE, STRIDE * 1.9, runBlend) * (1 - 0.25 * invW);   // short, careful steps when investigating
     phase += (speed / stride) * Math.PI * dt;
     const sw = Math.sin(phase), cw = Math.cos(phase);
     const mb = moveBlend, rb = runBlend;
-    const staring = state === 'observe' || state === 'aggress';
 
-    // Body: always hunched; deeper when running; rises a little when it stops to stare.
-    const lean = 0.32 + 0.35 * rb + (staring ? -0.12 : 0);
-    const breath = Math.sin(idleT * 1.4);
-    bones.hips.position.y = 1.08 - mb * (0.04 + 0.05 * rb) + Math.abs(cw) * mb * (0.05 + 0.08 * rb) + (1 - mb) * breath * 0.01;
+    // ---- body ----
+    const lean = 0.32 + 0.35 * rb + 0.15 * fleeW + 0.14 * invW - 0.12 * stareW;
+    const breath = Math.sin(idleT * (1.4 + rb * 1.6));
+    bones.hips.position.y = 1.08 - mb * (0.04 + 0.05 * rb) - 0.07 * invW + Math.abs(cw) * mb * (0.05 + 0.08 * rb) + (1 - mb) * breath * 0.01;
     bones.hips.rotation.set(0, sw * 0.12 * mb, cw * 0.05 * mb * (1 - rb));
     bones.spine.rotation.set(-lean * 0.55, -sw * 0.1 * mb, 0);
     bones.chest.rotation.set(-(lean * 0.45 + (1 - mb) * breath * 0.035), -sw * 0.12 * mb, 0);
-    // Head stays level and juts forward; idles by slowly scanning, locks on when staring.
-    const look = staring ? 0 : (1 - mb) * Math.sin(idleT * 0.4) * 0.6;
-    bones.neck.rotation.set(lean * 0.95 - 0.12, look, 0);
-    // Jaw: hangs open, works slightly with breath, gapes when it runs or stares.
-    bones.jaw.rotation.x = 0.12 + breath * 0.04 + rb * 0.25 + (staring ? 0.2 : 0);
-
-    const legAmp = THREE.MathUtils.lerp(0.45, 0.85, rb) * mb;
+    // ---- head ----
+    // idle: slow scan; investigate: quick scans + sniffing; flee: glances back over the shoulder; stare: locked on.
+    const idleLook = (1 - mb) * Math.sin(idleT * 0.4) * 0.6;
+    const scan = Math.sin(idleT * 1.15) * 0.8 + Math.sin(idleT * 2.9) * 0.15;
+    const glance = Math.pow(Math.max(0, Math.sin(idleT * 0.85)), 6) * 1.15;
+    const yaw = lerp(lerp(lerp(idleLook, scan, invW), glance, fleeW), 0, stareW);
+    const sniff = Math.sin(idleT * 6.5) * 0.05 * invW;
+    bones.neck.rotation.set(lean * 0.95 - 0.12 + sniff - 0.1 * invW, yaw, 0);
+    bones.jaw.rotation.x = 0.12 + breath * 0.04 + rb * 0.25 + 0.2 * stareW;
+    // ---- legs ----
+    const legAmp = lerp(0.45, 0.85, rb) * mb;
     for (const [side, s] of [['L', 1], ['R', -1]]) {
       const a = sw * s;
-      bones[`thigh${side}`].rotation.set(a * legAmp + 0.12 + 0.12 * mb, 0, s * -0.04);   // slightly bowed
+      bones[`thigh${side}`].rotation.set(a * legAmp + 0.12 + 0.12 * mb + 0.12 * invW, 0, s * -0.04);
       const bendPhase = Math.max(0, Math.sin(phase + (s > 0 ? 0 : Math.PI) - Math.PI / 2 + 0.4));
-      bones[`shin${side}`].rotation.set(-(0.22 + bendPhase * THREE.MathUtils.lerp(0.7, 1.4, rb) * mb), 0, 0);
+      bones[`shin${side}`].rotation.set(-(0.22 + 0.15 * invW + bendPhase * lerp(0.7, 1.4, rb) * mb), 0, 0);
       bones[`foot${side}`].rotation.set(-(bones[`thigh${side}`].rotation.x + bones[`shin${side}`].rotation.x), 0, 0);
     }
-    const armAmp = THREE.MathUtils.lerp(0.4, 0.9, rb) * mb;
+    // ---- arms ----
+    const armAmp = lerp(0.4, 0.9, rb) * mb * (1 + 0.25 * fleeW) * (1 - 0.5 * invW);
     for (const [side, s] of [['L', 1], ['R', -1]]) {
       const a = -sw * s;
-      bones[`upperArm${side}`].rotation.set(a * armAmp + lean + 0.05 + 0.25 * rb, 0, s * -0.16 - (1 - mb) * s * 0.04 * Math.sin(idleT));
-      bones[`forearm${side}`].rotation.set(0.25 + 0.9 * rb + Math.max(0, a) * 0.3 * mb, 0, 0);
-      // Fingers flex: loose while walking, clenched when running, splayed when staring.
-      const curl = staring ? 0.1 : 0.35 + rb * 0.6 + (1 - mb) * Math.sin(idleT * 0.7 + s) * 0.08;
+      bones[`upperArm${side}`].rotation.set(a * armAmp + lean + 0.05 + 0.25 * rb + 0.15 * invW, 0,
+        s * -0.16 - (1 - mb) * s * 0.04 * Math.sin(idleT) - 0.15 * stareW * s);
+      bones[`forearm${side}`].rotation.set(0.25 + 0.9 * rb + Math.max(0, a) * 0.3 * mb + 0.25 * invW, 0, 0);
+      const curl = lerp(0.35 + rb * 0.6 + (1 - mb) * Math.sin(idleT * 0.7 + s) * 0.08, 0.05, stareW);   // claws splay when staring
       for (let f = 0; f < 4; f++) bones[`finger${side}${f}`].rotation.x = curl;
+    }
+
+    // ---- knock: rear back and club the trunk with the right arm, `count` times ----
+    if (action?.name === 'knock') {
+      action.t += dt;
+      const t = action.t, total = KNOCK.windup + (action.count - 1) * KNOCK.gap + KNOCK.recover;
+      if (t >= total) { action = null; return; }
+      const w = ease(Math.min(1, t / 0.2, (total - t) / 0.25));          // blend in / out
+      // Where in the current strike are we? Each strike: raise (to the hit), snap down, settle.
+      const local = t < KNOCK.windup ? t / KNOCK.windup : ((t - KNOCK.windup) % KNOCK.gap) / KNOCK.gap;
+      const raising = t < KNOCK.windup || local > 0.45;
+      const lift = t < KNOCK.windup ? ease(local) : local > 0.45 ? ease((local - 0.45) / 0.55) : 1 - ease(Math.min(1, local / 0.12));
+      const R = bones.upperArmR, F = bones.forearmR;
+      R.rotation.x = lerp(R.rotation.x, lerp(1.25, 2.75, lift), w);      // overhead -> forward strike
+      R.rotation.z = lerp(R.rotation.z, 0.25, w);
+      F.rotation.x = lerp(F.rotation.x, lerp(0.35, 1.3, lift), w);
+      for (let f = 0; f < 4; f++) bones[`fingerR${f}`].rotation.x = lerp(bones[`fingerR${f}`].rotation.x, 1.1, w);   // fist
+      bones.chest.rotation.y = lerp(bones.chest.rotation.y, raising ? -0.3 * lift : 0.18, w);                       // twist into it
+      bones.spine.rotation.x -= 0.12 * w * (1 - lift);                                                                // body follows through
+      bones.neck.rotation.y = lerp(bones.neck.rotation.y, 0.25, w);
+      bones.jaw.rotation.x += 0.15 * w;
     }
   };
   root.userData.animate(0, 0);
