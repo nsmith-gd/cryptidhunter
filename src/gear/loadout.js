@@ -196,5 +196,5 @@ export function showLoadoutPicker({ owned, slots, onChange, root = document.quer
   render();
   const camp = root.querySelector('#camp-panel');
   if (camp) camp.after(el); else root.prepend(el);
-  return { el, get slots() { return current; } };
+  return { el, get slots() { return current; }, refresh: () => { current = Loadout.sanitize(current, owned); render(); } };
 }

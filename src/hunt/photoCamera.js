@@ -30,6 +30,7 @@ export class PhotoCamera {
     this.canvas = canvas;       // the rendered view, for album thumbnails
     this.filmTotal = film;
     this.film = film;           // shots left on the roll
+    this.raisedFov = PHOTO.raisedFov;   // zoom lens (base-camp shop upgrade)
     this.getShake = getShake;   // () => degrees/second the view is shaking (fear sway)
     this.scene = scene;
     this.input = input;
@@ -74,7 +75,7 @@ export class PhotoCamera {
     if (target > this.raise) this.raise = Math.min(1, this.raise + step);
     else if (target < this.raise) this.raise = Math.max(0, this.raise - step);
     const k = this.raise * this.raise * (3 - 2 * this.raise); // smoothstep
-    const fov = this.baseFov + (PHOTO.raisedFov - this.baseFov) * k;
+    const fov = this.baseFov + (this.raisedFov - this.baseFov) * k;
     if (Math.abs(this.camera.fov - fov) > 1e-3) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     // Greybox camera body: held low-left, swings up toward the eye (then the viewfinder takes over).
     this.body.position.set(-0.2 + 0.2 * k, -0.26 + 0.18 * k, -0.42 + 0.2 * k); // left hand: the torch is in the right

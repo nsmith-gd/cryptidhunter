@@ -37,6 +37,7 @@ import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
+import { applyUpgrades, showShopPanel } from './hunt/shop.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
 import { renderAlbum } from './hunt/album.js';
@@ -255,6 +256,21 @@ const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange
   camp.state.loadout = slots; camp.save();
   loadout.setSlots(slots);
 } });
+// Shop (#46): buy gear and permanent upgrades at base camp, before you set off. Upgrades are
+// saved with camp and applied to the camera and torch at the start of every hunt.
+applyUpgrades(camp, { photo, flashlight });
+const shop = showShopPanel(camp, {
+  canBuy: () => hunt.stage === 'briefing',
+  onChange: ({ kind, key }) => {
+    if (kind === 'gear') {                       // bought gear is packable right away
+      packed[key] = camp.state.gear[key];
+      loadout.setSlots(loadout.slots);
+      picker?.refresh?.();
+    } else applyUpgrades(camp, { photo, flashlight });
+    const cp = document.getElementById('camp-panel');
+    if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\$\d+/, `BASE CAMP  ·  $${camp.state.money}`);
+  },
+});
 // First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
 const viewmodel = new Viewmodel({ camera, player, flashlight, photo, nightVision, trailCams });
 
@@ -364,4 +380,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
