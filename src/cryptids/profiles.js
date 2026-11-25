@@ -24,10 +24,24 @@ export const DEFAULT_PROFILE = Object.freeze({
   catchHits: 1,            // touches before you're caught (Danger & Hunt Failure)
   // Clue data for the clues system (not dropped at L0). null = leaves none.
   clues: null,
+  // Behaviour state machine (L1, used with senses). See cryptidAI.js.
+  behavior: Object.freeze({
+    onDetect: 'flee',        // what it does once it has detected you: 'flee' | 'aggress'
+    investigateHear: 0.06,   // a noise at least this loud (hear level) sends it to check it out
+    investigateSpeed: 1.3,   // x roamSpeed
+    lookAround: 4,           // seconds it searches at the spot before going back to roaming
+    observeAt: 0.3,          // awareness at which it stops and stares at what it glimpsed
+    observeTime: 4,          // seconds it will stare before losing interest
+    aggressSpeed: 5.0,       // m/s when it comes for you
+    aggressTime: 8,          // seconds it keeps coming before giving up
+    aggressGiveUp: 25,       // ...or once you're this far away
+    afterAggress: 'roam',    // then: 'roam' | 'flee'
+  }),
 });
 
 export function makeProfile(overrides = {}) {
-  return Object.freeze({ ...DEFAULT_PROFILE, ...overrides });
+  const behavior = Object.freeze({ ...DEFAULT_PROFILE.behavior, ...(overrides.behavior ?? {}) });
+  return Object.freeze({ ...DEFAULT_PROFILE, ...overrides, behavior });
 }
 
 // Bigfoot: the starter cryptid of Pine Hollow forest. Tall, shy (notices you from further away
@@ -44,6 +58,9 @@ export const BIGFOOT = makeProfile({
   fleeTriggerDistance: 15, // shy: bolts well before you get close (used only without senses)
   catchHits: 1,            // huge: one grab and the hunt is over
   senses: Object.freeze({ hearing: 1.4, sightRange: 32, viewAngle: 65 }), // keen ears and eyes (see perception.js)
+  // Shy but curious: checks out noises, stops and stares when it glimpses you (the classic
+  // sighting, and your photo chance), then bolts once it's sure.
+  behavior: { onDetect: 'flee', observeAt: 0.3, observeTime: 3.5, lookAround: 5 },
   fleeSafeDistance: 30,
   fleeSpeed: 8.5,          // faster than the player's sprint (6 m/s): you can't run it down
   fleeStep: 18,
@@ -57,4 +74,19 @@ export const BIGFOOT = makeProfile({
   }),
 });
 
-export const PROFILES = Object.freeze({ default: DEFAULT_PROFILE, bigfoot: BIGFOOT });
+// Greybox stand-in for an aggressive cryptid on the shared brain (only spawned with ?sandbox):
+// same senses, but once it detects you it comes for you instead of running.
+export const PROWLER = makeProfile({
+  id: 'prowler',
+  name: 'Prowler (test)',
+  height: 1.3,
+  radius: 0.4,
+  color: 0x6a2f2f,
+  roamRadius: 15,
+  roamSpeed: 1.4,
+  catchHits: 2,
+  senses: Object.freeze({ hearing: 1.0, sightRange: 22, viewAngle: 55 }),
+  behavior: { onDetect: 'aggress', aggressSpeed: 4.6, aggressTime: 7, aggressGiveUp: 22, afterAggress: 'roam', observeTime: 2 },
+});
+
+export const PROFILES = Object.freeze({ default: DEFAULT_PROFILE, bigfoot: BIGFOOT, prowler: PROWLER });

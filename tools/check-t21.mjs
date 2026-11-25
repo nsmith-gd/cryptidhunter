@@ -23,6 +23,7 @@ await page.evaluate(() => {
   g.huntFailure.enabled = false;
   const b = g.cryptids.cryptids[0];
   b.noticesPlayer = () => false;   // measure detection without it running off
+  b.think = () => {};              // ...or turning to stare: senses only
   b.tickRoam = () => {};
   b.findLure = () => false;
 });

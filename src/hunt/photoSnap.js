@@ -57,9 +57,11 @@ export class PhotoSnap {
   lineOfSight(eye, to, dist, target) {
     this.raycaster.set(eye, to.clone().normalize());
     this.raycaster.far = dist;
+    this.raycaster.camera = this.camera;   // sprites (debug labels) need it to be raycast at all
     for (const hit of this.raycaster.intersectObjects(this.scene.children, true)) {
       if (!hit.object.isMesh || !hit.object.visible) continue;
       if (hit.object.material?.transparent) continue;         // rings, debug lines
+      if (hit.object.isSprite || hit.object.material?.depthTest === false) continue; // overlays: labels, meters
       let o = hit.object, mine = false;
       while (o) { if (o === target) { mine = true; break; } o = o.parent; }
       if (mine) return true;
