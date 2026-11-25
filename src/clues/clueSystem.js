@@ -3,7 +3,7 @@ import { CLUE_TYPES, BUILDERS } from './clueTypes.js';
 const MAX_FOOTPRINTS = 400; // oldest prints are culled first past this
 
 // Owns every clue in the level: spawning, ageing/fading, removal.
-// Each clue: { id, type, cryptidId, x, y, z, origin:{x,z}, age, lifetime, found, object }
+// Each clue: { id, type, cryptidId, x, y, z, origin:{x,z}, age, lifetime, found, object, data }
 export class ClueSystem {
   constructor(scene) {
     this.scene = scene;
@@ -31,7 +31,7 @@ export class ClueSystem {
       id: this.nextId++, type, cryptidId,
       x: position.x, y: position.y ?? 0, z: position.z,
       origin: origin ?? { x: position.x, z: position.z },
-      age: 0, lifetime: def.lifetime, found: false, object,
+      age: 0, lifetime: def.lifetime, found: false, object, data,
     };
     object.userData.clue = clue;
     this.clues.push(clue);

@@ -7,6 +7,9 @@ import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
+import { Journal } from './journal/journal.js';
+import { ClueFinder } from './journal/clueFinder.js';
+import { JournalUI } from './journal/journalUI.js';
 import { Mothman } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
@@ -59,6 +62,11 @@ const clueTrails = new ClueTrails(scene, cryptids, clues, colliders);
 clueTrails.setDebug(new URLSearchParams(location.search).has('debug'));
 addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); clueTrails.setDebug(!clueTrails.debug); } });
 
+// Field journal: aim at a clue within reach and press E to log it; J opens the journal.
+const journal = new Journal();
+const clueFinder = new ClueFinder(camera, clues, journal, input);
+const journalUI = new JournalUI(journal, clueFinder);
+
 function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(Math.ceil(w / PIXEL_SCALE), Math.ceil(h / PIXEL_SCALE), false);
@@ -82,6 +90,7 @@ function frame() {
   cryptids.update(dt);
   clueTrails.update();
   clues.update(dt);
+  journal.update(dt);
   mothman.update(dt);
   chupacabra.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
@@ -90,10 +99,12 @@ function frame() {
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
   bars.update();
   noiseRing.update();
+  clueFinder.update();
+  journalUI.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, input, scene, camera, renderer, overlay };
