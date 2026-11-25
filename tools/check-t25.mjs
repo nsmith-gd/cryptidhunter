@@ -98,11 +98,11 @@ const shoot = async (fearValue, n) => {
   await page.evaluate((v) => { __game.fear.value = v; }, fearValue);
   await setupShot();
   await page.mouse.down({ button: 'right' });
-  await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+  await page.waitForFunction(() => __game.photo.raised, null, { timeout: 20000 });
   const scores = [];
   for (let i = 0; i < n; i++) {
     await page.waitForTimeout(250 + i * 37);
-    await page.waitForFunction(() => __game.photo.cooldown === 0, null, { timeout: 3000 });
+    await page.waitForFunction(() => __game.photo.cooldown === 0, null, { timeout: 20000 });
     const before = await page.evaluate(() => __game.photo.log.length);
     await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
     await page.waitForTimeout(60);

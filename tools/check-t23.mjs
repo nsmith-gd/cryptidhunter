@@ -23,7 +23,7 @@ const check = (name, ok, s) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${J
 const shot = (n) => page.screenshot({ path: `${out}/${n}.png` });
 
 const setup = async () => {
-  await page.goto('http://localhost:4353/?nodebugai');
+  await page.goto('http://localhost:4353/?nodebugai&loadout=knockStick,bait,trailCamera,audioLure'); // pack the knock stick (#27 loadout)
   await page.waitForFunction(() => window.__game);
   await page.evaluate(() => {
     const g = __game;
