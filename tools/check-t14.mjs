@@ -89,7 +89,7 @@ await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(120);
 await page.screenshot({ path: `${out}/04b-photo-snapped.png` });
 const s2 = await st();
-check('clicking with Bigfoot in frame takes the photo', s2.stage === 'extract' && s2.photo > 10 && /Return to your truck/.test(s2.hud), s2);
+check('clicking with Bigfoot in frame takes the photo', s2.stage === 'extract' && s2.photo > 10 && /Return to the van/.test(s2.hud), s2);
 
 // Head back to the truck and walk into the green ring.
 await page.evaluate(() => { const p = __game.player; p.position.set(0, 0, -6); p.velocity.set(0, 0, 0); p.yaw = Math.PI; p.pitch = 0; });

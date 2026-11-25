@@ -116,10 +116,12 @@ export class PhotoCamera {
     const dist = to.length();
     this.raycaster.set(eye, to.normalize());
     this.raycaster.far = dist - 0.05;
+    this.raycaster.camera = this.camera;                    // sprites (debug labels) need it to be raycast at all
     for (const hit of this.raycaster.intersectObjects(this.scene.children, true)) {
       const o = hit.object;
       if (!o.isMesh || !o.visible) continue;
       if (o.material?.transparent) continue;              // water, rings, debug lines, fading clues
+      if (o.isSprite || o.material?.depthTest === false) continue; // overlays: labels, meters
       if (isPartOf(o, target) || isPartOf(o, this.camera)) continue;
       // Ground-level flat surfaces (floor, trails, decals) only block if the ray is skimming them.
       if (hit.point.y < 0.15 && hit.face && hit.face.normal.y > 0.9) continue;
