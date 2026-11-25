@@ -16,7 +16,7 @@ const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4348/?map=forest&nodebugai');
-await page.waitForFunction(() => window.__game);
+await page.waitForFunction(() => window.__game, null, { timeout: 180000 });
 await page.evaluate(() => {
   const g = __game;
   for (const el of document.body.children) if (el !== g.renderer.domElement) el.style.visibility = 'hidden';
