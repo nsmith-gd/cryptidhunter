@@ -372,3 +372,71 @@ export function bigfootSnarlTexture() {
     for (let k = 0; k < 6; k++) px(6 + k, 15 + k, '#5a3a32');
   }, { seed: 161 });
 }
+
+// Bigfoot's scowl (#56), 32 x 32: bare tan face like an old silverback's, a deeply furrowed
+// V-shaped brow pressing down on sunken burning-amber eyes, broad flat nose, heavy downturned
+// mouth showing the tips of yellowed fangs, hair framing the face. Hero density.
+export function bigfootScowlTexture() {
+  return pixelTexture('bigfootScowl', 32, 32, (g, px, r, w, h) => {
+    const fur = ['#140d09', '#22160e', '#342215', '#4a321e', '#634428'];
+    const sk = ['#1c1210', '#3a2820', '#5a4030', '#74543e', '#8c6a4e', '#a3805f'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, fur[1 + Math.floor(r() * 3)]);
+    // Bare face: broad at the cheekbones, narrowing to the chin.
+    for (let y = 5; y < 30; y++) {
+      const half = y < 18 ? 12 : 12 - (y - 18) * 0.55;
+      for (let x = Math.round(16 - half); x < Math.round(16 + half); x++) {
+        const shade = y < 9 ? 3 : y > 24 ? 2 : 3 + (r() < 0.25 ? 1 : 0) - (r() < 0.15 ? 1 : 0);
+        px(x, y, sk[Math.max(1, Math.min(5, shade))]);
+      }
+    }
+    // Forehead furrows: stacked V-shaped creases pointing down to the nose bridge.
+    for (const [yy, sh] of [[6, 2], [8, 1], [10, 0]]) for (let k = 0; k < 9; k++) {
+      px(7 + k, yy + Math.floor(k / 3), sk[sh]); px(24 - k, yy + Math.floor(k / 3), sk[sh]);
+    }
+    // Heavy brow ridge, lit on top, pressing down at the centre (the scowl).
+    for (let x = 5; x < 27; x++) {
+      const dip = Math.max(0, 3 - Math.abs(x - 15.5) / 2.5) | 0;
+      px(x, 11 + dip - 1, sk[5]); px(x, 12 + dip, sk[0]); px(x, 13 + dip, sk[1]);
+    }
+    // Sunken sockets with burning amber eyes (bright core, darker rim).
+    for (const ex of [8, 19]) {
+      for (let dx = 0; dx < 5; dx++) for (let dy = 0; dy < 3; dy++) px(ex + dx, 14 + dy, sk[0]);
+      px(ex + 1, 15, '#c96b1e'); px(ex + 2, 15, '#ffd27a'); px(ex + 3, 15, '#ffb347'); px(ex + 2, 14, '#9a4a14');
+    }
+    // Nose: wide flat bridge, flared nostrils.
+    for (let y = 17; y < 22; y++) { px(15, y, sk[4]); px(16, y, sk[3]); }
+    for (const nx of [12, 18]) { px(nx, 21, sk[0]); px(nx + 1, 21, sk[0]); px(nx, 20, sk[1]); px(nx + 1, 22, sk[2]); }
+    for (let x = 13; x < 19; x++) px(x, 22, sk[1]);
+    // Snout folds down to a heavy, downturned mouth; fang tips just showing.
+    for (let k = 0; k < 4; k++) { px(9 + k, 20 + k, sk[1]); px(22 - k, 20 + k, sk[1]); }
+    for (let x = 10; x < 22; x++) px(x, 25 + (x < 12 || x > 19 ? 1 : 0), '#0b0708');
+    for (const fx of [12, 19]) { px(fx, 26, '#c9b98a'); px(fx, 27, '#a89466'); }
+    for (let x = 11; x < 21; x++) px(x, 27, sk[1]);
+    // Beard and cheek hair creeping onto the face edges.
+    for (let y = 18; y < 32; y++) for (const x of [5, 6, 25, 26]) if (r() < 0.7) px(x, y, fur[2 + Math.floor(r() * 2)]);
+    for (let y = 28; y < 32; y++) for (let x = 9; x < 23; x++) if (r() < 0.6) px(x, y, fur[1 + Math.floor(r() * 3)]);
+    // Old scars across the left brow and cheek.
+    for (let k = 0; k < 7; k++) px(6 + k, 9 + k, '#5a3a32');
+    for (let k = 0; k < 4; k++) px(22 + k, 18 + k, '#5a3a32');
+  }, { seed: 171 });
+}
+
+// Long flowing hair card, 16 x 48 with alpha: the mane that pours off the crown and shoulders,
+// dark roots to warm ochre lit tips, ragged ends.
+export function longHairTexture() {
+  return pixelTexture('longHair', 16, 48, (g, px, r, w, h) => {
+    const pal = ['#140d09', '#22160e', '#342215', '#4a321e', '#634428', '#80592f', '#9c7040'];
+    for (let x = 0; x < w; x++) {
+      if (r() < 0.08) continue;
+      const len = 24 + Math.floor(r() * (h - 24));
+      let cx = x;
+      for (let y = 0; y < len; y++) {
+        if (r() < 0.08) cx += r() < 0.5 ? -1 : 1;
+        cx = Math.max(0, Math.min(w - 1, cx));
+        const t = y / len;
+        const lit = (x % 5 === 0) ? 1 : 0;          // a few highlight strands
+        px(cx, y, pal[Math.max(0, Math.min(pal.length - 1, Math.round(1 + t * 3 + lit * 2 + (r() - 0.5))))]);
+      }
+    }
+  }, { seed: 181, alpha: true });
+}

@@ -39,7 +39,7 @@ const shot = async (name, heading, dist, north = false) => {
     const g = __game, p = g.player, s = g.spot;
     g.bf.mesh.rotation.y = heading;
     p.position.set(s.x, 0, s.z + (north ? -dist : dist)); p.velocity.set(0, 0, 0);
-    p.yaw = north ? Math.PI : 0; p.pitch = Math.atan2(1.9 - 1.68, dist);
+    p.yaw = north ? Math.PI : 0; p.pitch = Math.atan2(2.4 - 1.68, dist);
     g.flashlight.battery = 1; if (!g.flashlight.on) g.flashlight.toggle();
   }, [heading, dist, north]);
   await page.waitForTimeout(600);
@@ -49,6 +49,14 @@ const shot = async (name, heading, dist, north = false) => {
 for (const [n, h] of [['front', Math.PI], ['three-quarter', Math.PI - 0.7], ['side', Math.PI / 2], ['back', 0]]) await shot(`forest-6m-${n}`, h, 6);
 await shot('forest-25m-front', 0, 25, true);       // from the north; heading 0 faces it
 await shot('forest-25m-side', Math.PI / 2, 25, true);
+// Eye-level portrait (camera lifted to its face height) so the face can be judged.
+await page.evaluate(() => {
+  const g = __game, s = g.spot; g.player.update = () => {};
+  g.bf.mesh.rotation.y = Math.PI - 0.35;
+  g.camera.position.set(s.x - 0.6, 3.35, s.z + 2.6); g.camera.lookAt(s.x, 3.25, s.z);
+});
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/portrait-face-eye-level.png` });
 console.log(errors.length ? `ERRORS ${JSON.stringify(errors)}` : 'captured, no page errors');
 await browser.close();
 server.kill();
