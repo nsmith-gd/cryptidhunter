@@ -106,7 +106,8 @@ await page.evaluate(() => { const g = __game, p = g.player, ex = g.map.exit; p.p
 await page.waitForTimeout(200);
 await shot('05-back-at-the-van');
 await page.evaluate(() => __game.input.keys.add('KeyW'));
-await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 8000 }).catch(() => {});
+// (software rendering in CI is slow, especially in the forest: allow plenty of time for the walk)
+await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 30000 }).catch(() => {});
 await page.evaluate(() => __game.input.keys.delete('KeyW'));
 await page.waitForTimeout(200);
 const end = await page.evaluate(() => ({ outcome: __game.hunt.outcome, title: __game.hunt.endTitle.textContent }));

@@ -364,7 +364,9 @@ export function buildForestMap(scene) {
     },
     spawns: { bigfoot: { x: L.hollow.x, z: L.hollow.z } },
     landmarks: { ...L },
-    environment: { background: 0x070a0d, fog: { color: 0x0b1014, near: 10, far: 60 } },
+    // Night lighting baseline (see maps/nightLighting.js): moon low in the north behind the ridge,
+    // so the lookout, ridge and pines read as silhouettes against a glowing horizon.
+    environment: { background: 0x070a0d, fog: { color: 0x0b1014, near: 10, far: 60 }, lightLevel: 0.05, night: {} },
   };
 }
 
