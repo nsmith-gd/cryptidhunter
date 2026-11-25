@@ -93,7 +93,10 @@ await shot('04-bigfoot-in-its-zone');
 await page.evaluate(() => { const g = __game, b = g.cryptids.cryptids[0], c = g.camera.position, p = g.player;
   const dx = b.agent.x - c.x, dz = b.agent.z - c.z; p.yaw = Math.atan2(-dx, -dz); p.pitch = Math.atan2(1.5 - c.y, Math.hypot(dx, dz)); });
 await page.waitForTimeout(40);
-await page.mouse.click(480, 270);
+await page.mouse.down({ button: 'right' }); // raise the camera (#4: hold right mouse, left-click to snap)
+await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
+await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(150);
 const photo = await page.evaluate(() => ({ stage: __game.hunt.stage, photo: __game.hunt.photo }));
 check('Bigfoot photographed in its bed-down zone', lined && photo.stage === 'extract', photo);

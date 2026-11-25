@@ -154,7 +154,7 @@ export class HuntLoop {
         const n = this.journal?.entries.length ?? 0;
         const lines = [`OBJECTIVE: Photograph ${this.target}`,
           n === 0 ? 'Search for tracks with your flashlight. Aim at one and press E to examine it.'
-            : `Clues logged: ${n}. Follow the trail; when you see ${this.target}, click to take a photo.`];
+            : `Clues logged: ${n}. Follow the trail; when you see ${this.target}, hold right mouse to raise your camera and left-click to snap.`];
         if (this.canGiveUp()) lines.push('[H] Head home without a photo');
         return lines.join('\n');
       }
