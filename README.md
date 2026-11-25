@@ -1,1 +1,15 @@
-# cryptidhunter
+# Cryptid Hunter
+
+First-person cryptid-hunting game. Three.js + Vite (web), rendered at low internal resolution for a 3D pixel-art look.
+
+## Run
+```
+npm install
+npm run dev        # open the printed URL, click to play
+npm run build      # production build into dist/
+```
+
+Controls: WASD move · mouse look · Shift sprint · Ctrl or C crouch (hold) · Esc releases the mouse.
+
+## Checks
+`npm run check:t1` builds, opens the greybox map headlessly, drives the player and writes screenshots to `.ballast/media/t1/`.

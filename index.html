@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cryptid Hunter</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+    #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #ddd; background: rgba(0,0,0,.6); cursor: pointer; text-align: center; line-height: 1.6; }
+    #overlay.hidden { display: none; }
+    #crosshair { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #fff8; }
+    #hud { position: fixed; left: 8px; bottom: 8px; color: #ccc; font-size: 12px; text-shadow: 0 0 2px #000; white-space: pre; }
+  </style>
+</head>
+<body>
+  <div id="crosshair"></div>
+  <div id="hud"></div>
+  <div id="overlay">
+    <div>
+      <b>CRYPTID HUNTER — greybox</b><br />
+      Click to play<br /><br />
+      WASD move · Mouse look · Shift sprint · Ctrl / C crouch<br />
+      Esc releases the mouse
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
