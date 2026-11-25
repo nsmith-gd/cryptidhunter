@@ -80,7 +80,11 @@ const noiseRing = new NoiseRing(scene, player);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position,
-  lures: { lures: () => bait.lures(), consume: (b) => bait.consume(b), eatTime: BAIT.eatTime } });
+  lures: { lures: () => bait.lures(), consume: (b) => bait.consume(b), eatTime: BAIT.eatTime },
+  // Hearing + sight: they notice your noise, your silhouette and your flashlight.
+  // ?nosenses falls back to the L0 fixed flee distance (used by older mechanic checks).
+  senses: new URLSearchParams(location.search).has('nosenses') ? null
+    : { player, flashlight, camera, lightLevel: map.environment?.lightLevel ?? 0 } });
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 if (mapId !== 'swamp') {
   const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
@@ -175,7 +179,8 @@ function frame() {
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
   hud.textContent = `${gait}${wading === 'shallow' ? ' (WADING)' : wading === 'deep' ? ' (DEEP WATER)' : ''}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}   BAIT ${bait.carried} (G)` +
-    cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
+    cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m` +
+      (c.perception ? `  hear ${c.perception.hearLevel.toFixed(2)} see ${Math.max(c.perception.sightLevel, c.perception.beamLevel).toFixed(2)} aware ${c.perception.awareness.toFixed(2)}${c.perception.detected ? ' DETECTED' : ''}` : '')).join('') +
     (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
   bars.update();
   noiseRing.update();

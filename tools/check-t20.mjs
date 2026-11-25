@@ -31,6 +31,8 @@ await page.evaluate(() => {
     player.position.set(-36, 0, 36);
     cryptids.update(dt); clueTrails.update(); clues.update(dt); journal.update(dt);
   }
+  // Freeze it so it can't notice the player near the clues and lay fresh ones mid-check.
+  cryptids.update = () => {};
 });
 
 // Journal before any evidence.
@@ -43,21 +45,27 @@ await page.keyboard.press('KeyJ');
 
 // Stand near a clue of the given type and aim the crosshair at it. Returns the clue id.
 const aimAt = (type) => page.evaluate((type) => {
-  const { clues, player } = __game;
+  const { clues, player, clueFinder } = __game;
   const pool = clues.clues.filter((c) => c.type === type && !c.found);
-  const c = pool[Math.floor(pool.length / 2)];
-  if (!c) return null;
-  // Approach from the side the cryptid stood on (in front of scratches), 1.8 m out.
-  let ax = c.origin.x - c.x, az = c.origin.z - c.z;
-  if (Math.hypot(ax, az) < 0.05) { ax = 1; az = 0.3; }
-  const l = Math.hypot(ax, az);
-  const px = c.x + (ax / l) * 1.8, pz = c.z + (az / l) * 1.8;
-  player.position.set(px, 0, pz); player.velocity.set(0, 0, 0);
-  const eyeY = player.eyeHeight;
-  const dx = c.x - px, dz = c.z - pz;
-  player.yaw = Math.atan2(-dx, -dz);
-  player.pitch = Math.atan2(c.y + 0.03 - eyeY, Math.hypot(dx, dz));
-  return c.id;
+  // Start from the middle of the trail, and skip any clue the crosshair can't actually pick
+  // (e.g. tucked against a box), so the check doesn't depend on where the trail happened to go.
+  const order = pool.map((_, i) => (Math.floor(pool.length / 2) + i) % pool.length);
+  for (const i of order) {
+    const c = pool[i];
+    // Approach from the side the cryptid stood on (in front of scratches), 1.8 m out.
+    let ax = c.origin.x - c.x, az = c.origin.z - c.z;
+    if (Math.hypot(ax, az) < 0.05) { ax = 1; az = 0.3; }
+    const l = Math.hypot(ax, az);
+    const px = c.x + (ax / l) * 1.8, pz = c.z + (az / l) * 1.8;
+    player.position.set(px, 0, pz); player.velocity.set(0, 0, 0);
+    const eyeY = player.eyeHeight;
+    const dx = c.x - px, dz = c.z - pz;
+    player.yaw = Math.atan2(-dx, -dz);
+    player.pitch = Math.atan2(c.y + 0.03 - eyeY, Math.hypot(dx, dz));
+    player.update(0.0001);
+    if (clueFinder.update() === c) return c.id;
+  }
+  return null;
 }, type);
 const promptText = () => page.evaluate(() => {
   const p = document.getElementById('examine-prompt');
@@ -77,9 +85,13 @@ await page.waitForTimeout(150);
 await page.screenshot({ path: `${out}/03-logged-toast.png` });
 const v1 = await verdict();
 check('one clue: no identification yet', !v1.ready && v1.needed === 2, v1);
-await page.keyboard.press('KeyE'); // same spot again: must not double-log
-await page.waitForTimeout(100);
-check('a clue can only be logged once', (await logged()).length === 1, await logged());
+// Same clue again must not double-log. (Pressing E again here can legitimately pick up the
+// *next* footprint along the trail, so test the clue itself rather than the key.)
+const again = await page.evaluate((id) => {
+  const c = __game.clues.clues.find((k) => k.id === id);
+  return { recordAgain: __game.journal.record(c), stillTargeted: __game.clueFinder.update() === c };
+}, id1);
+check('a clue can only be logged once', again.recordAgain === null && !again.stillTargeted && (await logged()).length === 1, { again, logged: await logged() });
 
 // Clue 2: hair.
 await aimAt('hair');

@@ -16,7 +16,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto('http://localhost:4331/');
+await page.goto('http://localhost:4331/?nosenses');
 await page.waitForFunction(() => window.__game);
 // Park the other placeholders, and run the cryptid AI only from the script (fixed steps).
 await page.evaluate(() => {
