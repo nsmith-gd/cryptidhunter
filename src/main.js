@@ -4,6 +4,7 @@ import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
+import { NightLighting } from './maps/nightLighting.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
@@ -43,7 +44,8 @@ scene.fog = new THREE.Fog(0x05070b, 12, 45);
 const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 200);
 
 // Faint moonlight so silhouettes are just readable without the flashlight.
-scene.add(new THREE.HemisphereLight(0x4a5a78, 0x0a0a0c, 0.12));
+const hemi = new THREE.HemisphereLight(0x4a5a78, 0x0a0a0c, 0.12);
+scene.add(hemi);
 const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
@@ -74,6 +76,8 @@ else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.posit
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot' });
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
+// Outdoor maps can opt into the night lighting baseline (moon, haze, ambient, sky).
+const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: map.environment.night }) : null;
 const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
 mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
@@ -202,6 +206,7 @@ function frame() {
   journalUI.update(dt);
   huntFailure.update();
   aiDebug.update(camera);
+  night?.update(player.position, dt);
   trailReader.update(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -209,4 +214,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

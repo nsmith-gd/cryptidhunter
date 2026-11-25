@@ -19,6 +19,7 @@ export class Flashlight {
     this.light.shadow.camera.near = 0.2;
     this.light.shadow.bias = -0.0005;
     camera.add(this.light, this.light.target);
+    this.baseIntensity = FLASHLIGHT.intensity; // maps can scale this (dark materials outdoors)
     this.battery = 1;            // 0..1 charge of the battery in the torch
     this.spares = FLASHLIGHT.startSpares;
     this.on = true;
@@ -59,6 +60,6 @@ export class Flashlight {
       k = 0.35 + 0.65 * (this.battery / FLASHLIGHT.lowLevel);
       if (Math.sin(this.t * 23) * Math.sin(this.t * 7.3) > 0.85) k *= 0.25;
     }
-    this.light.intensity = FLASHLIGHT.intensity * k;
+    this.light.intensity = this.baseIntensity * k;
   }
 }
