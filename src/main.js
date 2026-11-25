@@ -34,11 +34,10 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { BaitManager, BAIT } from './gear/bait.js';
+import { PixelPipeline } from './render/pixelPipeline.js';
 
-// Render at a low internal resolution and upscale with nearest-neighbour:
-// the base of the game's 3D pixel-art look.
-const PIXEL_SCALE = 3;
-
+// Render at a low internal resolution (~360 rows) and upscale by an exact integer with
+// nearest-neighbour, snapping the view to whole pixels: see render/pixelPipeline.js.
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
 renderer.shadowMap.enabled = true;
@@ -210,14 +209,8 @@ chupacabra.onHit = () => {
   chupacabra.flash.style.display = 'none'; // the hunt's own hit flash / Caught screen replaces it
 };
 
-function resize() {
-  const w = innerWidth, h = innerHeight;
-  renderer.setSize(Math.ceil(w / PIXEL_SCALE), Math.ceil(h / PIXEL_SCALE), false);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-}
-addEventListener('resize', resize);
-resize();
+const pixels = new PixelPipeline({ renderer, camera });
+const drawFrame = () => pixels.frame(() => { if (!nightVision.render()) renderer.render(scene, camera); });
 
 // Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
 // once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
@@ -245,7 +238,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (huntFailure.isCaught || hunt.stage === 'ended') {   // world freezes behind the end screens
-    if (!nightVision.render()) renderer.render(scene, camera);
+    drawFrame();
     requestAnimationFrame(frame);
     return;
   }
@@ -285,10 +278,10 @@ function frame() {
   aiDebug.update(camera);
   night?.update(player.position, dt);
   trailReader.update(dt);
-  if (!nightVision.render()) renderer.render(scene, camera);
+  drawFrame();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, pixels, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
