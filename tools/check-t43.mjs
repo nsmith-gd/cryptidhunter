@@ -1,114 +1,184 @@
-// Bigfoot animation set: idle, walk, run, flee, investigate, look-around, knock.
-// Records each as a GIF (side view, lit), checks cycles loop seamlessly, clips look distinct, and the
-// knock plays from a real in-game wood knock. Run: npm run check:t43 [outDir]
+// Bigfoot animation set check (#43). Run: npm run check:t43 [outDir]   (dev server; ffmpeg for GIFs)
+// Verifies: every behaviour state maps to a clip; state changes (and a real wood knock) play the
+// right clip; idle/walk/run (and the other gaits) loop seamlessly; poses are stepped at the
+// pixel-art pose rate; the knock has anticipation and follow-through; the rig adapts to proportion
+// changes. Records a GIF of every clip from the animation viewer (lookdev/bigfoot-anim.html).
 import { createRequire } from 'node:module';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
-import { spawn, execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
 
 const out = process.argv[2] || '.ballast/media/t43';
 mkdirSync(out, { recursive: true });
-const server = spawn('npx', ['vite', 'preview', '--port', '4403', '--strictPort'], { stdio: 'ignore' });
-await new Promise((r) => setTimeout(r, 2000));
+const PORT = 4443;
+const server = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 3500));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
-const errors = [];
-page.on('pageerror', (e) => errors.push(e.message));
 const results = [];
 const check = (name, ok, s) => results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${JSON.stringify(s)}`);
-await page.goto('http://localhost:4403/?nodebugai');
-await page.waitForFunction(() => window.__game);
+const errors = [];
 
-// 1) A real wood knock plays the knock animation, and it finishes on its own.
+// ---- 1) Every behaviour state the AI can enter has a clip -------------------------------------
+const aiSrc = readFileSync('src/cryptids/cryptidAI.js', 'utf8');
+const aiStates = [...new Set([...aiSrc.matchAll(/setState\('([a-z]+)'/g)].map((m) => m[1]).concat(['roam']))].sort();
+
+const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+page.on('pageerror', (e) => errors.push(e.message));
+await page.goto(`http://localhost:${PORT}/lookdev/bigfoot-anim.html?manual`);
+await page.waitForFunction(() => window.__viewer, null, { timeout: 90000 });
+
+const mapping = await page.evaluate(async (aiStates) => {
+  const A = await import('/src/cryptids/bigfootAnim.js');
+  const missing = aiStates.filter((s) => !(s in A.STATE_CLIPS));
+  const reached = new Set();
+  for (const s of aiStates) for (const sp of [0, 1.5, 5]) reached.add(A.clipFor(s, sp));
+  reached.add('knock');
+  return { missing, clips: A.CLIPS, reached: [...reached].sort(), unreached: A.CLIPS.filter((c) => !reached.has(c)) };
+}, aiStates);
+check('every behaviour state the AI uses maps to a clip', mapping.missing.length === 0, { aiStates, missing: mapping.missing });
+check('every clip is reachable from some state (or the knock action)', mapping.unreached.length === 0, mapping);
+const required = ['idle', 'walk', 'run', 'knock', 'flee', 'investigate'];
+check('required clips exist: idle, walk, run, knock, flee, investigate', required.every((c) => mapping.clips.includes(c)), mapping.clips);
+
+// ---- 2) Seamless loops (smooth evaluation so the maths is exact) ------------------------------
+const loops = await page.evaluate(async () => {
+  const A = await import('/src/cryptids/bigfootAnim.js');
+  const anim = __viewer.animator, bones = __viewer.bf.userData.bones;
+  anim.poseFps = 0;
+  // Full pose, or the body only (head/neck/jaw run on their own look-around clock in flee/investigate/prowl).
+  const HEAD = new Set(['neck', 'head', 'jaw']);
+  const snapWith = (bodyOnly) => { const v = []; for (const [n, b] of Object.entries(bones)) { if (bodyOnly && HEAD.has(n)) continue; v.push(b.rotation.x, b.rotation.y, b.rotation.z, b.position.y); } return v; };
+  let snap = () => snapWith(false);
+  const delta = (a, b) => Math.max(...a.map((x, i) => Math.abs(x - b[i])));
+  const res = {};
+  for (const [clip, state, speed] of [['idle', 'roam', 0], ['walk', 'roam', 1.8], ['run', 'roam', 5.5], ['flee', 'flee', 8.5], ['investigate', 'investigate', 1.2], ['prowl', 'shadow', 0.9]]) {
+    snap = () => snapWith(['flee', 'investigate', 'prowl'].includes(clip));
+    for (let i = 0; i < 400; i++) anim.animate(1 / 60, speed, state);           // let blends settle fully
+    if (clip === 'idle') {
+      const a = snap();
+      for (let i = 0; i < A.IDLE_PERIOD * 60; i++) anim.animate(1 / 60, speed, state);
+      res[clip] = +delta(a, snap()).toExponential(2);
+      continue;
+    }
+    // Land exactly on the same stride phase one cycle later.
+    const p0 = anim.phase;
+    const dt = 1 / 240; anim.animate(dt, speed, state);
+    const rate = ((anim.phase - p0 + Math.PI * 2) % (Math.PI * 2)) / dt;
+    const start = snap(), startPhase = anim.phase;
+    const cycle = (Math.PI * 2) / rate;
+    let t = 0;
+    while (t + dt < cycle - 1e-9) { anim.animate(dt, speed, state); t += dt; }
+    anim.animate(cycle - t, speed, state);
+    res[clip] = +delta(start, snap()).toExponential(2);
+    res[`${clip}PhaseErr`] = +Math.abs(anim.phase - startPhase).toExponential(2);
+  }
+  anim.poseFps = A.POSE_FPS;
+  return res;
+});
+for (const c of ['idle', 'walk', 'run']) check(`${c} loops seamlessly (pose after one full cycle matches the start)`, loops[c] < 1e-3, { maxDelta: loops[c] });
+check('flee, investigate and prowl bodies loop seamlessly too (head looks around on its own clock)', ['flee', 'investigate', 'prowl'].every((c) => loops[c] < 1e-3), loops);
+
+// ---- 3) Stepped posing: limbs pose at the pixel-art rate, held in between ----------------------
+const stepped = await page.evaluate(() => {
+  const anim = __viewer.animator, b = __viewer.bf.userData.bones.thighL;
+  let changes = 0, prev = b.rotation.x;
+  for (let i = 0; i < 60; i++) { anim.animate(1 / 60, 1.8, 'roam'); if (b.rotation.x !== prev) { changes++; prev = b.rotation.x; } }
+  return { posesPerSecond: changes, poseFps: anim.poseFps };
+});
+check('walking poses snap at the pixel-art rate (about 12 poses per second, held between)', stepped.posesPerSecond >= 10 && stepped.posesPerSecond <= 13, stepped);
+
+// ---- 4) Knock: anticipation (arm draws back first) and follow-through (overshoot, settle) -------
 const knock = await page.evaluate(async () => {
-  const g = __game; g.overlay.classList.add('hidden'); g.huntFailure.enabled = false;
-  const c = g.cryptids.cryptids.find((c) => c.profile.id === 'bigfoot');
+  const A = await import('/src/cryptids/bigfootAnim.js');
+  const anim = __viewer.animator, R = __viewer.bf.userData.bones.upperArmR;
+  anim.poseFps = 0;
+  for (let i = 0; i < 120; i++) anim.animate(1 / 60, 0, 'roam');
+  const restArm = R.rotation.x;
+  anim.play('knock', { count: 2 });
+  const samples = [];
+  for (let i = 0; i < 200 && anim.action; i++) { anim.animate(1 / 120, 0, 'roam'); samples.push([+(i / 120).toFixed(3), R.rotation.x]); }
+  anim.poseFps = A.POSE_FPS;
+  const K = A.KNOCK;
+  const pre = samples.filter(([t]) => t < K.windup * 0.3);
+  const anticipation = Math.min(...pre.map(([, a]) => a));
+  const peak = Math.max(...samples.map(([, a]) => a));
+  const second = samples.filter(([t]) => t > K.windup + K.gap && t < K.windup + K.gap * 1.3);
+  const overshoot = Math.min(...second.map(([, a]) => a));
+  const settle = samples.filter(([t]) => t > K.windup + K.gap * 1.3 && t < K.windup + K.gap * 1.6).map(([, a]) => a);
+  return { restArm: +restArm.toFixed(2), anticipationLow: +anticipation.toFixed(2), peakOverhead: +peak.toFixed(2), strikeLow: +overshoot.toFixed(2), settledAt: +(settle[0] ?? NaN).toFixed(2), finished: !anim.action };
+});
+check('knock anticipation: the arm drops and draws back before rearing up', knock.anticipationLow < knock.restArm - 0.05 || knock.anticipationLow < 0.4, knock);
+check('knock follow-through: the blow overshoots past the contact pose, then settles back', knock.strikeLow < knock.settledAt - 0.1 && knock.peakOverhead > 2.5, knock);
+check('knock finishes by itself', knock.finished, knock);
+
+// ---- 5) Rig-parameterized: a bigger, longer-legged rig gets a longer stride --------------------
+const rig = await page.evaluate(async () => {
+  const A = await import('/src/cryptids/bigfootAnim.js');
+  const { buildBigfootModel, BIGFOOT_SCALE } = await import('/src/cryptids/bigfootModel.js');
+  const { PROFILES } = await import('/src/cryptids/profiles.js');
+  const m = buildBigfootModel(PROFILES.bigfoot), b = m.userData.bones;
+  const base = A.createBigfootAnimator(m, b, { worldScale: BIGFOOT_SCALE });
+  b.shinL.position.y *= 1.25; b.footL.position.y *= 1.25; b.hips.position.y *= 1.2;
+  const longer = A.createBigfootAnimator(m, b, { worldScale: BIGFOOT_SCALE * 1.2 });
+  return { baseStride: +base.STRIDE.toFixed(2), longerStride: +longer.STRIDE.toFixed(2), baseHips: +base.rest.hipsY.toFixed(2), longerHips: +longer.rest.hipsY.toFixed(2) };
+});
+check('rig is parameterized: longer legs / bigger scale give a longer stride and higher hips', rig.longerStride > rig.baseStride * 1.3 && rig.longerHips > rig.baseHips, rig);
+
+// ---- 6) In game: AI state changes and a real wood knock play the right clips -------------------
+const game = await browser.newPage({ viewport: { width: 960, height: 540 } });
+game.on('pageerror', (e) => errors.push(e.message));
+await game.goto(`http://localhost:${PORT}/?map=forest&nodebugai`);
+await game.waitForFunction(() => window.__game, null, { timeout: 90000 });
+const inGame = await game.evaluate(async (aiStates) => {
+  const A = await import('/src/cryptids/bigfootAnim.js');
+  const g = __game; g.overlay.classList.add('hidden'); if (g.huntFailure) g.huntFailure.enabled = false;
+  const c = g.cryptids.cryptids.find((k) => k.profile.id === 'bigfoot');
+  const rows = [];
+  for (const s of aiStates) for (const sp of [0, 1.5, 5]) {
+    c.mesh.userData.animate(1 / 6, sp, s);           // what the AI calls every frame
+    rows.push({ s, sp, got: c.mesh.userData.clip, want: A.clipFor(s, sp) });
+  }
+  const wrong = rows.filter((r) => r.got !== r.want);
+  // A real state change through the AI: spook it, then let the AI tick.
+  c.setState?.('flee', 'check');
+  for (let i = 0; i < 6; i++) c.update(1 / 12);
+  const afterFlee = { state: c.state, clip: c.mesh.userData.clip, want: A.clipFor(c.state, c.agent.currentSpeed) };
+  // A real wood knock from the knock system.
+  c.setState?.('roam', 'check');
   g.knocks.cryptidKnock(c, 'call');
-  const started = c.mesh.userData.action;
-  await new Promise((r) => setTimeout(r, 4500));
-  return { started, after: c.mesh.userData.action };
-});
-check('a wood knock plays the knock animation, then returns to normal', knock.started === 'knock' && knock.after === null, knock);
+  const started = c.mesh.userData.clip;
+  for (let i = 0; i < 60; i++) c.mesh.userData.animate(1 / 12, 0, 'roam');
+  return { wrong, tested: rows.length, afterFlee, knockStarted: started, knockAfter: c.mesh.userData.action };
+}, aiStates);
+check('every state/speed the AI feeds the model plays the mapped clip', inGame.wrong.length === 0, { tested: inGame.tested, wrong: inGame.wrong.slice(0, 4) });
+check('a real AI state change plays the matching clip', inGame.afterFlee.clip === inGame.afterFlee.want, inGame.afterFlee);
+check('a real wood knock plays the knock clip, then returns to normal', inGame.knockStarted === 'knock' && inGame.knockAfter === null, { started: inGame.knockStarted, after: inGame.knockAfter });
 
-// Studio setup: freeze the AI, park Bigfoot in the open, light it, hide the HUD.
-await page.evaluate(() => {
-  const g = __game;
-  for (const el of document.body.children) if (el !== g.renderer.domElement) el.style.visibility = 'hidden';
-  g.cryptids.update = () => {};
-  if (g.fear) { g.fear.update = () => {}; g.fear.value = 0; }
-  for (const ch of g.camera.children) if (!ch.isLight && ch !== g.flashlight.light.target) Object.defineProperty(ch, 'visible', { get: () => false, set: () => {} });
-  const c = g.cryptids.cryptids.find((c) => c.profile.id === 'bigfoot');
-  g.bf = c; if (c.awarenessBar) c.awarenessBar.visible = false;
-  c.mesh.position.set(0, 0, -5); c.mesh.rotation.y = 0;
-  g.fill = new g.THREE.PointLight(0xffb070, 16, 18, 1.4); g.fill.position.set(3.5, 3.2, -3); g.scene.add(g.fill);
-  const p = g.player; p.position.set(6.2, 0, -5); p.yaw = Math.PI / 2; p.pitch = 0.2; p.velocity.set(0, 0, 0);
-});
-await page.waitForTimeout(400);
-
-// Pose signature: every bone's rotation, for loop and distinctness checks.
-const pose = () => page.evaluate(() => {
-  const b = __game.bf.mesh.userData.bones, v = [];
-  for (const k of ['hips', 'spine', 'chest', 'neck', 'thighL', 'thighR', 'shinL', 'shinR', 'upperArmL', 'upperArmR', 'forearmL', 'forearmR'])
-    v.push(b[k].rotation.x, b[k].rotation.y, b[k].rotation.z);
-  v.push(b.hips.position.y);
-  return v;
-});
-const diff = (a, b) => Math.max(...a.map((x, i) => Math.abs(x - b[i])));
-// Loop check: the stride-driven body only (head scanning / glancing runs on its own clock, so it never seams).
-const NECK = [9, 10, 11];
-const bodyDiff = (a, b) => Math.max(...a.map((x, i) => (NECK.includes(i) ? 0 : Math.abs(x - b[i]))));
-const step = (dt, speed, state, n = 1) => page.evaluate(([dt, speed, state, n]) => {
-  for (let i = 0; i < n; i++) __game.bf.mesh.userData.animate(dt, speed, state);
-}, [dt, speed, state, n]);
-
-const CLIPS = [
-  // name, speed (m/s), AI state, cycle seconds (one full stride cycle: 2 * stride / speed)
-  ['idle', 0, 'roam', 4.4],
-  ['walk', 1.8, 'roam', 2 * 1.5 * 1.55 / 1.8],
-  ['run', 8.5, 'flee', 2 * 1.5 * 1.55 * 1.9 / 8.5],
-  ['investigate-walk', 1.3, 'investigate', 2 * 1.5 * 1.55 * 0.75 / 1.3],
-  ['investigate-look', 0, 'investigate', 5.4],
-  ['stare', 0, 'observe', 4.4],
-];
-const sigs = {};
-for (const [name, speed, state, cycle] of CLIPS) {
-  await step(1 / 30, speed, state, 120);                         // settle the blends
-  const frames = 30, dt = cycle / frames, dir = `${out}/_f_${name}`;
-  rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
-  const first = await pose();
-  for (let i = 0; i < frames; i++) {
-    await step(dt, speed, state);
-    await page.waitForTimeout(40);
-    await page.screenshot({ path: `${dir}/${String(i).padStart(3, '0')}.png`, clip: { x: 230, y: 0, width: 500, height: 540 } });
+// ---- 7) GIFs of every clip from the viewer (side view, stepped posing as in game) --------------
+const frames = `${out}/_frames`;
+const clips = ['idle', 'walk', 'run', 'flee', 'investigate', 'prowl', 'stare', 'knock'];
+const stills = [];
+for (const clip of clips) {
+  rmSync(frames, { recursive: true, force: true }); mkdirSync(frames, { recursive: true });
+  await page.evaluate((clip) => { __viewer.setClip(clip); __viewer.setYaw(clip === 'knock' || clip === 'stare' ? Math.PI - 0.9 : -Math.PI / 2); for (let i = 0; i < 90; i++) __viewer.step(1 / 30); }, clip);
+  const n = clip === 'knock' ? 60 : 48;
+  for (let i = 0; i < n; i++) {
+    const url = await page.evaluate(() => { __viewer.step(1 / 24); return __viewer.renderer.domElement.toDataURL('image/png'); });
+    writeFileSync(`${frames}/${String(i).padStart(3, '0')}.png`, Buffer.from(url.split(',')[1], 'base64'));
+    if (i === Math.floor(n / 3)) stills.push(`${frames}/${String(i).padStart(3, '0')}.png`);
   }
-  sigs[name] = first;
-  if (speed > 0) { const end = await pose(); check(`${name} loops seamlessly (body pose after one stride cycle matches the start)`, bodyDiff(first, end) < 0.06, { maxBoneDelta: +bodyDiff(first, end).toFixed(3) }); }
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(Math.round(frames / cycle)), '-i', `${dir}/%03d.png`,
-    '-vf', 'scale=300:-1:flags=neighbor,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=none', `${out}/${name}.gif`]);
-  rmSync(dir, { recursive: true, force: true });
+  spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '24', '-i', `${frames}/%03d.png`,
+    '-vf', 'crop=iw*0.6:ih:iw*0.2:0,scale=iw*2:ih*2:flags=neighbor,split[x][y];[x]palettegen=max_colors=96[p];[y][p]paletteuse', `${out}/${clip}.gif`]);
+  spawnSync('cp', [stills[stills.length - 1], `${out}/_still-${clip}.png`]);
 }
-// Knock (one-shot, 3 strikes), from idle.
-{
-  await step(1 / 30, 0, 'roam', 60);
-  await page.evaluate(() => __game.bf.mesh.userData.play('knock', { count: 3 }));
-  const dir = `${out}/_f_knock`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
-  let i = 0, peak = -Infinity;
-  while (await page.evaluate(() => __game.bf.mesh.userData.action) && i < 120) {
-    await step(1 / 20, 0, 'roam');
-    peak = Math.max(peak, (await pose())[27]);                     // upperArmR.x
-    await page.waitForTimeout(40);
-    await page.screenshot({ path: `${dir}/${String(i++).padStart(3, '0')}.png`, clip: { x: 230, y: 0, width: 500, height: 540 } });
-  }
-  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '20', '-i', `${dir}/%03d.png`,
-    '-vf', 'scale=300:-1:flags=neighbor,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=none', `${out}/knock.gif`]);
-  rmSync(dir, { recursive: true, force: true });
-  check('knock raises the arm overhead and finishes by itself', peak > 2.3 && i < 120, { frames: i, peakArm: +peak.toFixed(2) });
-}
-const names = Object.keys(sigs);
-const minPair = Math.min(...names.flatMap((a, i) => names.slice(i + 1).map((b) => diff(sigs[a], sigs[b]))));
-check('every clip has a visibly different pose', minPair > 0.05, { minDifference: +minPair.toFixed(3) });
+// Contact sheet: one pose from each clip.
+spawnSync('ffmpeg', ['-y', '-loglevel', 'error', ...clips.flatMap((c) => ['-i', `${out}/_still-${c}.png`]),
+  '-filter_complex', `${clips.map((_, i) => `[${i}:v]crop=iw*0.5:ih:iw*0.25:0[c${i}]`).join(';')};${clips.map((_, i) => `[c${i}]`).join('')}xstack=inputs=8:layout=0_0|w0_0|w0+w1_0|w0+w1+w2_0|0_h0|w0_h0|w0+w1_h0|w0+w1+w2_h0,scale=iw*2:ih*2:flags=neighbor`,
+  `${out}/00-all-clips-contact-sheet.png`]);
+for (const c of clips) rmSync(`${out}/_still-${c}.png`, { force: true });
+rmSync(frames, { recursive: true, force: true });
 
 check('no page errors', errors.length === 0, errors);
 console.log(results.join('\n'));
