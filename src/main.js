@@ -37,6 +37,7 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
+import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
 import { CinematicLighting } from './maps/cinematicLighting.js';
@@ -63,9 +64,12 @@ const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
 
-// Pick the map with ?map=forest or ?map=swamp (default: the greybox test map).
+// Base camp (money, gear, reputation, chosen map) is loaded first: it decides where you hunt.
+const camp = new Camp();
+// Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap };
-const mapId = new URLSearchParams(location.search).get('map') ?? 'test';
+const mapId = resolveMap(location.search, camp);
+const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
 const { colliders, bounds, spawns } = map;
 if (map.environment) {
@@ -88,17 +92,17 @@ if (map.exit) HUNT.exit.set(map.exit.x, 0, map.exit.z);
 else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.position.z + Math.cos(player.yaw) * 7);
 // Base camp: money, owned gear and past hunts carry over between hunts. This hunt's photos only
 // count if you drive home from the van; getting caught loses them, gear comes home.
-const camp = new Camp();
 addEventListener('pagehide', () => camp.save());   // save on quit (money is also saved whenever it changes)
 const packed = camp.packForHunt();
-const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot',
+const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: huntTarget,
   onEnd: (outcome) => {
     const h = camp.settleHunt({
-      outcome, target: 'Bigfoot', dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
+      outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
       gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
     });
     const summary = huntSummary(h);
+    reputation.set(camp.state.reputation ?? 0);   // keep the live reputation in step with camp
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
     return { summary, money: camp.state.money, entry: h };
   },
@@ -108,6 +112,10 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bi
     setTimeout(() => { for (const c of cryptids.cryptids) c.mesh.visible = false; cryptids.clear(); }, 20000);
   } });
 showCampPanel(camp);
+showMapPicker({ current: mapId, reputation: camp.state.reputation ?? 0, onPick: (id) => {
+  camp.state.map = id; camp.save();
+  location.href = location.pathname;            // reload into the chosen map (drops any ?map=)
+} });
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 // Outdoor maps can opt into the night lighting baseline (moon, haze, ambient, sky).
@@ -272,7 +280,8 @@ const drawFrame = () => pixels.frame(() => { water?.renderReflection(); if (!nig
 // once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
 // ?rep=<n> starts at n, F8 sets it to max, or __game.reputation.set(n).
 const textCard = new TextCard();
-const reputation = new ReputationStub(Number(new URLSearchParams(location.search).get('rep') ?? 0));
+const reputation = new ReputationStub(Number(new URLSearchParams(location.search).get('rep') ?? camp.state.reputation ?? 0));
+reputation.onChange((v) => { camp.state.reputation = v; camp.save(); }); // base camp keeps it between hunts
 // Automated browser checks skip the cards (they'd eat the first key press) unless ?cards is given.
 const cardsOn = !navigator.webdriver || new URLSearchParams(location.search).has('cards');
 const story = new StoryCards({ show: (id) => (cardsOn ? textCard.show(id) : null) });
