@@ -5,6 +5,8 @@ import { buildTestMap } from './testMap.js';
 import { Flashlight } from './flashlight.js';
 import { Mothman } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
+import { BatteryPickups } from './pickups.js';
+import { Hud } from './hud.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -36,6 +38,8 @@ scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
+const batteries = new BatteryPickups(scene, player, flashlight);
+const bars = new Hud(player, flashlight);
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -55,14 +59,17 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   player.update(dt);
+  flashlight.update(dt);
+  batteries.update(dt);
   mothman.update(dt);
   chupacabra.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}`;
+  bars.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { player, flashlight, mothman, chupacabra, input, scene, camera, renderer, overlay };
+window.__game = { player, flashlight, batteries, mothman, chupacabra, input, scene, camera, renderer, overlay };
