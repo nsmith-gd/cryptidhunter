@@ -14,7 +14,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto('http://localhost:4320/');
+await page.goto('http://localhost:4320/?nosenses');
 await page.waitForFunction(() => window.__game);
 await page.evaluate(() => __game.overlay.classList.add('hidden'));
 

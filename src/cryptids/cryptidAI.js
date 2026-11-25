@@ -1,19 +1,23 @@
 import * as THREE from 'three';
 import { NavAgent } from './navAgent.js';
 import { DEFAULT_PROFILE } from './profiles.js';
+import { Perception } from './perception.js';
 
 const FLEE_TINT = new THREE.Color(0xc0392b);
 
 // Shared cryptid brain (L0 greybox): wander between random walkable points around home,
 // bolt away when the player gets inside the flee distance, calm down once safe.
 // Lures (bait) it can smell pull it off its roam: it walks over, eats, then roams from there.
-// Hearing / sight / investigate / attack / clue-dropping come at later levels.
+// With senses (L1) it bolts when it actually detects the player (hearing + sight, see
+// perception.js) instead of at a fixed distance.
 export class CryptidAI {
   /**
    * @param {object} o { scene, grid, profile, x, z, getPlayerPosition: () => THREE.Vector3, rand,
-   *   lures: { lures(): {x, z, gone, claimedBy}[], consume(lure), eatTime } (optional) }
+   *   lures: { lures(): {x, z, gone, claimedBy}[], consume(lure), eatTime } (optional),
+   *   senses: { player, flashlight, camera, colliders, lightLevel } (optional: enables hearing + sight) }
    */
-  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null }) {
+  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null, senses = null }) {
+    this.perception = senses ? new Perception(profile, senses) : null;
     this.profile = profile;
     this.lureSource = lures;
     this.lure = null;          // bait it's heading to / eating
@@ -33,6 +37,7 @@ export class CryptidAI {
 
     this.mesh = buildCapsule(profile);
     scene.add(this.mesh);
+    if (this.perception) scene.add(this.buildAwarenessBar()); // separate from the body so it doesn't change its size
     this.baseColor = new THREE.Color(profile.color);
     this.pickRoamPoint();
     this.syncMesh();
@@ -43,9 +48,10 @@ export class CryptidAI {
   update(dt) {
     const p = this.getPlayerPosition?.();
     this.playerDistance = p ? Math.hypot(p.x - this.agent.x, p.z - this.agent.z) : Infinity;
+    this.perception?.update(dt, this.agent.x, this.agent.z, this.agent.heading);
 
     if (this.state === 'roam' || this.state === 'investigate') {
-      if (this.playerDistance < this.profile.fleeTriggerDistance) this.enterFlee(p);
+      if (this.noticesPlayer()) this.enterFlee(p);
       else if (this.state === 'investigate') this.tickInvestigate(dt);
       else if (!this.findLure()) this.tickRoam(dt);
     } else {
@@ -54,6 +60,11 @@ export class CryptidAI {
     }
     this.agent.update(dt);
     this.syncMesh();
+  }
+
+  // With senses: only once it has actually detected you. Without: the old fixed trigger distance.
+  noticesPlayer() {
+    return this.perception ? this.perception.detected : this.playerDistance < this.profile.fleeTriggerDistance;
   }
 
   tickRoam(dt) {
@@ -174,9 +185,40 @@ export class CryptidAI {
   syncMesh() {
     this.mesh.position.set(this.agent.x, 0, this.agent.z);
     this.mesh.rotation.y = this.agent.heading;
+    const bar = this.awarenessBar;
+    if (bar && this.perception) {
+      bar.position.set(this.agent.x, this.profile.height + 0.35, this.agent.z);
+      const a = this.perception.awareness;
+      bar.visible = a > 0.02;
+      bar.userData.fill.scale.x = Math.max(0.001, a);
+      bar.userData.fill.material.color.set(this.perception.detected ? 0xff3b2f : this.perception.seen ? 0xffc23a : 0xd8d8d8);
+    }
+  }
+
+  // Greybox "it's noticing you" meter above the head: grey (heard) -> amber (seen) -> red (detected).
+  buildAwarenessBar() {
+    const g = new THREE.Group();
+    const w = 1.0, h = 0.16;
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0x111111, fog: false, depthTest: false, transparent: true, opacity: 0.7 }));
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(w, h).translate(w / 2, 0, 0), new THREE.MeshBasicMaterial({ color: 0xd8d8d8, fog: false, depthTest: false }));
+    fill.position.x = -w / 2;
+    fill.position.z = 0.001;
+    back.renderOrder = fill.renderOrder = 10;
+    g.add(back, fill);
+    g.position.y = this.profile.height + 0.35;
+    g.userData.fill = fill;
+    this.awarenessBar = g;
+    // Always face the camera, and grow with distance so it stays readable at the low render resolution.
+    fill.onBeforeRender = back.onBeforeRender = (r, s, cam) => {
+      g.quaternion.copy(cam.quaternion);
+      const d = cam.position.distanceTo(g.position);
+      g.scale.setScalar(Math.max(1, d / 8));
+    };
+    return g;
   }
 
   dispose() {
+    this.awarenessBar?.removeFromParent();
     this.mesh.removeFromParent();
     this.mesh.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
   }
