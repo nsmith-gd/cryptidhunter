@@ -35,6 +35,7 @@ import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
+import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
 import { CinematicLighting } from './maps/cinematicLighting.js';
@@ -94,7 +95,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bi
     const h = camp.settleHunt({
       outcome, target: 'Bigfoot', dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
-      gearLeft: { bait: bait.carried, spareBatteries: flashlight.spares },
+      gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
     });
     const summary = huntSummary(h);
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
@@ -123,8 +124,6 @@ const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
 chupacabra.lures = { lures: () => bait.lures(), consume: (b) => bait.consume(b) };
-bait.carried = packed.bait;               // carry what base camp owns
-flashlight.spares = packed.spareBatteries;
 // L sets an audio lure: it plays a Bigfoot call every few seconds and Bigfoot comes to check.
 const audioLures = new AudioLures({ scene, player, input, notify: (m) => photo?.toast(m) });
 // Fear: rises in the dark, near cryptids and on scares; light and the van calm you; high fear sways your aim.
@@ -227,6 +226,18 @@ const trailCams = new TrailCameras({ scene, player, input, getSubjects: () => ph
 // V toggles night-vision goggles: see in the dark (green, narrow view) without light; shares the
 // flashlight's battery. Cryptids can't see it, unlike the torch.
 const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi, input, photo, notify: (m) => photo.toast(m) });
+// Loadout: 4 slots picked on the start screen from gear you own; 1-4 / wheel to pick, Q (or
+// left-click with the camera down) to use. Only slotted gear is carried.
+// ?loadout=nightVision,knockStick,... packs those items instead (testing / quick setups).
+const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',').filter(Boolean);
+const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input,
+  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight } });
+photo.onLoweredClick = () => loadout.use();
+const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange: (slots) => {
+  if (hunt.stage !== 'briefing') return;         // packing happens before you set off
+  camp.state.loadout = slots; camp.save();
+  loadout.setSlots(slots);
+} });
 
 // Getting touched by a cryptid ends the hunt.
 const huntFailure = new HuntFailure({
@@ -268,7 +279,7 @@ const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => input.requestLock());
 document.addEventListener('pointerlockchange', () => {
   overlay.classList.toggle('hidden', input.locked);
-  if (input.locked) hunt.start();   // the night clock starts with the first click into the game
+  if (input.locked) { hunt.start(); if (picker) picker.el.style.display = 'none'; }   // the night clock starts with the first click into the game
 });
 
 const hud = document.getElementById('hud');
@@ -301,6 +312,7 @@ function frame() {
   nightVision.update(dt);
   audioLures.update(dt);
   trailCams.update(dt);
+  loadout.render();
   hunt.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
@@ -326,4 +338,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

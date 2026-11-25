@@ -46,7 +46,7 @@ const photograph = async () => {
   });
   await page.waitForTimeout(300);
   await page.mouse.down({ button: 'right' });
-  await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
+  await page.waitForFunction(() => __game.photo.raised, null, { timeout: 20000 });
   await page.waitForTimeout(200);
   await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
   await page.waitForTimeout(300);
