@@ -23,6 +23,7 @@ import { HuntFailure } from './hunt/huntFailure.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
 import { LevelFlow } from './hunt/levelFlow.js';
 import { PhotoCamera } from './hunt/photoCamera.js';
+import { Fear } from './hunt/fear.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
@@ -80,7 +81,18 @@ mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
 const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
-const bars = new Hud(player, flashlight);
+// Fear: rises in the dark, near cryptids and on scares; light and the van calm you; high fear sways your aim.
+const fear = new Fear({
+  scene, player, flashlight, camera, safeZone: HUNT.exit,
+  getThreats: () => [
+    ...cryptids.cryptids.map((c) => ({ id: c.profile.name, x: c.agent.x, z: c.agent.z, state: c.state })),
+    ...(sandbox ? [
+      { id: 'Mothman', x: mothman.mesh.position.x, z: mothman.mesh.position.z },
+      { id: 'Chupacabra', x: chupacabra.position.x, z: chupacabra.position.z },
+    ] : []),
+  ],
+});
+const bars = new Hud(player, flashlight, fear);
 const noiseRing = new NoiseRing(scene, player);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
@@ -131,6 +143,7 @@ const photo = new PhotoCamera({
     ] : []),
   ],
   onPhoto: (r) => hunt.onPhoto(r),
+  getShake: () => fear.swaySpeed,
 });
 
 // Getting touched by a cryptid ends the hunt.
@@ -176,6 +189,8 @@ function frame() {
     return;
   }
   player.update(dt);
+  fear.update(dt);
+  fear.applySway(dt);
   flashlight.update(dt);
   batteries.update(dt);
   bait.update(dt);
@@ -209,4 +224,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, fear, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

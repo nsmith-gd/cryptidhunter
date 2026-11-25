@@ -1,8 +1,9 @@
 // Plain HUD bars for stamina, flashlight battery and (debug) player noise, top-left.
 export class Hud {
-  constructor(player, flashlight) {
+  constructor(player, flashlight, fear = null) {
     this.player = player;
     this.flashlight = flashlight;
+    this.fear = fear;
     const root = document.createElement('div');
     Object.assign(root.style, { position: 'fixed', left: '8px', top: '8px', font: '11px monospace', color: '#ccc',
       textShadow: '0 0 2px #000', pointerEvents: 'none' });
@@ -10,6 +11,12 @@ export class Hud {
     this.stamina = this.bar(root, 'STAMINA', '#7fc8ff');
     this.battery = this.bar(root, 'BATTERY', '#ffe27a');
     this.noise = this.bar(root, 'NOISE', '#c9a0ff');   // debug readout of what cryptids can hear
+    if (fear) this.fearBar = this.bar(root, 'FEAR', '#e0604a');
+    // Fear vignette: the screen edges darken and redden as fear climbs.
+    this.vignette = document.createElement('div');
+    Object.assign(this.vignette.style, { position: 'fixed', inset: '0', pointerEvents: 'none', opacity: '0',
+      background: 'radial-gradient(ellipse at center, transparent 45%, #2a0000 100%)' });
+    document.body.prepend(this.vignette); // first in the page: over the 3D view, under every HUD element
   }
 
   bar(root, label, color) {
@@ -39,6 +46,13 @@ export class Hud {
     const label = n < 0.02 ? 'silent' : n < 0.25 ? 'quiet' : n < 0.7 ? 'medium' : 'loud';
     this.noise.fill.style.width = `${(n * 100).toFixed(1)}%`;
     this.noise.note.textContent = `${n.toFixed(2)} ${label}  (${p.noiseRadius.toFixed(1)} m)`;
+    if (this.fear) {
+      const v = this.fear.value;
+      this.fearBar.fill.style.width = `${v.toFixed(1)}%`;
+      this.fearBar.fill.style.background = v > 70 ? '#ff3a2a' : this.fearBar.color;
+      this.fearBar.note.textContent = v < 20 ? 'calm' : v < 45 ? 'uneasy' : v < 70 ? 'scared' : 'terrified';
+      this.vignette.style.opacity = String(Math.max(0, (v - 30) / 70) * 0.9);
+    }
     this.battery.note.textContent = `${Math.ceil(f.battery * 100)}%  spares ${f.spares}${f.battery < 0.15 && f.spares ? '  [R] swap' : ''}`;
   }
 }
