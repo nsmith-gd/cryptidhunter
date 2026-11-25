@@ -9,6 +9,7 @@ import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
 import { AIDebug } from './cryptids/aiDebug.js';
+import { WoodKnocks } from './cryptids/woodKnock.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
 import { Journal } from './journal/journal.js';
@@ -112,6 +113,8 @@ const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPla
   senses: new URLSearchParams(location.search).has('nosenses') ? null
     : { player, flashlight, camera, lightLevel: map.environment?.lightLevel ?? 0 } });
 // State-machine debug overlay (F4 toggles; ?nodebugai starts it hidden).
+// Bigfoot knocks on trees now and then; K knocks back with your stick and can draw it closer.
+const knocks = new WoodKnocks({ cryptids, player, camera, fear, input });
 const aiDebug = new AIDebug(scene, cryptids, { visible: !new URLSearchParams(location.search).has('nodebugai') });
 
 // Clues: cryptids drop footprints / hair / scratch marks along the route they actually take.
@@ -208,6 +211,7 @@ function frame() {
   batteries.update(dt);
   bait.update(dt);
   cryptids.update(dt);
+  knocks.update(dt);
   clueTrails.update();
   clues.update(dt);
   journal.update(dt);
@@ -240,4 +244,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, fear, trailCams, audioLures, synthWhoop, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
