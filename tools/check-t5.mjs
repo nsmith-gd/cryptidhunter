@@ -23,6 +23,9 @@ await page.goto('http://localhost:4319/');
 await page.waitForFunction(() => window.__game);
 await page.evaluate(() => {
   __game.overlay.classList.add('hidden');
+  // Test the shared AI on the generic capsule, whatever the level spawns.
+  __game.cryptids.clear();
+  __game.cryptids.spawn(__game.cryptidProfiles.default, 10, -25);
   // Overhead debug camera with flat fill light, only used for the capture frames.
   const T = __game.camera.constructor; // PerspectiveCamera
   window.__top = new T(50, 960 / 540, 1, 200);

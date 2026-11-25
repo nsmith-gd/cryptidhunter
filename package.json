@@ -10,7 +10,8 @@
     "check:t2": "vite build && node tools/check-t2.mjs",
     "check:t5": "vite build && node tools/check-t5.mjs",
     "check:t7": "vite build && node tools/check-t7.mjs",
-    "check:t8": "vite build && node tools/check-t8.mjs"
+    "check:t8": "vite build && node tools/check-t8.mjs",
+    "check:t6": "vite build && node tools/check-t6.mjs"
   },
   "repository": {
     "type": "git",
