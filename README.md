@@ -9,7 +9,9 @@ npm run dev        # open the printed URL, click to play
 npm run build      # production build into dist/
 ```
 
-Controls: WASD move · mouse look · Shift sprint · Ctrl or C crouch (hold) · Esc releases the mouse.
+Controls: WASD move · mouse look · Shift sprint · Ctrl or C crouch (hold) · F flashlight · Esc releases the mouse.
 
 ## Checks
+`npm run check:t2` checks the flashlight toggle in the dark map and writes screenshots to `.ballast/media/t2/`.
+
 `npm run check:t1` builds, opens the greybox map headlessly, drives the player and writes screenshots to `.ballast/media/t1/`.
