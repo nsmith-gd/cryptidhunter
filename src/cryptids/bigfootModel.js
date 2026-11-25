@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  pixelMaterial, furTexture, skinTexture, furFringeTexture, bigfootSnarlTexture,
+  pixelMaterial, furTexture, skinTexture, furFringeTexture, bigfootScowlTexture, longHairTexture,
 } from '../art/pixelTex.js';
 
 // Bigfoot (final, #42): a big, hunched, menacing low-poly body (~3.4 m tall standing, shoulders
@@ -14,7 +14,7 @@ import {
 //                          hips ─ thighL/R ─ shin ─ foot ─ toes
 
 const FWD = -1;          // model forward is -Z
-export const BIGFOOT_SCALE = 1.32;   // the rig below is authored at ~2.6 m; scaled up to ~3.4 m
+export const BIGFOOT_SCALE = 1.55;   // the rig below is authored at ~2.6 m; scaled up to ~4 m
 
 // Box with its top face scaled (taper), pivot at the top so limbs hang from their joint.
 function limbGeo(w, h, d, { taper = 1, taperD = taper, pivot = 'top', ppm = 4 } = {}) {
@@ -49,13 +49,16 @@ export function buildBigfootModel(profile) {
   const fur = pixelMaterial(furTexture(0), { flatShading: true });
   const furDark = pixelMaterial(furTexture(1), { flatShading: true });
   const skin = pixelMaterial(skinTexture(), { flatShading: true });
-  const face = pixelMaterial(bigfootSnarlTexture(), { flatShading: true });
+  const face = pixelMaterial(bigfootScowlTexture(), { flatShading: true });
   const fringe = [0, 1].map((v) => pixelMaterial(furFringeTexture(v), { side: THREE.DoubleSide }));
+  fringe.push(pixelMaterial(longHairTexture(), { side: THREE.DoubleSide }));   // variant 2: long mane
   const claw = new THREE.MeshStandardMaterial({ color: 0x8a7a58, roughness: 0.5, flatShading: true });
   const tooth = new THREE.MeshStandardMaterial({ color: 0xb8a878, roughness: 0.4, flatShading: true });
   const mouth = new THREE.MeshBasicMaterial({ color: 0x0b0708 });
   // Eyeshine: two hot amber points that catch your torch from the dark.
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffc061 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffd27a });
+  // Glow halo around each eye: additive, so the eyes burn out of the dark at any distance.
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
 
   const root = new THREE.Group();
   root.name = `cryptid-${profile.id}`;
@@ -100,15 +103,17 @@ export function buildBigfootModel(profile) {
   const chest = joint('chest', spine, 0, 0.42, 0);
   part('ribcage', chest, limbGeo(1.02, 0.56, 0.62, { taper: 0.7, taperD: 0.82, pivot: 'bottom' }), furDark, 0, 0, 0.02);
   for (const s of [-1, 1]) part(`pec${s}`, chest, limbGeo(0.36, 0.26, 0.12, { taper: 0.85, pivot: 'center' }), fur, s * 0.2, 0.34, FWD * 0.29);
-  part('hump', chest, limbGeo(0.86, 0.3, 0.42, { taper: 1.25, pivot: 'bottom' }), furDark, 0, 0.46, 0.12);   // trapezius
+  part('hump', chest, limbGeo(0.98, 0.38, 0.48, { taper: 1.35, pivot: 'bottom' }), furDark, 0, 0.44, 0.12);   // massive trapezius
+  for (const s of [-1, 1]) part(`trap${s}`, chest, limbGeo(0.3, 0.3, 0.36, { taper: 0.6, pivot: 'bottom' }), furDark, s * 0.32, 0.6, 0.06);   // the head sinks between them
   shag(chest, 0.74, 0.34, ring(7, -Math.PI * 0.45, Math.PI * 0.45), 0.3, 0.55, { variant: 1, tilt: 0.45 });     // mane down the back
   shag(chest, 0.44, 0.36, ring(6, -Math.PI * 0.4, Math.PI * 0.4), 0.32, 0.5, { variant: 1, tilt: 0.3 });
   shag(chest, 0.5, 0.33, ring(4, Math.PI * 0.8, Math.PI * 1.2), 0.24, 0.36, { tilt: 0.15 });   // chest hair
+  shag(chest, 0.4, 0.34, ring(5, Math.PI * 0.72, Math.PI * 1.28), 0.26, 0.6, { variant: 2, tilt: 0.12 });   // long hair hanging over the chest
   shag(chest, 0.5, 0.53, [Math.PI / 2, -Math.PI / 2, Math.PI / 2 - 0.5, -Math.PI / 2 + 0.5], 0.32, 0.5, { tilt: 0.3 });                              // flanks
   shag(spine, 0.38, 0.38, [Math.PI / 2, -Math.PI / 2, Math.PI * 0.25, -Math.PI * 0.25, 0], 0.3, 0.44, { tilt: 0.2 });
 
   // ---- Head: low-slung, crested, snarling ------------------------------------------------
-  const neck = joint('neck', chest, 0, 0.6, FWD * 0.12);
+  const neck = joint('neck', chest, 0, 0.52, FWD * 0.14);
   const headGeo = limbGeo(0.4, 0.4, 0.4, { taper: 1.15, pivot: 'bottom', ppm: 3 });
   const head = new THREE.Mesh(headGeo, [fur, fur, furDark, fur, furDark, face]);   // +x -x +y -y +z -z
   head.position.set(0, -0.04, FWD * 0.1); head.castShadow = true; head.name = 'head';
@@ -120,19 +125,21 @@ export function buildBigfootModel(profile) {
   }
   part('crest', head, limbGeo(0.14, 0.16, 0.36, { taper: 2.4, pivot: 'bottom' }), furDark, 0, 0.38, 0.04);   // sagittal crest
   part('brow', head, limbGeo(0.44, 0.09, 0.12, { pivot: 'center' }), furDark, 0, 0.28, FWD * 0.2);         // heavy brow shelf
-  part('cheekL', head, limbGeo(0.08, 0.14, 0.1, { pivot: 'center' }), fur, -0.2, 0.15, FWD * 0.16);
-  part('cheekR', head, limbGeo(0.08, 0.14, 0.1, { pivot: 'center' }), fur, 0.2, 0.15, FWD * 0.16);
-  part('muzzle', head, limbGeo(0.26, 0.14, 0.1, { taper: 0.8, pivot: 'center', ppm: 2 }), skin, 0, 0.12, FWD * 0.23);
-  for (const x of [-0.085, 0.085]) part(`eye${x}`, head, new THREE.BoxGeometry(0.045, 0.026, 0.01), eyeMat, x, 0.215, FWD * 0.212, { shadow: false });
-  // Jaw hangs open a little: dark mouth, upper and lower fangs.
-  part('mouth', head, new THREE.BoxGeometry(0.2, 0.06, 0.02), mouth, 0, 0.04, FWD * 0.255, { shadow: false });
-  for (const x of [-0.07, 0.07]) part(`fangU${x}`, head, new THREE.ConeGeometry(0.014, 0.06, 4).rotateX(Math.PI), tooth, x, 0.05, FWD * 0.265, { shadow: false });
-  const jaw = joint('jaw', head, 0, 0.06, FWD * 0.12);
-  part('jawMesh', jaw, limbGeo(0.26, 0.09, 0.22, { taper: 0.85, pivot: 'top', ppm: 2 }), skin, 0, 0, FWD * 0.04);
-  for (const x of [-0.06, 0.06]) part(`fangL${x}`, jaw, new THREE.ConeGeometry(0.012, 0.05, 4), tooth, x, -0.02, FWD * 0.15, { shadow: false });
-  shag(head, 0.4, 0.24, ring(8, -Math.PI * 0.62, Math.PI * 0.62), 0.22, 0.4, { variant: 1, tilt: 0.4 });   // mane framing the face
+  part('cheekL', head, limbGeo(0.06, 0.16, 0.08, { pivot: 'center' }), furDark, -0.22, 0.15, FWD * 0.17);
+  part('cheekR', head, limbGeo(0.06, 0.16, 0.08, { pivot: 'center' }), furDark, 0.22, 0.15, FWD * 0.17);
+  for (const x of [-0.085, 0.085]) {
+    part(`eye${x}`, head, new THREE.BoxGeometry(0.05, 0.028, 0.01), eyeMat, x, 0.215, FWD * 0.212, { shadow: false });
+    part(`eyeGlow${x}`, head, new THREE.PlaneGeometry(0.085, 0.06), glowMat, x, 0.215, FWD * 0.22, { shadow: false }).rotation.y = Math.PI;
+  }
+  // Chin: the scowl, nose, mouth and fangs are painted into the face texture (reads at pixel scale).
+  const jaw = joint('jaw', head, 0, 0.02, FWD * 0.05);   // heavy chin under the painted face (nose, mouth, fangs are in the texture)
+  part('jawMesh', jaw, limbGeo(0.3, 0.1, 0.26, { taper: 0.85, pivot: 'top', ppm: 2 }), fur, 0, 0, 0);
+  shag(head, 0.4, 0.24, ring(8, -Math.PI * 0.55, Math.PI * 0.55), 0.2, 0.4, { variant: 1, tilt: 0.4 });   // mane framing the face
+  // Long hair pouring from the crown over the shoulders and down the back.
+  shag(head, 0.44, 0.2, ring(7, -Math.PI * 0.5, Math.PI * 0.5), 0.26, 0.95, { variant: 2, tilt: 0.35 });
+  shag(head, 0.3, 0.24, [Math.PI / 2, -Math.PI / 2, Math.PI / 2 - 0.4, -Math.PI / 2 + 0.4], 0.16, 0.8, { variant: 2, tilt: 0.25 });
   shag(head, 0.2, 0.25, [Math.PI / 2 + 0.35, -Math.PI / 2 - 0.35], 0.18, 0.32, { tilt: 0.15 });              // side whiskers
-  shag(jaw, -0.06, 0.16, ring(3, Math.PI * 0.75, Math.PI * 1.25), 0.16, 0.22, { tilt: 0.1 });  // beard
+  shag(jaw, -0.1, 0.15, ring(3, Math.PI * 0.75, Math.PI * 1.25), 0.14, 0.26, { variant: 2, tilt: 0.05 });  // beard
 
   // ---- Arms: long enough to hang past the knees, huge clawed hands -----------------------
   for (const s of [-1, 1]) {
@@ -140,6 +147,7 @@ export function buildBigfootModel(profile) {
     const sh = joint(`shoulder${side}`, chest, s * 0.58, 0.44, 0.02);
     part(`delt${side}`, sh, limbGeo(0.38, 0.32, 0.36, { taper: 0.8, pivot: 'top' }), furDark, 0, 0.12, 0);
     shag(sh, 0.14, 0.22, ring(5, s * Math.PI / 2 - 1.3, s * Math.PI / 2 + 1.3), 0.26, 0.46, { variant: 1, tilt: 0.35 });
+    shag(sh, 0.2, 0.25, ring(3, s * Math.PI / 2 - 0.8, s * Math.PI / 2 + 0.8), 0.28, 0.85, { variant: 2, tilt: 0.3 });   // long shoulder hair
     const upper = joint(`upperArm${side}`, sh, 0, 0, 0);
     part(`upperArmMesh${side}`, upper, limbGeo(0.26, 0.64, 0.28, { taper: 0.78 }), fur, 0, 0, 0);
     shag(upper, -0.08, 0.16, ring(4, -Math.PI * 0.4, Math.PI * 0.4).concat([s * Math.PI / 2]), 0.22, 0.5, { tilt: 0.2 });
@@ -153,7 +161,7 @@ export function buildBigfootModel(profile) {
       const fx = (f - 1.5) * 0.042;
       const finger = joint(`finger${side}${f}`, hand, fx, -0.22, FWD * 0.02);
       part(`fingerMesh${side}${f}`, finger, limbGeo(0.035, 0.14, 0.04, { taper: 0.7, ppm: 2 }), skin, 0, 0, 0);
-      const c = part(`claw${side}${f}`, finger, new THREE.ConeGeometry(0.014, 0.07, 4), claw, 0, -0.16, FWD * 0.01, { shadow: false });
+      const c = part(`claw${side}${f}`, finger, new THREE.ConeGeometry(0.016, 0.12, 4), claw, 0, -0.18, FWD * 0.01, { shadow: false });
       c.rotation.x = Math.PI + 0.5;
       finger.rotation.x = 0.35;     // curled forward
     }
@@ -173,7 +181,7 @@ export function buildBigfootModel(profile) {
     const foot = joint(`foot${side}`, shin, 0, -0.46, 0);
     part(`footMesh${side}`, foot, limbGeo(0.22, 0.1, 0.46, { taper: 1, pivot: 'top', ppm: 2 }), skin, 0, 0, FWD * 0.12);
     for (let t = 0; t < 4; t++) {
-      const c = part(`toeClaw${side}${t}`, foot, new THREE.ConeGeometry(0.016, 0.06, 4), claw, (t - 1.5) * 0.05, -0.08, FWD * 0.36, { shadow: false });
+      const c = part(`toeClaw${side}${t}`, foot, new THREE.ConeGeometry(0.02, 0.1, 4), claw, (t - 1.5) * 0.05, -0.08, FWD * 0.38, { shadow: false });
       c.rotation.x = -Math.PI / 2 - 0.3;
     }
   }
