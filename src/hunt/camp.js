@@ -94,7 +94,8 @@ export class Camp {
 
 export function gearList(gear) {
   return Object.entries(gear).filter(([, n]) => n > 0)
-    .map(([k, n]) => (k === 'camera' || k === 'flashlight' ? GEAR_NAMES[k] : `${n} ${GEAR_NAMES[k] ?? k}${n > 1 && k === 'spareBatteries' ? 's' : ''}`)).join(', ');
+    .map(([k, n]) => (k === 'camera' || k === 'flashlight' ? GEAR_NAMES[k]
+      : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}` : `${n} ${GEAR_NAMES[k] ?? k}`)).join(', ');
 }
 
 /** One-paragraph summary of a settled hunt for end screens and the camp panel. */
@@ -104,6 +105,21 @@ export function huntSummary(h) {
   const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
   return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`)].join('\n');
+}
+
+/** BASE CAMP panel on the start screen: money, what happened last hunt, gear you own. */
+export function showCampPanel(camp, root = document.querySelector('#overlay > div')) {
+  if (!root) return null;
+  const el = document.createElement('div');
+  el.id = 'camp-panel';
+  Object.assign(el.style, { margin: '0 auto 16px', padding: '10px 14px', border: '1px solid #7a6440', background: '#2b2116cc',
+    color: '#f1e6c8', textAlign: 'left', whiteSpace: 'pre-wrap', font: '13px/1.5 monospace' });
+  const s = camp.state, last = camp.lastHunt;
+  el.textContent = [`BASE CAMP  ·  $${s.money}`,
+    last ? `Last hunt (#${last.n}): ${huntSummary(last)}` : 'First night out. No photos sold yet.',
+    `Gear: ${gearList(s.gear)}`].join('\n');
+  root.prepend(el);
+  return el;
 }
 
 function safeStorage() {

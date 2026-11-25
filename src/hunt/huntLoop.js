@@ -10,8 +10,9 @@ export const HUNT = {
 };
 
 export class HuntLoop {
-  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload() }) {
+  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null }) {
     this.player = player;
+    this.onEnd = onEnd;           // (outcome) => { summary, money } from base camp, shown on the end screen
     this.journal = journal;
     this.target = target;
     this.onRestart = onRestart;
@@ -74,6 +75,7 @@ export class HuntLoop {
     if (this.stage === 'ended') return;
     this.stage = 'ended';
     this.outcome = outcome;
+    this.settlement = this.onEnd?.(outcome) ?? null;  // base camp: photos sold or lost, gear kept
     this.renderHud();                                 // clears the objective + clock
     if (outcome === 'caught') return;                 // HuntFailure shows its own screen
     document.exitPointerLock?.();
@@ -229,6 +231,7 @@ export class HuntLoop {
     lines.push(`Clues logged:  ${this.journal?.entries.length ?? 0}`);
     if (v?.likely) lines.push(`Journal verdict:  ${v.likely.name}`);
     lines.push(`Time out:  ${Math.floor(t / 60)}m ${String(t % 60).padStart(2, '0')}s`);
+    if (this.settlement) lines.push('', 'BASE CAMP', this.settlement.summary, `Money: $${this.settlement.money}`);
     this.endBody.textContent = lines.join('\n');
     this.screen.style.display = 'flex';
   }
