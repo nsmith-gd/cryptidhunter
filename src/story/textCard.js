@@ -11,7 +11,7 @@ export class TextCard {
     el.id = 'text-card';
     Object.assign(el.style, {
       position: 'fixed', inset: '0', display: 'none', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: '18px', padding: '0 16px', background: 'rgba(5,7,12,0.96)', color: '#d8d2c4', fontFamily: 'monospace',
+      gap: '18px', padding: '0 16px', background: '#05070c', color: '#d8d2c4', fontFamily: 'monospace',
       textAlign: 'center', zIndex: '40', cursor: 'pointer',
     });
     this.title = document.createElement('div');
