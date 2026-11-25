@@ -425,6 +425,7 @@ export function buildForestMap(scene) {
     trees: trees.length,
     forestKit: kit.stats, // { draws, count } for the instanced foliage and props
     trails: TRAILS,
+    keepClear,                  // open ground (clearings, trails, creek, ridge): used by the atmosphere pass
     playerStart: { x: L.trailhead.x, z: L.trailhead.z, yaw: 0 },
     // Level flow: where the extraction van is parked (walk into its ring to end the hunt) and the
     // zones the hunt picks from at the start of each night (see hunt/levelFlow.js).
