@@ -36,3 +36,5 @@ Add `?map=swamp` to the URL for Blackwater Swamp (greybox): boardwalks, wading w
 `npm test` runs unit tests. `npm run check:t3` lets Bigfoot leave a trail, then a bot follows three clue hints (W/D/E key presses only) and checks it moves along Bigfoot's route toward it; screenshots go to `.ballast/media/t3/`.
 
 Maps: add `?map=forest` (Pine Hollow Forest, 300 x 300 m starter map) or `?map=swamp` to the URL. `npm run check:t9` walks the forest end to end and routes Bigfoot around the ridge; captures go to `.ballast/media/t9/`.
+
+Fear (FEAR bar, top-left) rises in the dark, near cryptids and on jump scares; your torch, lamps and fires lower it, the van fastest. Above about a third, your view sways and photos come out shaky (lower score). `npm run check:t25` verifies it.

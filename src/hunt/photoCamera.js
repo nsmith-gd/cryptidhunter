@@ -20,8 +20,9 @@ export class PhotoCamera {
    *   With base + height the subject is sampled as a standing column (feet to head);
    *   otherwise as a sphere around center.
    */
-  constructor({ camera, scene, input, getSubjects, onPhoto }) {
+  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0 }) {
     this.camera = camera;
+    this.getShake = getShake;   // () => degrees/second the view is shaking (fear sway)
     this.scene = scene;
     this.input = input;
     this.getSubjects = getSubjects;
@@ -73,13 +74,14 @@ export class PhotoCamera {
     }
     this.cooldown = PHOTO.cooldown;
     const r = this.evaluate();
-    const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, at: performance.now() };
+    const shake = this.getShake();
+    const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, ...photoScore(r, shake), at: performance.now() };
     this.log.push(entry);
     console.info(r.subject
-      ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible`
+      ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible, score ${entry.score} (steadiness ${entry.steadiness.toFixed(2)})`
       : `[photo] MISS: ${r.reason}`);
     this.flash(entry);
-    this.onPhoto?.({ subject: r.subject, distance: r.distance, visible: r.visible, samples: r.samples });
+    this.onPhoto?.({ subject: r.subject, distance: r.distance, visible: r.visible, samples: r.samples, score: entry.score, source: 'handheld camera' });
     return entry;
   }
 
@@ -104,7 +106,9 @@ export class PhotoCamera {
       if (!visible) { reason = `${s.name} is in frame but blocked`; continue; }
       // Prefer the subject showing the most of itself, then the nearest.
       if (!best || visible > best.visible || (visible === best.visible && dist < best.distance)) {
-        best = { subject: s.name, distance: dist, visible, samples: pts.length };
+        const fwd = cam.getWorldDirection(new THREE.Vector3());
+        const off = THREE.MathUtils.radToDeg(fwd.angleTo(new THREE.Vector3().subVectors(s.center, eye)));
+        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2) };
       }
     }
     return best ? { ...best, reason: 'in frame' } : { subject: null, distance: 0, visible: 0, samples: 0, reason };
@@ -194,9 +198,22 @@ export class PhotoCamera {
       this.white.style.opacity = '0';
     }));
     this.toast(entry.subject
-      ? `HIT — ${entry.subject} in frame (${entry.distance.toFixed(0)} m)`
+      ? `HIT — ${entry.subject} in frame (${entry.distance.toFixed(0)} m) · score ${entry.score}${entry.steadiness < 0.75 ? ' · shaky' : ''}`
       : `MISS — ${entry.reason}`, entry.subject ? 'hit' : 'miss');
   }
+}
+
+/**
+ * Placeholder photo score (0-100) until the evidence-scoring task lands:
+ *   framing   — how much of the subject shows and how centred it is
+ *   steadiness — a shaking camera (fear) blurs the shot: 1 when still, down to 0.2
+ */
+export function photoScore(r, shakeDegPerSec) {
+  const steadiness = Math.max(0.2, 1 - shakeDegPerSec / 8);
+  if (!r.subject) return { score: 0, framing: 0, steadiness };
+  const centred = 1 - Math.min(1, r.offCentre ?? 0);
+  const framing = (r.visible / r.samples) * (0.6 + 0.4 * centred);
+  return { score: Math.round(100 * framing * steadiness), framing, steadiness };
 }
 
 // Points on the subject to test: a standing column (feet, knees, chest, head, shoulders)

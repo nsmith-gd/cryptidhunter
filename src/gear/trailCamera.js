@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { samplePoints, isPartOf } from '../hunt/photoCamera.js';
-import { scorePhoto, PHOTO_SCORE } from '../hunt/photoScore.js';
+import { samplePoints, isPartOf, photoScore } from '../hunt/photoCamera.js';
 
 // Trail camera (Hunting Gear, L1): press T to set one on a stake in front of you, facing the way
 // you're looking. It watches a cone and photographs any cryptid that wanders into it - you don't
@@ -13,6 +12,7 @@ export const TRAIL_CAM = {
   height: 1.0,          // lens height on the stake
   cooldown: 6,          // seconds between triggers per camera
   maxPhotos: 12,        // per camera (memory card)
+  scoreFactor: 0.5,     // grainy, badly framed: half the score of the same shot taken by hand
 };
 
 export class TrailCameras {
@@ -88,7 +88,10 @@ export class TrailCameras {
       if (!inFrame.length) continue;
       const visible = inFrame.filter((p) => this.clearLine(eye, p, s.object3d, cam.group)).length;
       if (!visible) continue;
-      if (!best || visible > best.visible) best = { subject: s.name, distance: dist, visible, samples: pts.length };
+      if (!best || visible > best.visible) {
+        const off = THREE.MathUtils.radToDeg(cam.lens.getWorldDirection(new THREE.Vector3()).angleTo(new THREE.Vector3().subVectors(s.center, eye)));
+        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / TRAIL_CAM.halfAngle };
+      }
     }
     return best;
   }
@@ -113,7 +116,8 @@ export class TrailCameras {
   trigger(cam, shot) {
     cam.cooldown = TRAIL_CAM.cooldown;
     cam.flash = 0.25;
-    const score = scorePhoto({ ...shot, factor: PHOTO_SCORE.trailCamFactor });
+    // Same scoring as the handheld camera (a mounted camera doesn't shake), then halved.
+    const score = Math.round(photoScore(shot, 0).score * TRAIL_CAM.scoreFactor);
     const photo = { ...shot, score, source: `trail camera ${cam.id}`, at: this.t };
     cam.photos.push(photo);
     console.info(`[trail cam ${cam.id}] ${shot.subject} at ${shot.distance.toFixed(1)} m, score ${score}`);

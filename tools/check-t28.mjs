@@ -45,7 +45,7 @@ check('a trail-camera shot counts as the hunt\'s photo of Bigfoot', tc.stage ===
 const scores = await page.evaluate(() => {
   const g = __game, ph = g.trailCams.photos[0];
   // Score the same framing as a handheld shot would get, for comparison.
-  const handheld = Math.round(100 * Math.max(0, 1 - ph.distance / 60) ** 0.7 * Math.sqrt(ph.visible / ph.samples));
+  const handheld = Math.round(100 * (ph.visible / ph.samples) * (0.6 + 0.4 * (1 - Math.min(1, ph.offCentre ?? 0))));
   return { trailCam: ph.score, handheldEquivalent: handheld };
 });
 check('trail-camera photos score lower than the same shot handheld', scores.trailCam > 0 && scores.trailCam < scores.handheldEquivalent, scores);
