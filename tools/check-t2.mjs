@@ -17,6 +17,8 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4318/');
 await page.waitForFunction(() => window.__game);
+// Park the stalker so it can't interfere with this check.
+await page.evaluate(() => { if (__game.chupacabra) __game.chupacabra.update = () => {}; });
 await page.evaluate(() => {
   __game.overlay.classList.add('hidden');
   __game.input.locked = true; // stand-in for pointer lock in headless mode

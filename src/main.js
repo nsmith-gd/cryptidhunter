@@ -6,6 +6,7 @@ import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { DEFAULT_PROFILE } from './cryptids/profiles.js';
 import { Mothman } from './cryptids/mothman.js';
+import { Chupacabra } from './cryptids/chupacabra.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -36,6 +37,7 @@ const player = new Player(camera, input, colliders);
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
 const mothman = new Mothman(scene, player, flashlight);
+const chupacabra = new Chupacabra(scene, player, camera, colliders);
 
 // Cryptids (L0: one placeholder capsule that roams and flees).
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position });
@@ -61,6 +63,7 @@ function frame() {
   player.update(dt);
   cryptids.update(dt);
   mothman.update(dt);
+  chupacabra.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('');
@@ -70,4 +73,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, flashlight, mothman, cryptids, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, flashlight, mothman, chupacabra, cryptids, input, scene, camera, renderer, overlay };
