@@ -9,7 +9,7 @@ npm run dev        # open the printed URL, click to play
 npm run build      # production build into dist/
 ```
 
-Controls: WASD move · mouse look · Shift sprint · Ctrl or C crouch (hold) · F flashlight · Esc releases the mouse.
+Controls: WASD move · mouse look · Shift sprint · Ctrl or C crouch (hold) · F flashlight · R swap battery · Esc releases the mouse.
 
 ## Maps
 Add `?map=swamp` to the URL for Blackwater Swamp (greybox): boardwalks, wading water that slows you, and the old bridge.

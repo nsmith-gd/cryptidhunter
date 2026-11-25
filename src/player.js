@@ -14,6 +14,19 @@ export const PLAYER = {
   crouchLerp: 10,        // how fast the camera drops/rises
   stepHeight: 0.36,      // ledges up to this tall (boardwalks, stairs) are stepped onto
   mouseSens: 0.0022,
+  // Stamina (0..1).
+  staminaDrain: 1 / 6,       // full bar lasts 6 s of sprinting
+  staminaRegenMove: 0.12,    // per second while walking/crouch-walking
+  staminaRegenRest: 0.3,     // per second while standing still
+  staminaRegenDelay: 0.8,    // pause after sprinting before refilling starts
+  staminaRecover: 0.3,       // once emptied, sprint is locked until this much is back
+  // Noise (0..1) the player makes each tick; cryptid AI reads player.noise / player.noiseRadius.
+  noiseCrouch: 0.15,
+  noiseWalk: 0.45,
+  noiseSprint: 1.0,
+  noiseMaxRadius: 20,        // metres a full-volume (1.0) noise carries
+  noiseRise: 12,             // how fast noise follows a louder gait
+  noiseFall: 4,              // how fast it fades when you go quieter/stop
   maxPitch: Math.PI / 2 - 0.01,
 };
 
@@ -36,6 +49,11 @@ export class Player {
     // Optional map hook: (x, z, feetY) => speed multiplier (e.g. wading in water slows you).
     this.speedAt = null;
     this.speedFactor = 1;
+    this.stamina = 1;
+    this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
+    this.sinceSprint = 99;
+    this.noise = 0;           // 0 silent .. 1 sprinting
+    this.noiseRadius = 0;     // metres the current noise carries
     camera.rotation.order = 'YXZ';
   }
 
@@ -65,7 +83,9 @@ export class Player {
     // Ground under the feet can slow you (water); you can't sprint while slowed.
     this.speedFactor = this.speedAt ? this.speedAt(this.position.x, this.position.z, this.position.y) : 1;
     // Sprint only while moving forward, not crouched and not slowed.
-    this.sprinting = !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight');
+    // Stamina gates sprinting; emptying it locks sprint until it partly refills.
+    this.sprinting = !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight') && !this.exhausted;
+    this.updateStamina(dt, wish.lengthSq() > 0);
     const speed = this.speedFactor *
       (this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed);
 
@@ -79,12 +99,46 @@ export class Player {
     this.grounded = false;
     this.moveAxis('y', this.velocity.y * dt);
     if (this.position.y <= 0) { this.position.y = 0; this.velocity.y = 0; this.grounded = true; }
+    this.updateNoise(dt, speed);
 
     // Camera.
     const targetEye = this.height - PLAYER.eyeOffset;
     this.eyeHeight += (targetEye - this.eyeHeight) * (1 - Math.exp(-PLAYER.crouchLerp * dt));
     this.camera.position.set(this.position.x, this.position.y + this.eyeHeight, this.position.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  // Gait sets the noise level, scaled by how fast you're actually going (walking into a wall is quiet).
+  updateNoise(dt, gaitSpeed) {
+    const gait = this.crouching ? PLAYER.noiseCrouch : this.sprinting ? PLAYER.noiseSprint : PLAYER.noiseWalk;
+    const moving = Math.hypot(this.velocity.x, this.velocity.z);
+    const target = gait * Math.min(1, moving / gaitSpeed);
+    const rate = target > this.noise ? PLAYER.noiseRise : PLAYER.noiseFall;
+    this.noise += (target - this.noise) * (1 - Math.exp(-rate * dt));
+    if (this.noise < 0.005) this.noise = 0;
+    this.noiseRadius = this.noise * PLAYER.noiseMaxRadius;
+  }
+
+  // How loud the player is at a world position: 0 (out of earshot) .. noise (right next to them).
+  noiseAt(pos) {
+    if (this.noiseRadius <= 0) return 0;
+    const d = Math.hypot(pos.x - this.position.x, pos.z - this.position.z);
+    return Math.max(0, this.noise * (1 - d / this.noiseRadius));
+  }
+
+  updateStamina(dt, moving) {
+    if (this.sprinting) {
+      this.sinceSprint = 0;
+      this.stamina = Math.max(0, this.stamina - PLAYER.staminaDrain * dt);
+      if (this.stamina === 0) { this.exhausted = true; this.sprinting = false; }
+    } else {
+      this.sinceSprint += dt;
+      if (this.sinceSprint >= PLAYER.staminaRegenDelay) {
+        const rate = moving ? PLAYER.staminaRegenMove : PLAYER.staminaRegenRest;
+        this.stamina = Math.min(1, this.stamina + rate * dt);
+      }
+      if (this.exhausted && this.stamina >= PLAYER.staminaRecover) this.exhausted = false;
+    }
   }
 
   bodyBox(pos = this.position, height = this.height, out = new THREE.Box3()) {

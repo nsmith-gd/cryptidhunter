@@ -12,6 +12,11 @@
     "check:t7": "vite build && node tools/check-t7.mjs",
     "check:t8": "vite build && node tools/check-t8.mjs",
     "check:t6": "vite build && node tools/check-t6.mjs",
+    "check:t19": "vite build && node tools/check-t19.mjs",
+    "check:t17": "vite build && node tools/check-t17.mjs",
+    "check:t18": "vite build && node tools/check-t18.mjs",
+    "check:t20": "vite build && node tools/check-t20.mjs",
+    "check:t13": "vite build && node tools/check-t13.mjs",
     "check:t10": "vite build && node tools/check-t10.mjs"
   },
   "repository": {

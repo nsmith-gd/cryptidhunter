@@ -18,7 +18,8 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:4330/?map=swamp');
 await page.waitForFunction(() => window.__game);
-await page.evaluate(() => { __game.overlay.classList.add('hidden'); });
+// Park the stalker so it can't interfere with this check.
+await page.evaluate(() => { if (__game.chupacabra) __game.chupacabra.update = () => {}; __game.overlay.classList.add('hidden'); });
 await page.waitForTimeout(500);
 
 const results = [];
