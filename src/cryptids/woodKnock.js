@@ -76,9 +76,13 @@ export class WoodKnocks {
     s.lastKnock = { x: c.agent.x, z: c.agent.z, t: this.time };
     this.log.push({ t: this.time, who: c.profile.name, x: c.agent.x, z: c.agent.z, kind });
     const p = this.player.position, d = Math.hypot(c.agent.x - p.x, c.agent.z - p.z);
-    if (d > KNOCK.hearRange) return;
     const count = kind === 'reply' ? 2 : 1 + Math.floor(this.rand() * 3);
-    this.audio.knock({ count, distance: d, pan: this.panTo(c.agent.x, c.agent.z), heavy: true });
+    // It stops and clubs a trunk (seen even out of earshot); each knock lands on a strike.
+    c.mesh.userData.play?.('knock', { count });
+    if (c.mesh.userData.play) c.agent.stop();
+    if (d > KNOCK.hearRange) return;
+    const lead = c.mesh.userData.knockTiming?.windup ?? 0;
+    this.audio.knock({ count, distance: d, pan: this.panTo(c.agent.x, c.agent.z), heavy: true, delay: lead });
     this.fear?.scare(KNOCK.scare * (1 - d / KNOCK.hearRange), 'wood knock');
     this.showCaption(`${kind === 'reply' ? 'Knocks answer you' : 'A wood knock'}: ${'KNOCK '.repeat(count).trim()} (${this.describe(c.agent.x, c.agent.z, d)})`);
   }
@@ -192,7 +196,7 @@ export class KnockAudio {
     const ctx = this.ensure();
     if (!ctx) return;
     // Still loading or unavailable: fall back to the synthesised knock so a knock is never silent.
-    scheduleKnocks(ctx, ctx.destination, ctx.currentTime + 0.02, { ...opts, buffers: this.buffers });
+    scheduleKnocks(ctx, ctx.destination, ctx.currentTime + 0.02 + (opts.delay ?? 0), { ...opts, buffers: this.buffers });
   }
 }
 
@@ -218,7 +222,7 @@ export function scheduleKnocks(ctx, dest, t0, { count = 2, distance = 1, pan = 0
   const gap = heavy ? 0.62 : 0.34;
   let last = -1;
   for (let i = 0; i < count; i++) {
-    const t = t0 + i * gap * (0.92 + Math.random() * 0.16);
+    const t = t0 + i * gap * (heavy ? 1 : 0.92 + Math.random() * 0.16);   // heavy knocks keep time with the strike animation
     if (buffers) {
       const set = heavy ? buffers.heavy : buffers.light;
       let k = Math.floor(Math.random() * set.length);
