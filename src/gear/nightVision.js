@@ -64,7 +64,9 @@ export class NightVision {
   update(dt) {
     this.time += dt;
     if (!this.on) return;
-    this.flashlight.battery = Math.max(0, this.flashlight.battery - NVG.drain * dt);
+    // A bigger battery (shop upgrade) lasts proportionally longer in the goggles too.
+    const life = this.flashlight.batteryLife ? 120 / this.flashlight.batteryLife : 1;
+    this.flashlight.battery = Math.max(0, this.flashlight.battery - NVG.drain * life * dt);
     if (this.flashlight.battery <= 0) { this.toggle(false); this.notify('Night vision: battery dead.'); }
   }
 

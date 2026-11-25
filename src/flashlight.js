@@ -21,6 +21,7 @@ export class Flashlight {
     camera.add(this.light, this.light.target);
     this.baseIntensity = FLASHLIGHT.intensity; // maps can scale this (dark materials outdoors)
     this.battery = 1;            // 0..1 charge of the battery in the torch
+    this.batteryLife = FLASHLIGHT.batteryLife;   // seconds per battery (shop upgrade)
     this.spares = FLASHLIGHT.startSpares;
     this.on = true;
     this.light.visible = this.on;
@@ -50,7 +51,7 @@ export class Flashlight {
   update(dt) {
     this.t += dt;
     if (this.on) {
-      this.battery = Math.max(0, this.battery - dt / FLASHLIGHT.batteryLife);
+      this.battery = Math.max(0, this.battery - dt / this.batteryLife);
       if (this.battery === 0) { this.on = false; }
     }
     this.light.visible = this.on;

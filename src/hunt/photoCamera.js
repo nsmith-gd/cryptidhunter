@@ -9,6 +9,7 @@ export const PHOTO = {
   raisedFov: 40,       // vertical field of view through the viewfinder (degrees)
   raiseTime: 0.22,     // seconds to bring the camera up
   cooldown: 0.8,       // seconds between shots (shutter + wind-on)
+  film: 24,            // shots per hunt on the stock roll (the shop sells bigger rolls)
 };
 
 const _v = new THREE.Vector3();
@@ -32,6 +33,9 @@ export class PhotoCamera {
     this.raise = 0;             // 0 = lowered, 1 = up at the eye
     this.wantRaised = false;
     this.baseFov = camera.fov;
+    this.raisedFov = PHOTO.raisedFov;   // zoom lens (shop upgrade)
+    this.filmMax = PHOTO.film;          // shots per hunt (shop upgrade)
+    this.film = this.filmMax;
     this.log = [];              // every shot: { result, subject, distance, visible, samples, at }
     this.frustum = new THREE.Frustum();
     this.raycaster = new THREE.Raycaster();
@@ -58,7 +62,7 @@ export class PhotoCamera {
     if (target > this.raise) this.raise = Math.min(1, this.raise + step);
     else if (target < this.raise) this.raise = Math.max(0, this.raise - step);
     const k = this.raise * this.raise * (3 - 2 * this.raise); // smoothstep
-    const fov = this.baseFov + (PHOTO.raisedFov - this.baseFov) * k;
+    const fov = this.baseFov + (this.raisedFov - this.baseFov) * k;
     if (Math.abs(this.camera.fov - fov) > 1e-3) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     // Greybox camera body: held low-left, swings up toward the eye (then the viewfinder takes over).
     this.body.position.set(-0.2 + 0.2 * k, -0.26 + 0.18 * k, -0.42 + 0.2 * k); // left hand: the torch is in the right
@@ -72,7 +76,10 @@ export class PhotoCamera {
       if (this.enabled && !this.raised) { if (this.onLoweredClick) this.onLoweredClick(); else this.toast('Hold right mouse to raise the camera'); }
       return null;
     }
+    if (this.film <= 0) { this.toast('Out of film', 'miss'); return null; }
     this.cooldown = PHOTO.cooldown;
+    this.film--;
+    this.updateFilmLabel();
     const r = this.evaluate();
     const shake = this.getShake();
     const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, ...photoScore(r, shake), at: performance.now() };
@@ -156,7 +163,7 @@ export class PhotoCamera {
     o.id = 'viewfinder';
     o.innerHTML = `
       <div class="vf-c tl"></div><div class="vf-c tr"></div><div class="vf-c bl"></div><div class="vf-c br"></div>
-      <div class="vf-focus"></div><div class="vf-rec">● CAM</div><div class="vf-help">LMB snap</div>`;
+      <div class="vf-focus"></div><div class="vf-rec">● CAM</div><div class="vf-film"></div><div class="vf-help">LMB snap</div>`;
     const css = document.createElement('style');
     css.textContent = `
 #viewfinder { position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 12;
@@ -169,6 +176,7 @@ export class PhotoCamera {
 #viewfinder .vf-focus { position: absolute; left: 50%; top: 50%; width: 46px; height: 32px; margin: -16px 0 0 -23px;
   border: 1px dashed #e8e4d899; }
 #viewfinder .vf-rec { position: absolute; left: calc(8% + 46px); top: calc(10% + 6px); color: #ff6a5a; letter-spacing: 2px; }
+#viewfinder .vf-film { position: absolute; left: calc(8% + 46px); bottom: calc(10% + 6px); letter-spacing: 1px; }
 #viewfinder .vf-help { position: absolute; right: calc(8% + 46px); top: calc(10% + 6px); color: #e8e4d8aa; }
 #photo-flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 15; }
 #photo-label { position: fixed; left: 50%; top: 64%; transform: translateX(-50%); padding: 4px 10px; background: #000a;
@@ -179,6 +187,13 @@ export class PhotoCamera {
     this.label = Object.assign(document.createElement('div'), { id: 'photo-label' });
     document.body.append(o, this.white, this.label);
     this.overlay = o;
+    this.updateFilmLabel();
+  }
+
+  /** Viewfinder readout: frames left on the roll. */
+  updateFilmLabel() {
+    const f = this.overlay?.querySelector('.vf-film');
+    if (f) { f.textContent = `FILM ${this.film}/${this.filmMax}`; f.style.color = this.film <= 3 ? '#ff9a8a' : '#e8e4d8'; }
   }
 
   toast(text, cls = '') {
