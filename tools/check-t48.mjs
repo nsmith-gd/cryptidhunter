@@ -107,11 +107,13 @@ await page.waitForTimeout(200);
 await shot('05-back-at-the-van');
 await page.evaluate(() => __game.input.keys.add('KeyW'));
 // (software rendering in CI is slow, especially in the forest: allow plenty of time for the walk)
-await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 30000 }).catch(() => {});
+await page.waitForFunction(() => __game.hunt.inZone, null, { timeout: 30000 }).catch(() => {});
 await page.evaluate(() => __game.input.keys.delete('KeyW'));
-await page.waitForTimeout(200);
+await page.waitForTimeout(300);
+await page.keyboard.press('KeyH');   // you choose when to drive home
+await page.waitForTimeout(400);
 const end = await page.evaluate(() => ({ outcome: __game.hunt.outcome, title: __game.hunt.endTitle.textContent }));
-check('walking into the van ring with the photo ends the hunt: HUNT COMPLETE', end.outcome === 'complete' && end.title === 'HUNT COMPLETE', end);
+check('at the van with the photo, H drives home: HUNT COMPLETE', end.outcome === 'complete' && end.title === 'HUNT COMPLETE', end);
 await shot('06-hunt-complete');
 
 // Overhead debug view of the zones (F3): red = cryptid zones, amber = clue zones, green = exit.

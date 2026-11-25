@@ -1,4 +1,5 @@
-// Plain HUD bars for stamina, flashlight battery and (debug) player noise, top-left.
+// Plain HUD bars for stamina, flashlight battery and fear, top-left. The player-noise bar is a
+// debug aid only (shown with N, together with the noise ring).
 export class Hud {
   constructor(player, flashlight, fear = null) {
     this.player = player;
@@ -11,6 +12,7 @@ export class Hud {
     this.stamina = this.bar(root, 'STAMINA', '#7fc8ff');
     this.battery = this.bar(root, 'BATTERY', '#ffe27a');
     this.noise = this.bar(root, 'NOISE', '#c9a0ff');   // debug readout of what cryptids can hear
+    this.showNoise = false;
     if (fear) this.fearBar = this.bar(root, 'FEAR', '#e0604a');
     // Fear vignette: the screen edges darken and redden as fear climbs.
     this.vignette = document.createElement('div');
@@ -32,7 +34,7 @@ export class Hud {
     const note = document.createElement('span');
     row.append(name, track, note);
     root.appendChild(row);
-    return { fill, note, color };
+    return { row, fill, note, color };
   }
 
   update() {
@@ -42,6 +44,7 @@ export class Hud {
     this.stamina.note.textContent = p.exhausted ? 'winded' : '';
     this.battery.fill.style.width = `${(f.battery * 100).toFixed(1)}%`;
     this.battery.fill.style.background = f.battery < 0.15 ? '#c0504d' : this.battery.color;
+    this.noise.row.style.display = this.showNoise ? 'flex' : 'none';
     const n = p.noise;
     const label = n < 0.02 ? 'silent' : n < 0.25 ? 'quiet' : n < 0.7 ? 'medium' : 'loud';
     this.noise.fill.style.width = `${(n * 100).toFixed(1)}%`;

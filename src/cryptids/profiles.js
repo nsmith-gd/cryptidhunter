@@ -36,6 +36,9 @@ export const DEFAULT_PROFILE = Object.freeze({
     aggressTime: 8,          // seconds it keeps coming before giving up
     aggressGiveUp: 25,       // ...or once you're this far away
     afterAggress: 'roam',    // then: 'roam' | 'flee'
+    // A cryptid that normally flees can still turn on you:
+    turnWithin: 0,           // ...if it only notices you this close (metres, cornered / surprised); 0 = never
+    turnAfterFlees: 0,       // ...or once you've chased it off this many times this hunt; 0 = never
   }),
 });
 
@@ -60,7 +63,9 @@ export const BIGFOOT = makeProfile({
   senses: Object.freeze({ hearing: 1.4, sightRange: 32, viewAngle: 65 }), // keen ears and eyes (see perception.js)
   // Shy but curious: checks out noises, stops and stares when it glimpses you (the classic
   // sighting, and your photo chance), then bolts once it's sure.
-  behavior: { onDetect: 'flee', observeAt: 0.3, observeTime: 3.5, lookAround: 5 },
+  // It's not harmless: surprise it up close, or keep hounding it, and it turns and charges.
+  behavior: { onDetect: 'flee', observeAt: 0.3, observeTime: 3.5, lookAround: 5,
+    turnWithin: 4, turnAfterFlees: 3, aggressSpeed: 5.6, aggressTime: 5, aggressGiveUp: 20, afterAggress: 'flee' },
   fleeSafeDistance: 30,
   fleeSpeed: 8.5,          // faster than the player's sprint (6 m/s): you can't run it down
   fleeStep: 18,

@@ -48,8 +48,11 @@ const s0 = await st();
 check('starting shows the objective and the dawn clock', s0.stage === 'search' && /Photograph Bigfoot/.test(s0.hud) && /dawn in 6:5\d/.test(s0.clock), s0);
 
 // Bigfoot lays a trail; walk up to its newest footprint and examine it.
-await page.waitForFunction(() => __game.clues.clues.some((c) => c.type === 'footprint'), null, { timeout: 15000 });
-const clue = await page.evaluate(() => { const c = __game.clues.clues.find((c) => c.type === 'footprint'); return { x: c.x, y: c.y, z: c.z }; });
+// (Pick one well away from Bigfoot: surprise it up close and it turns on you.)
+const farPrint = () => { const b = __game.cryptids.cryptids[0].agent;
+  return __game.clues.clues.find((c) => c.type === 'footprint' && Math.hypot(c.x - b.x, c.z - b.z) > 12); };
+await page.waitForFunction(`(${farPrint.toString()})()`, null, { timeout: 30000 });
+const clue = await page.evaluate(`(() => { const c = (${farPrint.toString()})(); return { x: c.x, y: c.y, z: c.z }; })()`);
 await page.evaluate(([x, z]) => { const p = __game.player; p.position.set(x, 0, z + 1.6); p.velocity.set(0, 0, 0); }, [clue.x, clue.z]);
 await page.waitForTimeout(100);
 await aim(clue.x, clue.y, clue.z);
@@ -96,11 +99,16 @@ await page.evaluate(() => { const p = __game.player; p.position.set(0, 0, -6); p
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${out}/05-back-to-truck.png` });
 await page.evaluate(() => __game.input.keys.add('KeyW'));
-await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 6000 }).catch(() => {});
+await page.waitForFunction(() => __game.hunt.inZone, null, { timeout: 8000 }).catch(() => {});
 await page.evaluate(() => __game.input.keys.delete('KeyW'));
-await page.waitForTimeout(200);
+await page.waitForTimeout(400);
+const atVan = await st();
+check('reaching the van with the photo does not end the hunt by itself (you choose)', atVan.stage === 'extract' && /\[H\] Drive home/.test(await page.evaluate(() => __game.hunt.hud.textContent)), atVan);
+await page.screenshot({ path: `${out}/05b-at-the-van-choose-to-leave.png` });
+await page.keyboard.press('KeyH');
+await page.waitForTimeout(250);
 const s3 = await st();
-check('reaching the truck with the photo completes the hunt', s3.outcome === 'complete' && s3.screen === 'flex' && s3.title === 'HUNT COMPLETE', s3);
+check('pressing H at the van with the photo completes the hunt', s3.outcome === 'complete' && s3.screen === 'flex' && s3.title === 'HUNT COMPLETE', s3);
 await page.screenshot({ path: `${out}/06-hunt-complete.png` });
 await page.waitForTimeout(700); // results screen ignores input for a moment so a held key can't skip it
 await page.keyboard.press('Space');
