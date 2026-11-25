@@ -128,12 +128,12 @@ export class Loadout {
   buildHud() {
     const css = document.createElement('style');
     css.textContent = `
-#loadout { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 6px;
+#loadout { position: fixed; right: 8px; bottom: 44px; display: flex; gap: 4px;
   pointer-events: none; font: 11px monospace; color: #ddd; z-index: 4; }
-#loadout .slot { width: 92px; padding: 4px 6px; background: #0009; border: 1px solid #666; text-shadow: 0 0 2px #000; }
+#loadout .slot { padding: 3px 6px; background: #0009; border: 1px solid #666; text-shadow: 0 0 2px #000; white-space: nowrap; }
 #loadout .slot.active { border-color: #ffd88a; background: #2b2116cc; color: #fff; }
 #loadout .slot .k { color: #999; } #loadout .slot.empty { opacity: .4; }
-#loadout-msg { position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%); font: 12px monospace;
+#loadout-msg { position: fixed; right: 8px; bottom: 72px; font: 12px monospace;
   color: #ffd88a; text-shadow: 0 0 3px #000; pointer-events: none; opacity: 0; transition: opacity .6s; z-index: 4; }`;
     document.head.append(css);
     this.el = Object.assign(document.createElement('div'), { id: 'loadout' });

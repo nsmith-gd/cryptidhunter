@@ -121,6 +121,9 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
     last ? `Last hunt (#${last.n}): ${huntSummary(last)}` : 'First night out. No photos sold yet.',
     `Gear: ${gearList(s.gear)}`].join('\n');
   root.prepend(el);
+  // The start screen is taller now: let it scroll instead of spilling off the top.
+  const overlay = root.parentElement;
+  if (overlay) { overlay.style.alignItems = 'safe center'; overlay.style.overflowY = 'auto'; root.style.padding = '12px 0'; }
   return el;
 }
 
