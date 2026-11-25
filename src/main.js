@@ -13,7 +13,7 @@ import { ClueFinder } from './journal/clueFinder.js';
 import { JournalUI } from './journal/journalUI.js';
 import { TrailReader } from './clues/trailReader.js';
 import { Mothman, MOTHMAN } from './cryptids/mothman.js';
-import { Chupacabra } from './cryptids/chupacabra.js';
+import { Chupacabra, CHUPA } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
@@ -123,16 +123,16 @@ const photo = new PhotoSnap({
 const huntFailure = new HuntFailure({
   player,
   getThreats: () => [
-    ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, z: c.agent.z, y0: 0, y1: c.profile.height, radius: c.profile.radius })),
+    ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, z: c.agent.z, y0: 0, y1: c.profile.height, radius: c.profile.radius, catchHits: c.profile.catchHits ?? 1 })),
     ...(!sandbox ? [] : [
-    { name: 'The Mothman', x: mothman.mesh.position.x, z: mothman.mesh.position.z, y0: mothman.mesh.position.y - 0.8, y1: mothman.mesh.position.y + 0.8, radius: 0.8 },
-    { name: 'The Chupacabra', x: chupacabra.position.x, z: chupacabra.position.z, y0: 0, y1: 0.55, radius: 0.45 },
+    { name: 'The Mothman', x: mothman.mesh.position.x, z: mothman.mesh.position.z, y0: mothman.mesh.position.y - 0.8, y1: mothman.mesh.position.y + 0.8, radius: 0.8, catchHits: MOTHMAN.catchHits },
+    { name: 'The Chupacabra', x: chupacabra.position.x, z: chupacabra.position.z, y0: 0, y1: 0.55, radius: 0.45, catchHits: CHUPA.catchHits },
     ]),
   ],
 });
 chupacabra.onHit = () => {
-  huntFailure.caught('The Chupacabra');
-  if (huntFailure.isCaught) chupacabra.flash.style.display = 'none'; // the Caught screen replaces the hit flash
+  huntFailure.touched('The Chupacabra', CHUPA.catchHits);
+  chupacabra.flash.style.display = 'none'; // the hunt's own hit flash / Caught screen replaces it
 };
 
 function resize() {

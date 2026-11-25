@@ -1,11 +1,14 @@
 import { PLAYER } from '../player.js';
 
-// Danger & Hunt Failure (L0): if any cryptid body touches the player, the hunt ends
-// with a "Caught" screen and the player can restart.
+// Danger & Hunt Failure (L0): when a cryptid touches the player enough times, the hunt ends
+// with a "Caught" screen and the player can restart. How many touches depends on the cryptid
+// (its `catchHits`, default 1): a big one grabs you on the first touch, a small one you can
+// shake off a couple of times.
 //
-// Threats are supplied by a callback returning [{ name, x, z, y0, y1, radius }]:
-// a vertical cylinder from y0 to y1. Systems can also call caught(name) directly
-// (e.g. a charge that connects).
+// Threats are supplied by a callback returning [{ name, x, z, y0, y1, radius, catchHits? }]:
+// a vertical cylinder from y0 to y1. Systems can also call touched(name, catchHits) directly
+// (e.g. a charge that connects), or caught(name) to end the hunt outright.
+const HIT_GRACE = 1.5; // seconds after a survivable hit before the same cryptid can count again
 export class HuntFailure {
   constructor({ player, getThreats = () => [], onRestart = () => location.reload() }) {
     this.player = player;
@@ -14,7 +17,10 @@ export class HuntFailure {
     this.enabled = true;
     this.isCaught = false;
     this.caughtBy = null;
+    this.hits = new Map();       // name -> touches so far
+    this.graceUntil = new Map(); // name -> time (s) before another touch counts
     this.buildScreen();
+    this.buildHitFlash();
   }
 
   update() {
@@ -25,9 +31,22 @@ export class HuntFailure {
       const reach = t.radius + PLAYER.radius;
       if (Math.hypot(t.x - p.x, t.z - p.z) > reach) continue;
       if (t.y1 < p.y || t.y0 > top) continue;          // flying overhead doesn't count
-      this.caught(t.name);
-      return;
+      this.touched(t.name, t.catchHits ?? 1);
+      if (this.isCaught) return;
     }
+  }
+
+  /** A cryptid made contact. Ends the hunt once it has touched you `catchHits` times. */
+  touched(name = 'Something', catchHits = 1) {
+    if (!this.enabled || this.isCaught) return;
+    const now = performance.now() / 1000;
+    if (now < (this.graceUntil.get(name) ?? 0)) return;
+    const n = (this.hits.get(name) ?? 0) + 1;
+    this.hits.set(name, n);
+    if (n >= catchHits) { this.caught(name); return; }
+    this.graceUntil.set(name, now + HIT_GRACE);
+    const left = catchHits - n;
+    this.showHit(`${name} got hold of you! You shook it off.\n${left} more and you're caught.`);
   }
 
   caught(name = 'Something') {
@@ -44,6 +63,22 @@ export class HuntFailure {
   restart() {
     if (!this.isCaught || performance.now() < this.readyAt) return;
     this.onRestart();
+  }
+
+  buildHitFlash() {
+    const f = this.hitFlash = document.createElement('div');
+    Object.assign(f.style, { position: 'fixed', inset: '0', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(160,0,0,0.4)', color: '#fff', font: '20px monospace', textAlign: 'center', whiteSpace: 'pre-line',
+      pointerEvents: 'none', opacity: '0', zIndex: '18', textShadow: '0 0 4px #000' });
+    document.body.appendChild(f);
+  }
+
+  showHit(text) {
+    const f = this.hitFlash;
+    f.textContent = text;
+    f.style.transition = 'none';
+    f.style.opacity = '1';
+    requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = 'opacity 1.6s ease-in'; f.style.opacity = '0'; }));
   }
 
   buildScreen() {

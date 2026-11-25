@@ -3,6 +3,7 @@ import * as THREE from 'three';
 // Chupacabra greybox placeholder: a low box that creeps after the player only while
 // they aren't looking at it, and charges once it gets within range unseen.
 export const CHUPA = {
+  catchHits: 3,            // small: you can shake it off twice; the third charge that lands ends the hunt
   spawn: new THREE.Vector3(14, 0, 22),
   size: new THREE.Vector3(0.6, 0.55, 1.1),   // width, height, length (metres)
   stalkSpeed: 2.6,         // slower than walking, so you can outpace it

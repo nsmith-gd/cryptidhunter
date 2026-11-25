@@ -35,8 +35,20 @@ await page.evaluate(() => {
 });
 const t0 = Date.now();
 let s;
-while (Date.now() - t0 < 8000) { s = await st(); if (s.caught) break; await page.waitForTimeout(100); }
-check('letting the Chupacabra reach you ends the hunt', s.caught && s.by === 'The Chupacabra' && s.screen === 'flex', s);
+const hits = () => page.evaluate(() => __game.huntFailure.hits.get('The Chupacabra') ?? 0);
+// It's small: the first landed charge is survivable (you shake it off).
+while (Date.now() - t0 < 8000) { if (await hits() >= 1) break; await page.waitForTimeout(50); }
+await page.waitForTimeout(60);
+await page.screenshot({ path: `${out}/00-chupacabra-first-hit-survived.png` });
+const first = { ...(await st()), hits: await hits() };
+check('a first Chupacabra hit is survivable (it takes 3)', first.hits === 1 && !first.caught, first);
+// Keep standing there with your back to it: the third hit ends the hunt.
+while (Date.now() - t0 < 60000) {
+  s = await st(); if (s.caught) break;
+  await page.evaluate(() => { const p = __game.player; p.yaw = Math.atan2(-(p.position.x - __game.chupacabra.position.x), -(p.position.z - __game.chupacabra.position.z)); }); // look directly away from it
+  await page.waitForTimeout(100);
+}
+check('letting the Chupacabra reach you three times ends the hunt', s.caught && s.by === 'The Chupacabra' && s.screen === 'flex' && (await hits()) === 3, { ...s, hits: await hits() });
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${out}/01-caught-by-chupacabra.png` });
 
@@ -65,7 +77,7 @@ await page.evaluate(() => {
 await page.evaluate(() => __game.input.keys.add('KeyW'));
 const t1 = Date.now();
 while (Date.now() - t1 < 4000) { s = await st(); if (s.caught) break; await page.waitForTimeout(100); }
-check('touching Bigfoot ends the hunt', s.caught && s.by === 'Bigfoot', s);
+check('touching Bigfoot ends the hunt on the first touch', s.caught && s.by === 'Bigfoot', s);
 await page.screenshot({ path: `${out}/02-caught-by-bigfoot.png` });
 
 // 5. A flyer overhead doesn't count.
