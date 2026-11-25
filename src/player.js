@@ -1,0 +1,118 @@
+import * as THREE from 'three';
+
+// Tunables (metres, seconds).
+export const PLAYER = {
+  radius: 0.3,
+  standHeight: 1.8,
+  crouchHeight: 1.0,
+  eyeOffset: 0.12,       // eye is this far below the top of the body
+  walkSpeed: 3.2,
+  sprintSpeed: 6.0,
+  crouchSpeed: 1.6,
+  accel: 14,             // ground acceleration toward target speed
+  gravity: 20,
+  crouchLerp: 10,        // how fast the camera drops/rises
+  mouseSens: 0.0022,
+  maxPitch: Math.PI / 2 - 0.01,
+};
+
+// First-person controller: WASD, mouse look, sprint (Shift), crouch (Ctrl/C).
+// Body is an axis-aligned box (feet at position.y) resolved per-axis against AABB colliders.
+export class Player {
+  constructor(camera, input, colliders) {
+    this.camera = camera;
+    this.input = input;
+    this.colliders = colliders;
+    this.position = new THREE.Vector3(0, 0, 0);
+    this.velocity = new THREE.Vector3();
+    this.yaw = 0;
+    this.pitch = 0;
+    this.height = PLAYER.standHeight;   // current collision height
+    this.eyeHeight = PLAYER.standHeight - PLAYER.eyeOffset; // smoothed camera height
+    this.crouching = false;
+    this.sprinting = false;
+    this.grounded = true;
+    camera.rotation.order = 'YXZ';
+  }
+
+  update(dt) {
+    const inp = this.input;
+
+    // Look.
+    const [dx, dy] = inp.consumeMouse();
+    this.yaw -= dx * PLAYER.mouseSens;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * PLAYER.mouseSens, -PLAYER.maxPitch, PLAYER.maxPitch);
+
+    // Crouch: held. Standing up is blocked if something is overhead.
+    const wantCrouch = inp.down('ControlLeft', 'ControlRight', 'KeyC');
+    if (wantCrouch) {
+      this.crouching = true;
+    } else if (this.crouching && this.canStand()) {
+      this.crouching = false;
+    }
+    this.height = this.crouching ? PLAYER.crouchHeight : PLAYER.standHeight;
+
+    // Move direction on the ground plane.
+    const f = (inp.down('KeyW', 'ArrowUp') ? 1 : 0) - (inp.down('KeyS', 'ArrowDown') ? 1 : 0);
+    const r = (inp.down('KeyD', 'ArrowRight') ? 1 : 0) - (inp.down('KeyA', 'ArrowLeft') ? 1 : 0);
+    const wish = new THREE.Vector3(r, 0, -f);
+    if (wish.lengthSq() > 0) wish.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+
+    // Sprint only while moving forward and not crouched.
+    this.sprinting = !this.crouching && f > 0 && inp.down('ShiftLeft', 'ShiftRight');
+    const speed = this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
+
+    const k = 1 - Math.exp(-PLAYER.accel * dt);
+    this.velocity.x += (wish.x * speed - this.velocity.x) * k;
+    this.velocity.z += (wish.z * speed - this.velocity.z) * k;
+    this.velocity.y -= PLAYER.gravity * dt;
+
+    this.moveAxis('x', this.velocity.x * dt);
+    this.moveAxis('z', this.velocity.z * dt);
+    this.grounded = false;
+    this.moveAxis('y', this.velocity.y * dt);
+    if (this.position.y <= 0) { this.position.y = 0; this.velocity.y = 0; this.grounded = true; }
+
+    // Camera.
+    const targetEye = this.height - PLAYER.eyeOffset;
+    this.eyeHeight += (targetEye - this.eyeHeight) * (1 - Math.exp(-PLAYER.crouchLerp * dt));
+    this.camera.position.set(this.position.x, this.position.y + this.eyeHeight, this.position.z);
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  bodyBox(pos = this.position, height = this.height, out = new THREE.Box3()) {
+    const r = PLAYER.radius;
+    out.min.set(pos.x - r, pos.y, pos.z - r);
+    out.max.set(pos.x + r, pos.y + height, pos.z + r);
+    return out;
+  }
+
+  canStand() {
+    const box = this.bodyBox(this.position, PLAYER.standHeight);
+    box.min.y += 0.01;
+    return !this.colliders.some((c) => c.intersectsBox(box));
+  }
+
+  // Move along one axis, then push out of any overlapping collider along that axis.
+  moveAxis(axis, delta) {
+    if (delta === 0) return;
+    this.position[axis] += delta;
+    const box = this.bodyBox();
+    // Shrink slightly on the other axes so touching faces don't count as overlap.
+    const eps = 1e-4;
+    for (const c of this.colliders) {
+      const b = box.clone();
+      for (const a of ['x', 'y', 'z']) if (a !== axis) { b.min[a] += eps; b.max[a] -= eps; }
+      if (!c.intersectsBox(b)) continue;
+      if (delta > 0) this.position[axis] -= (b.max[axis] + eps) - c.min[axis];
+      else this.position[axis] += c.max[axis] - (b.min[axis] - eps);
+      if (axis === 'y') {
+        if (delta < 0) this.grounded = true;
+        this.velocity.y = 0;
+      } else {
+        this.velocity[axis] = 0;
+      }
+      this.bodyBox(this.position, this.height, box);
+    }
+  }
+}

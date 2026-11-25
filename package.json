@@ -1,0 +1,29 @@
+{
+  "name": "cryptid-hunter",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check:t1": "vite build && node tools/check-t1.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nsmith-gd/cryptidhunter.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nsmith-gd/cryptidhunter/issues"
+  },
+  "homepage": "https://github.com/nsmith-gd/cryptidhunter#readme",
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.7"
+  },
+  "private": true,
+  "type": "module"
+}
