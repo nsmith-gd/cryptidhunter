@@ -8,11 +8,14 @@ export const PHOTO = {
   range: 60,           // metres: beyond this a subject is too small/dark to count
   raisedFov: 40,       // vertical field of view through the viewfinder (degrees)
   raiseTime: 0.22,     // seconds to bring the camera up
-  cooldown: 0.8,       // seconds between shots (shutter + wind-on)
+  cooldown: 0.8,
+  fullFrame: 0.45,     // a subject this tall in the frame (share of frame height) gets full marks for size
+  lookBlur: 6,         // turning the view this many deg/s blurs a photo as much as 1 deg/s of fear shake       // seconds between shots (shutter + wind-on)
 };
 
 const _v = new THREE.Vector3();
 const _m = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
 
 export class PhotoCamera {
   /**
@@ -33,6 +36,7 @@ export class PhotoCamera {
     this.wantRaised = false;
     this.baseFov = camera.fov;
     this.log = [];              // every shot: { result, subject, distance, visible, samples, at }
+    this.lookSpeed = 0;         // smoothed degrees/second the view is turning
     this.frustum = new THREE.Frustum();
     this.raycaster = new THREE.Raycaster();
 
@@ -53,6 +57,13 @@ export class PhotoCamera {
 
   update(dt) {
     this.cooldown = Math.max(0, this.cooldown - dt);
+    // Track how fast the view is turning (degrees/second, smoothed) for motion blur in photos.
+    this.camera.getWorldQuaternion(_q);
+    if (this._lastQ && dt > 0) {
+      const deg = THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(1, Math.abs(_q.dot(this._lastQ))))) / dt;
+      this.lookSpeed += (deg - this.lookSpeed) * Math.min(1, dt * 12);
+    }
+    (this._lastQ ??= new THREE.Quaternion()).copy(_q);
     const target = this.wantRaised && this.enabled ? 1 : 0;
     const step = dt / PHOTO.raiseTime;
     if (target > this.raise) this.raise = Math.min(1, this.raise + step);
@@ -75,10 +86,12 @@ export class PhotoCamera {
     this.cooldown = PHOTO.cooldown;
     const r = this.evaluate();
     const shake = this.getShake();
-    const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, ...photoScore(r, shake), at: performance.now() };
+    // Camera motion: how fast the view is turning (your mouse) plus fear shake.
+    const motion = shake + this.lookSpeed / PHOTO.lookBlur;
+    const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, motion, ...photoScore(r, motion), at: performance.now() };
     this.log.push(entry);
     console.info(r.subject
-      ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible, score ${entry.score} (steadiness ${entry.steadiness.toFixed(2)})`
+      ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible, score ${entry.score} (centred ${entry.parts?.centring} size ${entry.parts?.size} visible ${entry.parts?.visibility} steady ${entry.parts?.steadiness})`
       : `[photo] MISS: ${r.reason}`);
     this.flash(entry);
     this.onPhoto?.({ subject: r.subject, distance: r.distance, visible: r.visible, samples: r.samples, score: entry.score, source: 'handheld camera' });
@@ -108,7 +121,12 @@ export class PhotoCamera {
       if (!best || visible > best.visible || (visible === best.visible && dist < best.distance)) {
         const fwd = cam.getWorldDirection(new THREE.Vector3());
         const off = THREE.MathUtils.radToDeg(fwd.angleTo(new THREE.Vector3().subVectors(s.center, eye)));
-        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2) };
+        // Size on screen: the subject's projected height as a share of the frame height.
+        let lo = Infinity, hi = -Infinity;
+        const ends = s.base && s.height ? [s.base, s.base.clone().setY(s.base.y + s.height)] : pts; // feet to crown
+        for (const p of ends) { const y = _v.copy(p).project(cam).y; lo = Math.min(lo, y); hi = Math.max(hi, y); }
+        const screenSize = Math.min(1, Math.max(0, (Math.min(hi, 1) - Math.max(lo, -1)) / 2));
+        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2), screenSize };
       }
     }
     return best ? { ...best, reason: 'in frame' } : { subject: null, distance: 0, visible: 0, samples: 0, reason };
@@ -172,7 +190,7 @@ export class PhotoCamera {
 #viewfinder .vf-help { position: absolute; right: calc(8% + 46px); top: calc(10% + 6px); color: #e8e4d8aa; }
 #photo-flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 15; }
 #photo-label { position: fixed; left: 50%; top: 64%; transform: translateX(-50%); padding: 4px 10px; background: #000a;
-  font: 15px monospace; color: #fff; opacity: 0; pointer-events: none; z-index: 15; white-space: nowrap; }
+  font: 15px monospace; color: #fff; opacity: 0; pointer-events: none; z-index: 15; white-space: pre; text-align: center; }
 #photo-label.hit { color: #9dff9a; } #photo-label.miss { color: #ff9a8a; }`;
     document.head.append(css);
     this.white = Object.assign(document.createElement('div'), { id: 'photo-flash' });
@@ -198,25 +216,31 @@ export class PhotoCamera {
       this.white.style.opacity = '0';
     }));
     this.toast(entry.subject
-      ? `HIT — ${entry.subject} in frame (${entry.distance.toFixed(0)} m) · score ${entry.score}${entry.steadiness < 0.75 ? ' · shaky' : ''}`
+      ? `HIT — ${entry.subject} (${entry.distance.toFixed(0)} m) · SCORE ${entry.score}\n` +
+        `centred ${entry.parts.centring} · size ${entry.parts.size} · visible ${entry.parts.visibility} · steady ${entry.parts.steadiness}${entry.steadiness < 0.75 ? ' (blurry)' : ''}`
       : `MISS — ${entry.reason}`, entry.subject ? 'hit' : 'miss');
   }
 }
 
 /**
- * Placeholder photo score (0-100) until the evidence-scoring task lands:
- *   framing   — how much of the subject shows and how centred it is
- *   closeness — nearer shots are worth more
- *   steadiness — a shaking camera (fear) blurs the shot: 1 when still, down to 0.2
+ * Photo score (0-100) from four things, each also reported 0-100 in `parts`:
+ *   centring   — how close to the middle of the frame the cryptid is
+ *   size       — how tall it is in the frame (a full-frame subject scores 100); without a measured
+ *                screen size (e.g. a fixed trail camera) it falls back to distance
+ *   visibility — how much of it isn't hidden behind trees, rocks, walls
+ *   steadiness — how still the camera was (turning the view and fear shake blur the shot)
+ * score = visibility × steadiness × (35% centring + 65% size)
  */
-export function photoScore(r, shakeDegPerSec) {
-  const steadiness = Math.max(0.2, 1 - shakeDegPerSec / 8);
-  if (!r.subject) return { score: 0, framing: 0, steadiness };
-  const centred = 1 - Math.min(1, r.offCentre ?? 0);
-  // More of the creature, more centred and closer are all worth more.
-  const framing = (r.visible / r.samples) * (0.6 + 0.4 * centred);
-  const closeness = Math.max(0.3, Math.min(1, 1 - (r.distance - 8) / 60)); // 1 within 8 m, 0.3 by ~50 m
-  return { score: Math.round(100 * framing * closeness * steadiness), framing, closeness, steadiness };
+export function photoScore(r, motionDegPerSec = 0) {
+  const steadiness = Math.max(0.1, Math.min(1, 1 - motionDegPerSec / 8));
+  if (!r.subject) return { score: 0, steadiness, parts: null };
+  const centring = 1 - Math.min(1, r.offCentre ?? 0);
+  const size = r.screenSize != null ? Math.min(1, r.screenSize / PHOTO.fullFrame)
+    : Math.max(0.2, Math.min(1, 1 - (r.distance - 8) / 50));
+  const visibility = r.visible / r.samples;
+  const score = Math.round(100 * visibility * steadiness * (0.35 * centring + 0.65 * size));
+  const pct = (v) => Math.round(v * 100);
+  return { score, steadiness, parts: { centring: pct(centring), size: pct(size), visibility: pct(visibility), steadiness: pct(steadiness) } };
 }
 
 // Points on the subject to test: a standing column (feet, knees, chest, head, shoulders)
