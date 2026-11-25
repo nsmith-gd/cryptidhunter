@@ -26,6 +26,7 @@
     "check:t30": "vite build && node tools/check-t30.mjs",
     "check:t31": "vite build && node tools/check-t31.mjs",
     "check:t43": "vite build && node tools/check-t43.mjs",
+    "check:t44": "vite build && node tools/check-t44.mjs",
     "check:t21": "vite build && node tools/check-t21.mjs",
     "check:t3": "vite build && node tools/check-t3.mjs",
     "test": "node --test tests/*.test.js",
@@ -46,7 +47,9 @@
     "capture:t36": "vite build && node tools/capture-t36.mjs",
     "check:t27": "vite build && node tools/check-t27.mjs",
     "check:t52": "vite build && node tools/check-t52.mjs",
-    "check:t47": "vite build && node tools/check-t47.mjs"
+    "check:t47": "vite build && node tools/check-t47.mjs",
+    "check:t50": "vite build && node tools/check-t50.mjs",
+    "check:t51": "vite build && node tools/check-t51.mjs"
   },
   "repository": {
     "type": "git",

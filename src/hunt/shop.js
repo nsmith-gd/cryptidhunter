@@ -18,7 +18,7 @@ export const SHOP = Object.freeze({
   },
   // values[level]: level 0 is the stock gear; prices[level] is the cost of the NEXT level.
   upgrades: {
-    film: { name: 'Film capacity', unit: 'shots per hunt', values: [PHOTO.film, 36, 48, 72], prices: [90, 170, 300] },
+    film: { name: 'Film capacity', unit: 'shots per hunt', values: [PHOTO.filmRoll, 18, 24, 36], prices: [90, 170, 300] },
     zoom: { name: 'Zoom lens', unit: '× zoom', values: [PHOTO.raisedFov, 30, 22, 15], prices: [110, 200, 340] },
     battery: { name: 'Flashlight battery', unit: 's of light', values: [FLASHLIGHT.batteryLife, 170, 240, 330], prices: [80, 160, 280] },
   },
@@ -58,11 +58,11 @@ export function buyUpgrade(camp, key) {
 export function applyUpgrades(camp, { photo, flashlight }) {
   if (photo) {
     const film = upgradeValue(camp, 'film');
-    // A bigger roll mid-briefing gives you the extra frames too (you haven't shot yet).
-    photo.film = Math.max(0, film - (photo.filmMax - photo.film));
-    photo.filmMax = film;
+    // A bigger roll bought before setting off gives you the extra frames too (nothing shot yet).
+    photo.film = Math.max(0, film - (photo.filmTotal - photo.film));
+    photo.filmTotal = film;
     photo.raisedFov = upgradeValue(camp, 'zoom');
-    photo.updateFilmLabel?.();
+    photo.renderFilm?.();
   }
   if (flashlight) flashlight.batteryLife = upgradeValue(camp, 'battery');
 }

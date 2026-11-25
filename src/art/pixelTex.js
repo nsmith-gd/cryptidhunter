@@ -464,3 +464,53 @@ export function ribScarTexture() {
     for (let s = 0; s < 3; s++) for (let k = 0; k < 18; k++) { px(9 + s * 4 + Math.floor(k / 2), 5 + k, '#7a5a4a'); px(10 + s * 4 + Math.floor(k / 2), 5 + k, '#4a2e26'); }
   }, { seed: 191, alpha: true });
 }
+
+// --- First-person gear (#44) ------------------------------------------------------------------
+
+// Worn leather work glove, 16 x 16: dark olive-brown hide, creases, pale stitching, scuffed knuckles.
+export function gloveTexture() {
+  return pixelTexture('glove', 16, 16, (g, px, r, w, h) => {
+    const pal = ['#1a1612', '#2a241c', '#3a3226', '#4a4030', '#5c503c'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[2 + (r() < 0.3 ? 1 : 0) - (r() < 0.25 ? 1 : 0)]);
+    for (let x = 0; x < w; x++) if (x % 3 === 0) px(x, 3, '#8a7a5a');                 // stitch line
+    for (let k = 0; k < 5; k++) { const y = 6 + Math.floor(r() * 9), x = Math.floor(r() * 13); px(x, y, pal[0]); px(x + 1, y, pal[0]); px(x + 2, y, pal[1]); } // creases
+    for (let k = 0; k < 4; k++) px(Math.floor(r() * w), Math.floor(r() * 4), pal[4]);   // scuffs
+  }, { seed: 211 });
+}
+
+// Field-jacket sleeve, 16 x 16: waxed olive canvas, a darker cuff band, a frayed thread.
+export function sleeveTexture() {
+  return pixelTexture('sleeve', 16, 16, (g, px, r, w, h) => {
+    const pal = ['#1b2116', '#262e1d', '#323c25', '#3f4a2e', '#4e5a38'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[(x + y) % 4 === 0 ? 3 : 2 + (r() < 0.2 ? 1 : 0) - (r() < 0.2 ? 1 : 0)]);
+    for (let x = 0; x < w; x++) { px(x, 12, pal[0]); px(x, 13, pal[1]); px(x, 14, pal[1]); px(x, 15, pal[0]); }   // cuff
+    px(5, 15, '#6a6040'); px(5, 14, '#6a6040');
+  }, { seed: 212 });
+}
+
+// Worn black anodised metal with scratches and bare aluminium on the edges, 16 x 16.
+export function metalTexture() {
+  return pixelTexture('metal', 16, 16, (g, px, r, w, h) => {
+    const pal = ['#0e0f12', '#17191d', '#202328', '#2c3036'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[1 + (r() < 0.25 ? 1 : 0)]);
+    for (let k = 0; k < 6; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); for (let j = 0; j < 3; j++) px(x + j, y + (j >> 1), '#5a5e64'); }  // scratches
+    for (let x = 0; x < w; x++) { px(x, 0, pal[3]); if (r() < 0.3) px(x, 0, '#7a7e84'); }   // worn edge
+  }, { seed: 213 });
+}
+
+// Knurled rubber grip, 8 x 8: diamond pattern.
+export function gripTexture() {
+  return pixelTexture('grip', 8, 8, (g, px) => {
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) px(x, y, (x + y) % 4 === 0 || (x - y + 8) % 4 === 0 ? '#0c0d0f' : '#1c1e22');
+  }, { seed: 214 });
+}
+
+// Olive drab plastic housing (trail camera, goggles), 16 x 16: moulded texture, mud splash.
+export function oliveCaseTexture() {
+  return pixelTexture('oliveCase', 16, 16, (g, px, r, w, h) => {
+    const pal = ['#22281a', '#2e3622', '#3a442a', '#475234'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[1 + (r() < 0.35 ? 1 : 0)]);
+    for (let x = 0; x < w; x++) px(x, 0, pal[3]);
+    for (let k = 0; k < 6; k++) px(Math.floor(r() * w), 10 + Math.floor(r() * 6), r() < 0.5 ? '#3a2e22' : '#4a3a28');   // dried mud
+  }, { seed: 215 });
+}
