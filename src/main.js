@@ -131,8 +131,9 @@ const fear = new Fear({
   scene, player, flashlight, camera, safeZone: HUNT.exit, safeZones: map.safeZones ?? [],
   screenSway: new URLSearchParams(location.search).has('vr') ? 0 : undefined, // ?vr: no on-screen shake
   getThreats: () => [
-    ...cryptids.cryptids.map((c) => ({ id: c.profile.name, x: c.agent.x, z: c.agent.z, state: c.state })),
-    ...(sandbox ? [
+    // Only threatening cryptids frighten you (#52): a harmless one can wander right past.
+    ...cryptids.cryptids.filter((c) => c.profile.threatening).map((c) => ({ id: c.profile.name, x: c.agent.x, z: c.agent.z, state: c.state })),
+    ...(sandbox ? [ // both can catch you, so both are threatening
       { id: 'Mothman', x: mothman.mesh.position.x, z: mothman.mesh.position.z },
       { id: 'Chupacabra', x: chupacabra.position.x, z: chupacabra.position.z },
     ] : []),
