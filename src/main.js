@@ -23,7 +23,7 @@ import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
 import { LevelFlow } from './hunt/levelFlow.js';
-import { PhotoSnap } from './hunt/photoSnap.js';
+import { PhotoCamera } from './hunt/photoCamera.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
@@ -121,11 +121,14 @@ if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigf
 if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
 levelFlow.setDebug(clueTrails.debug);
 
-const photo = new PhotoSnap({
+// Camera: hold right mouse to raise it, left-click to snap. A shot is a HIT if a cryptid is
+// inside the viewfinder's frustum and not completely blocked.
+const photo = new PhotoCamera({
   camera, scene, input,
   getSubjects: () => [
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, object3d: c.mesh, radius: c.profile.radius,
-      center: new THREE.Vector3(c.agent.x, c.profile.height * 0.6, c.agent.z) })),
+      center: new THREE.Vector3(c.agent.x, c.profile.height * 0.6, c.agent.z),
+      base: new THREE.Vector3(c.agent.x, 0, c.agent.z), height: c.profile.height })),
     ...(sandbox ? [
       { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
       { name: 'Chupacabra', object3d: chupacabra.mesh, radius: 0.5, center: chupacabra.position.clone() },

@@ -82,8 +82,10 @@ for (let i = 0; i < 8 && !lined; i++) {
 await page.waitForTimeout(60);
 await page.screenshot({ path: `${out}/04a-bigfoot-in-view.png` });
 await aim(...await page.evaluate(() => { const b = __game.cryptids.cryptids[0]; return [b.agent.x, 1.5, b.agent.z]; }));
-await page.waitForTimeout(40);
+await page.mouse.down({ button: 'right' }); // raise the camera (#4)
+await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
 await page.mouse.click(480, 270);
+await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(120);
 await page.screenshot({ path: `${out}/04b-photo-snapped.png` });
 const s2 = await st();
@@ -107,8 +109,13 @@ check('Space after the results starts a fresh hunt', true, {});
 
 // ---- A miss doesn't count ----
 await begin();
-await aim(0, 1.5, -30);  // empty field
+// Empty view: look directly away from Bigfoot (the viewfinder frame is wide, so anywhere near it counts).
+await aim(...await page.evaluate(() => { const b = __game.cryptids.cryptids[0], p = __game.player.position;
+  return [p.x - (b.agent.x - p.x), 1.5, p.z - (b.agent.z - p.z)]; }));
+await page.mouse.down({ button: 'right' });
+await page.waitForFunction(() => __game.photo.raised, null, { timeout: 3000 });
 await page.mouse.click(480, 270);
+await page.mouse.up({ button: 'right' });
 await page.waitForTimeout(100);
 const miss = await st();
 check('a photo of nothing keeps you searching', miss.stage === 'search' && miss.photo === null, miss);
