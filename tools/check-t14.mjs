@@ -64,19 +64,22 @@ check('examining a track logs a clue', s1.clues === 1, s1);
 // (Examining the track may have spooked it; let it settle first.)
 await page.evaluate(() => { __game.player.position.set(-35, 0, 35); });
 await page.waitForFunction(() => __game.cryptids.cryptids[0].state === 'roam', null, { timeout: 15000 });
-const bf = await page.evaluate(() => { const b = __game.cryptids.cryptids[0]; return { x: b.agent.x, z: b.agent.z }; });
-await page.evaluate(([x, z]) => {
-  const p = __game.player;
-  // Stand 20 m away on whichever side has room.
-  const dirs = [[0, 1], [1, 0], [-1, 0], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
-  const ok = ([dx, dz]) => Math.abs(x + dx * 20) < 37 && Math.abs(z + dz * 20) < 37;
-  const [dx, dz] = dirs.find(ok);
-  p.position.set(x + dx * 20, 0, z + dz * 20); p.velocity.set(0, 0, 0);
-}, [bf.x, bf.z]);
-await page.waitForTimeout(80);
-const bf2 = await page.evaluate(() => { const b = __game.cryptids.cryptids[0]; return { x: b.agent.x, z: b.agent.z }; });
-await aim(bf2.x, 1.5, bf2.z);
-await page.waitForTimeout(80);
+// Try spots 20 m away around it until one has a clear view (boxes can block the shot).
+let lined = false;
+for (let i = 0; i < 8 && !lined; i++) {
+  lined = await page.evaluate((i) => {
+    const g = __game, b = g.cryptids.cryptids[0], p = g.player;
+    const a = (i / 8) * Math.PI * 2, x = b.agent.x + Math.sin(a) * 20, z = b.agent.z + Math.cos(a) * 20;
+    if (Math.abs(x) > 37 || Math.abs(z) > 37) return false;
+    p.position.set(x, 0, z); p.velocity.set(0, 0, 0);
+    p.update(0.001);
+    const c = g.camera.position, dx = b.agent.x - c.x, dy = 1.5 - c.y, dz = b.agent.z - c.z;
+    p.yaw = Math.atan2(-dx, -dz); p.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    p.update(0.001);
+    return g.photo.evaluate().subject === 'Bigfoot';
+  }, i);
+}
+await page.waitForTimeout(60);
 await page.screenshot({ path: `${out}/04a-bigfoot-in-view.png` });
 await aim(...await page.evaluate(() => { const b = __game.cryptids.cryptids[0]; return [b.agent.x, 1.5, b.agent.z]; }));
 await page.waitForTimeout(40);

@@ -40,7 +40,8 @@ export const BIGFOOT = makeProfile({
   roamRadius: 30,
   roamSpeed: 1.8,
   roamPause: [2, 6],
-  fleeTriggerDistance: 15, // shy: bolts well before you get close
+  fleeTriggerDistance: 15, // shy: bolts well before you get close (used only without senses)
+  senses: Object.freeze({ hearing: 1.4, sightRange: 32, viewAngle: 65 }), // keen ears and eyes (see perception.js)
   fleeSafeDistance: 30,
   fleeSpeed: 8.5,          // faster than the player's sprint (6 m/s): you can't run it down
   fleeStep: 18,
