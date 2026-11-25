@@ -47,6 +47,8 @@ export const BIGFOOT = makeProfile({
   turnRate: 6,
   clues: Object.freeze({
     footprint: Object.freeze({ length: 0.45, width: 0.2, stride: 1.5 }), // metres; human boot ~0.3
+    hair: Object.freeze({ every: [8, 16], color: 0x5a3a22 }),           // metres walked between tufts
+    scratch: Object.freeze({ every: [12, 22], reach: 2.5, height: [1.7, 2.4], length: 0.6 }), // high up: it's tall
     woodKnock: Object.freeze({ intervalSeconds: [20, 60] }),
   }),
 });

@@ -5,6 +5,8 @@ import { buildTestMap } from './testMap.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
+import { ClueSystem } from './clues/clueSystem.js';
+import { ClueTrails } from './clues/clueTrail.js';
 import { Mothman } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
@@ -50,6 +52,13 @@ const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPla
 const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
 cryptids.spawn(PROFILES.bigfoot, bigfootSpawn.x, bigfootSpawn.z);
 
+// Clues: cryptids drop footprints / hair / scratch marks along the route they actually take.
+// F3 (or ?debug in the URL) draws that true route as a yellow line for checking.
+const clues = new ClueSystem(scene);
+const clueTrails = new ClueTrails(scene, cryptids, clues, colliders);
+clueTrails.setDebug(new URLSearchParams(location.search).has('debug'));
+addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); clueTrails.setDebug(!clueTrails.debug); } });
+
 function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(Math.ceil(w / PIXEL_SCALE), Math.ceil(h / PIXEL_SCALE), false);
@@ -71,11 +80,14 @@ function frame() {
   flashlight.update(dt);
   batteries.update(dt);
   cryptids.update(dt);
+  clueTrails.update();
+  clues.update(dt);
   mothman.update(dt);
   chupacabra.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
-    cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('');
+    cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('') +
+    (clueTrails.debug ? `\nDEBUG PATH ON (F3)  clues: ${clues.clues.length}` : '');
   bars.update();
   noiseRing.update();
   renderer.render(scene, camera);
@@ -84,4 +96,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, input, scene, camera, renderer, overlay };
