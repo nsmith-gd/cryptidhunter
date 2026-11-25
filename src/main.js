@@ -111,7 +111,8 @@ flashlight.spares = packed.spareBatteries;
 const audioLures = new AudioLures({ scene, player, input, notify: (m) => photo?.toast(m) });
 // Fear: rises in the dark, near cryptids and on scares; light and the van calm you; high fear sways your aim.
 const fear = new Fear({
-  scene, player, flashlight, camera, safeZone: HUNT.exit,
+  scene, player, flashlight, camera, safeZone: HUNT.exit, safeZones: map.safeZones ?? [],
+  screenSway: new URLSearchParams(location.search).has('vr') ? 0 : undefined, // ?vr: no on-screen shake
   getThreats: () => [
     ...cryptids.cryptids.map((c) => ({ id: c.profile.name, x: c.agent.x, z: c.agent.z, state: c.state })),
     ...(sandbox ? [

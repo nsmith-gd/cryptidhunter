@@ -364,6 +364,11 @@ export function buildForestMap(scene) {
     },
     spawns: { bigfoot: { x: L.hollow.x, z: L.hollow.z } },
     landmarks: { ...L },
+    // Safe interiors: fear drains fast in here (the van is added by the hunt).
+    safeZones: [
+      { x: L.cabin.x, z: L.cabin.z, r: 3.6, name: 'cabin' },
+      { x: L.campsite.x + 4, z: L.campsite.z - 3, r: 2.2, name: 'tent' },
+    ],
     // Night lighting baseline (see maps/nightLighting.js): moon low in the north behind the ridge,
     // so the lookout, ridge and pines read as silhouettes against a glowing horizon.
     environment: { background: 0x070a0d, fog: { color: 0x0b1014, near: 10, far: 60 }, lightLevel: 0.05, night: {} },
