@@ -21,6 +21,7 @@ export const DEFAULT_PROFILE = Object.freeze({
   acceleration: 10,
   turnRate: 7,             // radians / second
   lureRange: 45,           // smells bait this far away (metres)
+  catchHits: 1,            // touches before you're caught (Danger & Hunt Failure)
   // Clue data for the clues system (not dropped at L0). null = leaves none.
   clues: null,
 });
@@ -41,6 +42,7 @@ export const BIGFOOT = makeProfile({
   roamSpeed: 1.8,
   roamPause: [2, 6],
   fleeTriggerDistance: 15, // shy: bolts well before you get close (used only without senses)
+  catchHits: 1,            // huge: one grab and the hunt is over
   senses: Object.freeze({ hearing: 1.4, sightRange: 32, viewAngle: 65 }), // keen ears and eyes (see perception.js)
   fleeSafeDistance: 30,
   fleeSpeed: 8.5,          // faster than the player's sprint (6 m/s): you can't run it down

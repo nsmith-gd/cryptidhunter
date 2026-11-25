@@ -3,6 +3,7 @@ import * as THREE from 'three';
 // Mothman greybox placeholder: a sphere that circles high over its home area and
 // is drawn toward the player while their flashlight is on.
 export const MOTHMAN = {
+  catchHits: 1,                      // if it ever reaches you, it takes you
   home: new THREE.Vector3(0, 0, -15),
   farRadius: 22, nearRadius: 4,      // orbit radius when ignoring / fully lured
   farHeight: 14, nearHeight: 3.5,    // orbit height when ignoring / fully lured
