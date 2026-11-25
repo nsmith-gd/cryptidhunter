@@ -6,7 +6,9 @@ import { sel, seq, when, act, tier, Brain, OK, RUN, FAIL } from './bt.js';
 //  · When it glimpses a person it freezes and stares (the classic sighting), then often SHADOWS
 //    them — pacing parallel through the treeline, just out of the light.
 //  · Territorial when pushed: it warns first — a whoop and a thrown rock that lands near you —
-//    and if you keep pressing or corner it, it charges. A first charge is usually a bluff.
+//    and if you keep pressing or corner it, it charges. Every charge looks real: a bluff comes at
+//    full speed and only pulls up right in your face. Whether it's real is a roll that gets worse
+//    for you each level (realCharge), and worse again once it has already warned you.
 //
 // Rules this teaches the player (in order of importance):
 //  1. Stay quiet and low: noise brings it to you, but slowly and warily.
@@ -16,9 +18,9 @@ import { sel, seq, when, act, tier, Brain, OK, RUN, FAIL } from './bt.js';
 //
 // Escalation: each level makes it quicker to anger and more dangerous (see TIERS).
 export const BIGFOOT_TIERS = {
-  1: { warnAt: 0.6, chargeAt: 0.95, cornerDist: 4, bluffFirst: true, rockMiss: 6.5, shadowChance: 0.6, shadowTime: 22, agitateOnDetect: 0.34, beamAgitation: 0.12, calmRate: 0.012, listenEvery: 5, listenFor: 1.6 },
-  2: { warnAt: 0.3, chargeAt: 0.65, cornerDist: 6, bluffFirst: true, rockMiss: 3.5, shadowChance: 0.85, shadowTime: 35, agitateOnDetect: 0.38, beamAgitation: 0.2, calmRate: 0.01, listenEvery: 7, listenFor: 1.1 },
-  3: { warnAt: 0.0, chargeAt: 0.6, cornerDist: 8, bluffFirst: false, rockMiss: 0.8, shadowChance: 1.0, shadowTime: 50, agitateOnDetect: 0.45, beamAgitation: 0.3, calmRate: 0.006, listenEvery: 10, listenFor: 0.6 },
+  1: { warnAt: 0.6, chargeAt: 0.95, cornerDist: 4, realCharge: 0.25, rockMiss: 6.5, shadowChance: 0.6, shadowTime: 22, agitateOnDetect: 0.34, beamAgitation: 0.12, calmRate: 0.012, listenEvery: 5, listenFor: 1.6 },
+  2: { warnAt: 0.3, chargeAt: 0.65, cornerDist: 6, realCharge: 0.5, rockMiss: 3.5, shadowChance: 0.85, shadowTime: 35, agitateOnDetect: 0.38, beamAgitation: 0.2, calmRate: 0.01, listenEvery: 7, listenFor: 1.1 },
+  3: { warnAt: 0.0, chargeAt: 0.6, cornerDist: 8, realCharge: 0.8, rockMiss: 0.8, shadowChance: 1.0, shadowTime: 50, agitateOnDetect: 0.45, beamAgitation: 0.3, calmRate: 0.006, listenEvery: 10, listenFor: 0.6 },
 };
 
 export function bigfootBrain(c) {
@@ -37,10 +39,10 @@ export function bigfootBrain(c) {
       act('agitated', () => { c.agitate(T().agitateOnDetect, 'spotted you'); return OK; }),
       sel('React',
         seq('Cornered', when('too close', () => c.playerDistance <= T().cornerDist),
-          act('charge (cornered)', () => c.startCharge({ bluff: T().bluffFirst && !c.bluffed, why: 'cornered' }))),
+          act('charge (cornered)', () => c.startCharge({ bluff: c.rand() >= T().realCharge, why: 'cornered' }))),
         // It always warns before a deliberate charge (cornering it is the exception).
         seq('Fed up', when('agitation high, already warned you', () => c.agitation >= T().chargeAt && c.lastWarn > -99),
-          act('charge (fed up)', () => c.startCharge({ bluff: false, why: 'fed up with you' }))),
+          act('charge (fed up)', () => c.startCharge({ bluff: c.rand() >= Math.min(1, T().realCharge + 0.25), why: 'fed up with you' }))),
         seq('Warn off', when('agitated, not warned lately', () => c.agitation >= T().warnAt && (c.lastWarn <= -99 || c.clock - c.lastWarn > 25)),
           act('stand tall, whoop, throw a rock', () => c.startWarn(T().rockMiss))),
         act('bolt for deep cover', () => { c.flees++; c.enterFlee(c.p, 'detected you'); return RUN; }))),
