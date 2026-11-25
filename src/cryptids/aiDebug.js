@@ -14,7 +14,7 @@ export class AIDebug {
     this.labels = new Map();
     this.panel = document.createElement('div');
     Object.assign(this.panel.style, {
-      position: 'fixed', right: '8px', top: '32px', width: '300px', font: '11px monospace', color: '#ddd',
+      position: 'fixed', right: '8px', top: '130px', width: '300px', font: '11px monospace', color: '#ddd',
       background: 'rgba(0,0,0,0.55)', padding: '6px 8px', whiteSpace: 'pre', pointerEvents: 'none', lineHeight: '1.45',
       border: '1px solid #333',
     });

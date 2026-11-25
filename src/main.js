@@ -21,6 +21,7 @@ import { Hud } from './hud.js';
 import { NoiseRing } from './noiseRing.js';
 import { HuntFailure } from './hunt/huntFailure.js';
 import { HuntLoop, HUNT } from './hunt/huntLoop.js';
+import { LevelFlow } from './hunt/levelFlow.js';
 import { PhotoSnap } from './hunt/photoSnap.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 
@@ -65,9 +66,11 @@ const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
 player.speedAt = map.speedAt ?? null;
 if (map.playerStart) { player.position.set(map.playerStart.x, 0, map.playerStart.z); player.yaw = map.playerStart.yaw ?? 0; }
-// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the truck before dawn.
-// The truck parks 7 m behind the player's start. Built before the cryptids so it's baked into their walkable grid.
-HUNT.truck.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.position.z + Math.cos(player.yaw) * 7);
+// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the van before dawn.
+// The extraction van parks at the map's exit spot (or 7 m behind the start). Built before the
+// cryptids so it's baked into their walkable grid.
+if (map.exit) HUNT.exit.set(map.exit.x, 0, map.exit.z);
+else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.position.z + Math.cos(player.yaw) * 7);
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot' });
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
@@ -87,13 +90,6 @@ const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPla
   // ?nosenses falls back to the L0 fixed flee distance (used by older mechanic checks).
   senses: new URLSearchParams(location.search).has('nosenses') ? null
     : { player, flashlight, camera, lightLevel: map.environment?.lightLevel ?? 0 } });
-// Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
-if (mapId !== 'swamp') {
-  const bigfootSpawn = spawns?.bigfoot ?? { x: 10, z: -25 };
-  cryptids.spawn(PROFILES.bigfoot, bigfootSpawn.x, bigfootSpawn.z);
-}
-// Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
-if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
 // State-machine debug overlay (F4 toggles; ?nodebugai starts it hidden).
 const aiDebug = new AIDebug(scene, cryptids, { visible: !new URLSearchParams(location.search).has('nodebugai') });
 
@@ -102,7 +98,7 @@ const aiDebug = new AIDebug(scene, cryptids, { visible: !new URLSearchParams(loc
 const clues = new ClueSystem(scene);
 const clueTrails = new ClueTrails(scene, cryptids, clues, colliders);
 clueTrails.setDebug(new URLSearchParams(location.search).has('debug'));
-addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); clueTrails.setDebug(!clueTrails.debug); } });
+addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); clueTrails.setDebug(!clueTrails.debug); levelFlow?.setDebug(clueTrails.debug); } });
 
 // Field journal: aim at a clue within reach and press E to log it; J opens the journal.
 const journal = new Journal();
@@ -111,6 +107,15 @@ const clueFinder = new ClueFinder(camera, clues, journal, input);
 const trailReader = new TrailReader({ clues, clueTrails, journal, player });
 const journalUI = new JournalUI(journal, clueFinder);
 hunt.journal = journal;
+
+// Level flow: spawn this hunt's Bigfoot. On maps with spawn zones (the forest) it picks where it
+// beds down and where its fresh trail starts, and walks that route so the clues are real.
+// Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
+const levelFlow = new LevelFlow({ scene, map });
+if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+// Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
+if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
+levelFlow.setDebug(clueTrails.debug);
 
 const photo = new PhotoSnap({
   camera, scene, input,
@@ -201,4 +206,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

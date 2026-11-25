@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
 // A Night's Hunt (L0 greybox): briefing -> search & track -> photograph the target ->
-// return to the truck before dawn -> results. Caught (HuntFailure) and dawn end it early.
+// return to the van before dawn -> results. Caught (HuntFailure) and dawn end it early.
 export const HUNT = {
   dawnSeconds: 7 * 60,          // real seconds from start until dawn
-  truck: new THREE.Vector3(0, 0, 7),
+  exit: new THREE.Vector3(0, 0, 7),     // extraction point (the van parks just behind it)
   extractRadius: 4,
   giveUpAfter: 20,              // seconds before "leave without a photo" is offered
 };
@@ -21,7 +21,7 @@ export class HuntLoop {
     this.missedShots = 0;
     this.outcome = null;          // complete | abandoned | dawn | caught
     this.inZone = false;
-    this.buildTruck(scene, colliders);
+    this.buildVan(scene, colliders);
     this.buildHud();
     this.buildEndScreen();
     addEventListener('keydown', (e) => {
@@ -50,7 +50,7 @@ export class HuntLoop {
   update(dt) {
     this.beacon.material.opacity = 0.35 + 0.2 * Math.sin(performance.now() / 300);
     const p = this.player.position;
-    this.inZone = Math.hypot(p.x - HUNT.truck.x, p.z - HUNT.truck.z) < HUNT.extractRadius;
+    this.inZone = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z) < HUNT.extractRadius;
     if (this.stage === 'search' || this.stage === 'extract') {
       this.elapsed += dt;
       if (this.stage === 'extract' && this.inZone) this.end('complete');
@@ -76,21 +76,40 @@ export class HuntLoop {
   }
 
   // ---------- world ----------
-  buildTruck(scene, colliders) {
+  // The extraction van: parked just behind the exit point, with a green ring (walk in to end the
+  // hunt) and a tall pulsing green beacon you can see from anywhere.
+  buildVan(scene, colliders) {
     const g = new THREE.Group();
-    const grey = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
-    const bed = new THREE.Mesh(new THREE.BoxGeometry(2, 1.1, 4.4), grey(0x3d4a5a));
-    bed.position.y = 0.75;
-    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.9, 1.8), grey(0x34404e));
-    cab.position.set(0, 1.75, -1.1);
-    for (const m of [bed, cab]) { m.castShadow = m.receiveShadow = true; }
-    // Headlights so the truck reads in the dark, pointing away from the hunt area.
-    const lamp = new THREE.MeshBasicMaterial({ color: 0xfff2c0 });
-    for (const x of [-0.65, 0.65]) {
-      const l = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.05), lamp);
-      l.position.set(x, 0.9, 2.21);
-      g.add(l);
+    const paint = (c, r = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.75, 4.9), paint(0x5a5f58));       // boxy panel van
+    body.position.y = 0.4 + 1.75 / 2;
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.85, 0.7), paint(0x4f544e));    // short bonnet
+    nose.position.set(0, 0.4 + 0.42, -2.8);
+    const glass = new THREE.MeshStandardMaterial({ color: 0x0d1620, roughness: 0.2, emissive: 0x05080c });
+    const windscreen = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 0.05), glass);
+    windscreen.position.set(0, 1.75, -2.46);
+    for (const sx of [-1.01, 1.01]) {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 1.0), glass);
+      w.position.set(sx, 1.75, -1.85);
+      g.add(w);
     }
+    const tyre = paint(0x111111, 1);
+    for (const [x, z] of [[-0.9, -1.8], [0.9, -1.8], [-0.9, 1.6], [0.9, 1.6]]) {
+      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.28, 10).rotateZ(Math.PI / 2), tyre);
+      t.position.set(x, 0.38, z);
+      g.add(t);
+    }
+    // Lights so it reads in the dark: warm headlights forward, red tail lights back.
+    const head = new THREE.MeshBasicMaterial({ color: 0xfff2c0 });
+    const tail = new THREE.MeshBasicMaterial({ color: 0xff3020 });
+    for (const x of [-0.7, 0.7]) {
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.18, 0.05), head);
+      h.position.set(x, 0.95, -3.16);
+      const t = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.05), tail);
+      t.position.set(x * 1.25, 1.1, 2.46);
+      g.add(h, t);
+    }
+    for (const m of [body, nose]) { m.castShadow = m.receiveShadow = true; }
     // Green pulsing beacon: visible from anywhere so you can find your way back.
     this.beacon = new THREE.Mesh(
       new THREE.CylinderGeometry(0.25, 0.25, 30, 8, 1, true),
@@ -102,22 +121,22 @@ export class HuntLoop {
       new THREE.MeshBasicMaterial({ color: 0x3cff7a, transparent: true, opacity: 0.5, depthWrite: false }),
     );
     ring.position.y = 0.03;
-    g.add(bed, cab, this.beacon, ring);
-    // Truck body sits just behind the extract point; the ring is centred on the point itself.
-    g.position.copy(HUNT.truck);
-    g.position.z += 1.5;
-    ring.position.z = -1.5;
-    g.name = 'truck';
+    g.add(body, nose, windscreen, this.beacon, ring);
+    // Van sits just behind the exit point (nose toward it); the ring is centred on the point itself.
+    g.position.copy(HUNT.exit);
+    g.position.z += 4.2;
+    ring.position.z = -4.2;
+    g.name = 'extraction-van';
     scene.add(g);
-    this.truck = g;
+    this.van = g;
     g.updateMatrixWorld(true);
-    colliders.push(new THREE.Box3().setFromObject(bed), new THREE.Box3().setFromObject(cab));
+    colliders.push(new THREE.Box3().setFromObject(body), new THREE.Box3().setFromObject(nose));
   }
 
   // ---------- HUD ----------
   buildHud() {
     const box = this.hud = document.createElement('div');
-    Object.assign(box.style, { position: 'fixed', bottom: '10px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', maxWidth: '560px',
+    Object.assign(box.style, { position: 'fixed', top: '38px', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', maxWidth: '440px',
       font: '13px monospace', color: '#e8e8e8', textShadow: '0 0 3px #000', pointerEvents: 'none', whiteSpace: 'pre-line', lineHeight: '1.5' });
     document.body.appendChild(box);
     this.clock = document.createElement('div');
@@ -128,7 +147,7 @@ export class HuntLoop {
 
   objectiveText() {
     const p = this.player.position;
-    const dTruck = Math.hypot(p.x - HUNT.truck.x, p.z - HUNT.truck.z);
+    const dVan = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z);
     switch (this.stage) {
       case 'briefing': return '';
       case 'search': {
@@ -140,7 +159,7 @@ export class HuntLoop {
         return lines.join('\n');
       }
       case 'extract':
-        return `GOT THE SHOT! Return to your truck (green light) before dawn — ${dTruck.toFixed(0)} m`;
+        return `GOT THE SHOT! Return to the van (green light) before dawn — ${dVan.toFixed(0)} m`;
       case 'ended': return '';
     }
     return '';
@@ -187,7 +206,7 @@ export class HuntLoop {
     const t = Math.floor(this.elapsed);
     const v = this.journal?.verdict?.();
     const lines = [];
-    if (this.outcome === 'dawn') lines.push(`The sun came up before you made it back to the truck.${this.photo ? '\nThe photo never left the woods.' : ''}`);
+    if (this.outcome === 'dawn') lines.push(`The sun came up before you made it back to the van.${this.photo ? '\nThe photo never left the woods.' : ''}`);
     if (this.outcome === 'abandoned') lines.push('You drove home empty-handed.');
     lines.push('', `Photo of ${this.target}:  ${this.photo && this.outcome === 'complete' ? `YES (from ${this.photo.distance.toFixed(0)} m)` : 'none'}`);
     lines.push(`Clues logged:  ${this.journal?.entries.length ?? 0}`);
