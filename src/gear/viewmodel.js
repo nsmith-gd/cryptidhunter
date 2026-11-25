@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import {
-  pixelMaterial, gloveTexture, sleeveTexture, metalTexture, gripTexture, oliveCaseTexture,
+  pixelMaterial, gripTexture, oliveCaseTexture, gloveLeatherTexture, canvasTexture, anodizedTexture, leatheretteTexture,
 } from '../art/pixelTex.js';
+import { buildTorchHand, buildCameraHand, buildGoggles, buildTrailCam } from './viewmodelModels.js';
 
-// First-person hands and held gear (#44): low-poly, pixel-textured.
+// First-person hands and held gear (#44, rebuilt #57): sculpted low-poly models (viewmodelModels.js),
+// flat-shaded with pixel textures.
 //   right hand  — gloved fist around the flashlight (lens glows warm while it's on; thumb clicks
 //                 the switch when you toggle it);
 //   left hand   — holding the camera, raised to your eye by the camera's own raise animation;
@@ -13,31 +15,23 @@ import {
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-function box(w, h, d, mat, x = 0, y = 0, z = 0, uv = 1) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  if (uv !== 1) { const a = g.attributes.uv; for (let i = 0; i < a.count; i++) a.setXY(i, a.getX(i) * uv, a.getY(i) * uv); }
-  const m = new THREE.Mesh(g, mat);
-  m.position.set(x, y, z);
-  return m;
-}
-
-/** A gloved hand gripping something along -Z: palm block, 4 curled fingers, thumb, sleeve cuff. */
-function buildHand(M, side = 1) {
-  const g = new THREE.Group();
-  g.add(box(0.075, 0.085, 0.05, M.glove, 0, 0, 0));                                 // palm / back of hand
-  for (let i = 0; i < 4; i++) {                                                     // curled fingers wrapped round the grip
-    const f = box(0.022, 0.024, 0.045, M.glove, side * 0.04, 0.03 - i * 0.022, -0.028);
-    f.rotation.y = side * 0.25;
-    g.add(f);
-  }
-  const thumb = box(0.022, 0.022, 0.05, M.glove, -side * 0.02, 0.05, -0.035);
-  thumb.rotation.z = side * 0.6; thumb.name = 'thumb';
-  g.add(thumb);
-  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.16, 7), M.sleeve);
-  cuff.rotation.x = Math.PI / 2; cuff.position.set(0, -0.005, 0.1);
-  g.add(cuff);
-  g.userData.thumb = thumb;
-  return g;
+/**
+ * Cinematic rim light for viewmodel materials only: a thin cool edge (moonlight wrapping the
+ * silhouette) so hands and gear separate from the dark forest without lighting the world.
+ */
+function addRim(mat, color = 0x6a83a0, strength = 0.55, power = 2.6) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.rimColor = { value: new THREE.Color(color) };
+    sh.uniforms.rimStrength = { value: strength };
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 rimColor; uniform float rimStrength;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float rimF = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), ${power.toFixed(2)});
+        rimF = floor(rimF * 3.0 + 0.5) / 3.0;           // stepped, like painted pixel highlights
+        totalEmissiveRadiance += rimColor * rimF * rimStrength;`);
+  };
+  mat.customProgramCacheKey = () => `rim-${color}-${strength}`;
+  return mat;
 }
 
 export class Viewmodel {
@@ -56,47 +50,39 @@ export class Viewmodel {
     this.placeT = 0;
 
     const M = this.M = {
-      glove: pixelMaterial(gloveTexture()),
-      sleeve: pixelMaterial(sleeveTexture()),
-      metal: pixelMaterial(metalTexture(), { roughness: 0.5, metalness: 0.4 }),
-      grip: pixelMaterial(gripTexture()),
-      olive: pixelMaterial(oliveCaseTexture()),
+      glove: pixelMaterial(gloveLeatherTexture(), { flatShading: true, roughness: 0.75 }),
+      sleeve: pixelMaterial(canvasTexture(), { flatShading: true }),
+      metal: pixelMaterial(anodizedTexture(), { roughness: 0.35, metalness: 0.6, flatShading: true }),
+      leatherette: pixelMaterial(leatheretteTexture(), { flatShading: true, roughness: 0.9 }),
+      grip: pixelMaterial(gripTexture(), { flatShading: true }),
+      olive: pixelMaterial(oliveCaseTexture(), { flatShading: true }),
       glass: new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.15, metalness: 0.6 }),
       lensOn: new THREE.MeshBasicMaterial({ color: 0xfff0c8 }),
       lensOff: new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: 0.2, metalness: 0.5 }),
       red: new THREE.MeshBasicMaterial({ color: 0xc0281a }),
+      rubber: new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.95, flatShading: true }),
+      glassGreen: new THREE.MeshStandardMaterial({ color: 0x0c1a12, roughness: 0.1, metalness: 0.6, emissive: 0x041208 }),
     };
+
+    for (const k of ['glove', 'sleeve', 'metal', 'leatherette', 'grip']) addRim(M[k]);
+    for (const k of ['olive', 'rubber']) addRim(M[k], 0x6a83a0, 0.18);   // goggles sit right at your eyes: a softer edge
 
     // --- right: flashlight in a fist, at the spotlight's origin ----------------------------
     const right = this.right = new THREE.Group();
     right.name = 'viewmodel-right';
-    const torch = new THREE.Group();
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.2, 8), M.grip); tube.rotation.x = Math.PI / 2;
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.026, 0.06, 8), M.metal); head.rotation.x = Math.PI / 2; head.position.z = -0.12;
-    this.lens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 10), M.lensOn); this.lens.position.z = -0.151; this.lens.rotation.y = Math.PI;
-    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.02, 8), M.metal); tail.rotation.x = Math.PI / 2; tail.position.z = 0.1;
-    const button = box(0.012, 0.008, 0.016, M.red, 0, 0.024, -0.04);
-    torch.add(tube, head, this.lens, tail, button);
-    right.add(torch, buildHand(M, 1));
-    right.children[1].position.set(0, -0.01, 0.01);
-    this.rightThumb = right.children[1].userData.thumb;
-    this.rightRest = V(0.2, -0.19, -0.36);
+    const torchHand = buildTorchHand(M);
+    right.add(torchHand);
+    this.lens = torchHand.userData.lens;
+    this.rightThumb = torchHand.userData.thumb;
+    this.rightRest = V(0.17, -0.165, -0.33);
     camera.add(right);
 
     // --- left: hands the camera model to the photo camera's raise animation ---------------
     this.left = new THREE.Group();
     this.left.name = 'viewmodel-left';
-    const cam = new THREE.Group();
-    cam.add(box(0.15, 0.095, 0.065, M.metal, 0, 0, 0, 1.5));                                     // body
-    cam.add(box(0.05, 0.03, 0.06, M.metal, -0.04, 0.06, 0));                                     // viewfinder hump
-    const lensBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.038, 0.075, 10), M.grip);
-    lensBarrel.rotation.x = Math.PI / 2; lensBarrel.position.set(0.02, 0, -0.065);
-    const glass = new THREE.Mesh(new THREE.CircleGeometry(0.028, 10), M.glass); glass.position.set(0.02, 0, -0.103); glass.rotation.y = Math.PI;
-    cam.add(lensBarrel, glass, box(0.02, 0.01, 0.02, M.red, 0.055, 0.052, 0.01));                // shutter button
-    cam.add(box(0.012, 0.06, 0.012, M.sleeve, -0.07, 0.07, 0.02));                              // strap stub
-    const hand = buildHand(M, -1);
-    hand.position.set(-0.06, -0.035, 0.02); hand.rotation.z = 0.5;
-    this.left.add(cam, hand);
+    const camHand = buildCameraHand(M);
+    camHand.rotation.set(0.3, 0.85, 0.12);            // held low, lens turned out to the right, as if ready to raise
+    this.left.add(camHand);
     if (photo?.body) {
       // Replace the greybox block inside the photo camera's animated group with this model.
       for (const ch of [...photo.body.children]) ch.visible = false;
@@ -109,24 +95,13 @@ export class Viewmodel {
     // --- goggles: swing down over the eyes (night vision) -----------------------------------
     const gog = this.goggles = new THREE.Group();
     gog.name = 'viewmodel-goggles';
-    for (const s of [-1, 1]) {
-      const tubeG = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.036, 0.09, 10, 1, true), M.olive);
-      tubeG.rotation.x = Math.PI / 2; tubeG.position.set(s * 0.045, 0, 0);
-      tubeG.material.side = THREE.DoubleSide;
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.006, 4, 10), M.metal); ring.position.set(s * 0.045, 0, -0.045);
-      gog.add(tubeG, ring);
-    }
-    gog.add(box(0.15, 0.03, 0.05, M.olive, 0, 0.04, 0.01), box(0.03, 0.06, 0.03, M.metal, 0, 0.07, 0.03));
+    gog.add(buildGoggles(M));
     camera.add(gog);
 
     // --- trail camera: shown in the left hand while placing one ----------------------------
     const tc = this.trailCam = new THREE.Group();
     tc.name = 'viewmodel-trailcam';
-    tc.add(box(0.11, 0.15, 0.07, M.olive, 0, 0, 0, 1.5));
-    const tcl = new THREE.Mesh(new THREE.CircleGeometry(0.022, 10), M.glass); tcl.position.set(0, 0.025, -0.036); tcl.rotation.y = Math.PI;
-    tc.add(tcl, box(0.012, 0.012, 0.01, M.red, 0.035, 0.055, -0.036), box(0.13, 0.02, 0.02, M.sleeve, 0, 0, 0.045));
-    const tch = buildHand(M, -1); tch.position.set(-0.01, -0.08, 0.03); tch.rotation.x = -0.4;
-    tc.add(tch);
+    tc.add(buildTrailCam(M));
     tc.visible = false;
     camera.add(tc);
     if (trailCams) {
@@ -138,6 +113,11 @@ export class Viewmodel {
     this.fill = new THREE.PointLight(0x9fb0c8, 0.35, 0.7, 2);
     this.fill.position.set(0, -0.28, -0.2);
     camera.add(this.fill);
+    // Warm bounce: the torch beam lighting the ground throws a little warm light back up onto
+    // your hands and gear (only while it's on) - the main thing that makes them feel lit, not pasted on.
+    this.bounce = new THREE.PointLight(0xffb070, 0.0, 1.1, 2);
+    this.bounce.position.set(0.05, -0.45, -0.55);
+    camera.add(this.bounce);
     // Goggles come down first: night vision is on at once, but for the first quarter second you
     // still see the normal view with the goggles swinging down over your eyes.
     this.lowerUntil = 0;   // real-clock time until which the goggles are still swinging down
@@ -179,10 +159,11 @@ export class Viewmodel {
     this.click = Math.max(0, this.click - dt * 6);
     const on = this.flashlight.on && (this.flashlight.battery ?? 1) > 0;
     this.lens.material = on ? this.M.lensOn : this.M.lensOff;
-    this.rightThumb.position.y = 0.05 - 0.012 * Math.sin(this.click * Math.PI);
+    this.rightThumb.position.y = -0.005 * Math.sin(this.click * Math.PI);   // thumb presses the switch
+    this.bounce.intensity = on ? 0.55 : 0;
     const r = this.rightRest;
     this.right.position.set(r.x + bobX - this.sway.x, r.y + breathe - bobY, r.z);
-    this.right.rotation.set(0.04 + breathe * 2, -0.06 + this.sway.x * 2, 0.05 + bobX * 2);
+    this.right.rotation.set(0.04 + breathe * 2, -0.06 + this.sway.x * 2, 0.55 + bobX * 2);   // rolled so the back of the glove faces you
     this.right.visible = !this.photo?.raised && !this.nightVision?.on;
     // The beam comes out of the torch's lens (so it doesn't light up your own glove), aimed ahead.
     this.right.updateMatrix();

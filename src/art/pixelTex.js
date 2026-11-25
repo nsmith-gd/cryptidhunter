@@ -514,3 +514,37 @@ export function oliveCaseTexture() {
     for (let k = 0; k < 6; k++) px(Math.floor(r() * w), 10 + Math.floor(r() * 6), r() < 0.5 ? '#3a2e22' : '#4a3a28');   // dried mud
   }, { seed: 215 });
 }
+
+// --- First-person gear v2 (#57): calmer, low-contrast materials that let the sculpt read ------
+
+// Glove leather, 32 x 32: soft oiled hide, gentle grain, a few scuffs. Narrow value range on purpose.
+export function gloveLeatherTexture() {
+  return pixelTexture('glove2', 32, 32, (g, px, r, w, h) => {
+    const pal = ['#2e251c', '#352b21', '#3c3126', '#43372b'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[1 + ((x * 7 + y * 13 + Math.floor(r() * 3)) % 5 === 0 ? 1 : 0) - (r() < 0.12 ? 1 : 0)]);
+    for (let k = 0; k < 5; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, '#56473a'); px(x + 1, y, pal[3]); }   // scuffs catching light
+    for (let x = 0; x < w; x += 2) px(x, 20, '#5e4e3a');                                                         // one stitched seam
+  }, { seed: 221 });
+}
+// Waxed canvas, 32 x 32: fine twill weave in olive, no stripes.
+export function canvasTexture() {
+  return pixelTexture('canvas2', 32, 32, (g, px, r, w, h) => {
+    const pal = ['#2c3522', '#323c27', '#38432b', '#3e4a30'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[((x + y) % 3 === 0 ? 2 : 1) + (r() < 0.08 ? 1 : 0) - (r() < 0.08 ? 1 : 0)]);
+    for (let k = 0; k < 3; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, '#4a5636'); px(x + 1, y + 1, '#4a5636'); }   // waxy sheen
+  }, { seed: 222 });
+}
+// Anodised metal, 32 x 32: near-flat dark finish, two thin scratches.
+export function anodizedTexture() {
+  return pixelTexture('anodized', 32, 32, (g, px, r, w, h) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, r() < 0.1 ? '#22252a' : '#1c1f23');
+    for (let k = 0; k < 2; k++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); for (let j = 0; j < 5; j++) px(x + j, y + (j >> 1), '#3d434b'); }
+  }, { seed: 223 });
+}
+// Pebbled leatherette (camera body), 16 x 16.
+export function leatheretteTexture() {
+  return pixelTexture('leatherette', 16, 16, (g, px, r, w, h) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, '#141518');
+    for (let k = 0; k < 40; k++) px(Math.floor(r() * w), Math.floor(r() * h), r() < 0.6 ? '#1c1d21' : '#0e0f11');
+  }, { seed: 224 });
+}
