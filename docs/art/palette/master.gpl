@@ -1,0 +1,102 @@
+GIMP Palette
+Name: Cryptid Hunter master
+Columns: 7
+#
+ 22  18  25	bark-0
+ 38  28  31	bark-1
+ 58  42  38	bark-2
+ 80  57  46	bark-3
+106  76  57	bark-4
+133 100  71	bark-5
+163 130  93	bark-6
+ 23  21  26	wood-0
+ 42  37  38	wood-1
+ 64  55  50	wood-2
+ 88  75  64	wood-3
+115  97  79	wood-4
+143 123  99	wood-5
+173 152 123	wood-6
+ 11  20  22	needles-0
+ 18  34  31	needles-1
+ 27  51  40	needles-2
+ 38  69  50	needles-3
+ 53  90  60	needles-4
+ 74 113  73	needles-5
+102 138  90	needles-6
+ 16  25  20	moss-0
+ 26  42  26	moss-1
+ 39  61  31	moss-2
+ 55  84  37	moss-3
+ 76 109  45	moss-4
+103 136  56	moss-5
+138 164  73	moss-6
+ 20  26  18	grass-0
+ 32  43  22	grass-1
+ 51  65  28	grass-2
+ 75  88  35	grass-3
+102 113  44	grass-4
+133 127  56	grass-5
+168 150  76	grass-6
+ 18  15  20	dirt-0
+ 31  26  28	dirt-1
+ 48  38  35	dirt-2
+ 67  52  43	dirt-3
+ 88  68  52	dirt-4
+111  86  63	dirt-5
+137 112  79	dirt-6
+ 36  21  26	litter-0
+ 62  31  28	litter-1
+ 91  44  32	litter-2
+122  62  36	litter-3
+152  85  43	litter-4
+181 111  54	litter-5
+207 145  73	litter-6
+ 18  20  24	rock-0
+ 30  33  38	rock-1
+ 45  49  55	rock-2
+ 64  69  75	rock-3
+ 86  91  95	rock-4
+111 115 115	rock-5
+140 142 136	rock-6
+ 58  74  58	lichen-0
+ 86 104  76	lichen-1
+122 138  94	lichen-2
+163 168 120	lichen-3
+  7  16  18	water-0
+ 12  26  29	water-1
+ 19  38  41	water-2
+ 29  54  57	water-3
+ 44  74  75	water-4
+ 74 106 102	water-5
+138 163 154	water-6
+ 17  12  12	fur-0
+ 28  19  16	fur-1
+ 43  29  21	fur-2
+ 61  42  28	fur-3
+ 82  56  35	fur-4
+108  74  45	fur-5
+139  97  59	fur-6
+ 26  20  22	skin-0
+ 42  33  33	skin-1
+ 59  47  43	skin-2
+ 78  64  56	skin-3
+100  83  74	skin-4
+ 90  36  20	warm-0
+154  63  23	warm-1
+208 102  28	warm-2
+240 149  44	warm-3
+255 195  92	warm-4
+255 230 168	warm-5
+  5   7  12	night-0
+ 11  18  32	night-1
+ 22  34  49	night-2
+ 36  53  74	night-3
+ 58  80 104	night-4
+106 131 160	night-5
+182 198 220	night-6
+ 30  20  20	rust-0
+ 58  31  23	rust-1
+ 94  47  26	rust-2
+126  68  34	rust-3
+156  94  48	rust-4
+185 128  73	rust-5
