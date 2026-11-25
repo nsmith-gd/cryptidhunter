@@ -84,7 +84,10 @@ export class CryptidAI {
     this.stateTime += dt;
     this.clock += dt;
 
-    if (this.perception) this.think(dt, p);
+    if (this.leavingAtDawn) {          // first light: keep heading away until the hunt removes it
+      if (this.state !== 'flee') this.enterFlee(p, 'dawn: leaving');
+      else this.tickFlee(dt, p);
+    } else if (this.perception) this.think(dt, p);
     else this.thinkL0(dt, p);
     this.agent.update(dt);
     this.syncMesh();

@@ -54,8 +54,8 @@ export const BIGFOOT = makeProfile({
   name: 'Bigfoot',
   homeLevel: 1,            // the first hunt: forgiving, it warns before it gets dangerous
   brain: 'bigfoot',        // bespoke behaviour tree (brains/bigfootBrain.js)
-  height: 2.4,
-  radius: 0.55,
+  height: 3.4,             // towering: ~3.4 m to the top of its crest, shoulders ~1.4 m across
+  radius: 0.6,
   color: 0x4a3626,
   roamRadius: 30,
   roamSpeed: 1.8,
@@ -74,9 +74,9 @@ export const BIGFOOT = makeProfile({
   acceleration: 14,
   turnRate: 6,
   clues: Object.freeze({
-    footprint: Object.freeze({ length: 0.45, width: 0.2, stride: 1.5 }), // metres; human boot ~0.3
+    footprint: Object.freeze({ length: 0.6, width: 0.27, stride: 2.0 }), // metres; human boot ~0.3
     hair: Object.freeze({ every: [8, 16], color: 0x5a3a22 }),           // metres walked between tufts
-    scratch: Object.freeze({ every: [12, 22], reach: 2.5, height: [1.7, 2.4], length: 0.6 }), // high up: it's tall
+    scratch: Object.freeze({ every: [12, 22], reach: 2.5, height: [2.0, 2.8], length: 0.7 }), // shoulder height on a 3.4 m body: well above a person
     woodKnock: Object.freeze({ intervalSeconds: [20, 60] }),
   }),
 });
