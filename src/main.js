@@ -3,6 +3,7 @@ import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
+import { buildForestMap } from './maps/forest.js';
 import { Flashlight } from './flashlight.js';
 import { CryptidManager } from './cryptids/cryptidManager.js';
 import { PROFILES } from './cryptids/profiles.js';
@@ -46,8 +47,8 @@ const moon = new THREE.DirectionalLight(0x8fa6d8, 0.08);
 moon.position.set(15, 25, 10);
 scene.add(moon);
 
-// Pick the map with ?map=swamp (default: the greybox test map).
-const MAPS = { test: buildTestMap, swamp: buildSwampMap };
+// Pick the map with ?map=forest or ?map=swamp (default: the greybox test map).
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap };
 const mapId = new URLSearchParams(location.search).get('map') ?? 'test';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
 const { colliders, bounds, spawns } = map;
@@ -58,8 +59,8 @@ if (map.environment) {
   scene.fog.far = map.environment.fog.far;
 }
 if (spawns?.mothman) MOTHMAN.home.set(spawns.mothman.x, 0, spawns.mothman.z);
-// Default is the greybox hunt (Bigfoot only). ?sandbox (or any non-test map) also brings in the other cryptid placeholders.
-const sandbox = new URLSearchParams(location.search).has('sandbox') || mapId !== 'test';
+// Default is the greybox hunt (Bigfoot only). ?sandbox (and the swamp map) also bring in the other cryptid placeholders.
+const sandbox = new URLSearchParams(location.search).has('sandbox') || mapId === 'swamp';
 const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
 player.speedAt = map.speedAt ?? null;

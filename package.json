@@ -23,7 +23,8 @@
     "check:t21": "vite build && node tools/check-t21.mjs",
     "check:t3": "vite build && node tools/check-t3.mjs",
     "test": "node --test tests/*.test.js",
-    "check:t22": "vite build && node tools/check-t22.mjs"
+    "check:t22": "vite build && node tools/check-t22.mjs",
+    "check:t9": "vite build && node tools/check-t9.mjs"
   },
   "repository": {
     "type": "git",
