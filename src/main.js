@@ -3,6 +3,7 @@ import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { Flashlight } from './flashlight.js';
+import { Mothman } from './cryptids/mothman.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -32,6 +33,7 @@ const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
 scene.add(camera); // camera carries the flashlight
 const flashlight = new Flashlight(camera, input);
+const mothman = new Mothman(scene, player, flashlight);
 
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -51,6 +53,7 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   player.update(dt);
+  mothman.update(dt);
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}`;
   renderer.render(scene, camera);
@@ -59,4 +62,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { player, flashlight, input, scene, camera, renderer, overlay };
+window.__game = { player, flashlight, mothman, input, scene, camera, renderer, overlay };
