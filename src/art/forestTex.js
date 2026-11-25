@@ -111,7 +111,7 @@ export function dirtTexture() {
   return pixelTexture('f-dirt', 64, 64, (g, px, r, w, h) => {
     const R = RAMPS.dirt, K = RAMPS.rock;
     const n = fbm(r, w, h, 3, 3), m = fbm(r, w, h, 8, 2);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, R[band(n(x, y) * 0.7 + m(x, y) * 0.3, x, y, 1, 4)]);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, R[band(0.45 + (n(x, y) - 0.5) * 0.45 + (m(x, y) - 0.5) * 0.5, x, y, 1, 4)]);
     // Pebbles: 2-3 texel stones, lit top-left, outlined bottom-right.
     for (let k = 0; k < 34; k++) {
       const x = Math.floor(r() * w), y = Math.floor(r() * h), big = r() < 0.4;
@@ -138,7 +138,7 @@ export function leafLitterTexture() {
   return pixelTexture('f-litter', 64, 64, (g, px, r, w, h) => {
     const D = RAMPS.dirt, Lt = RAMPS.litter, N = RAMPS.needles;
     const n = fbm(r, w, h, 4, 2);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, D[band(n(x, y), x, y, 0, 3)]);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, D[band(0.3 + (n(x, y) - 0.5) * 0.6, x, y, 0, 3)]);   // low macro contrast: no visible repeat
     // Fallen pine needles: short diagonal strokes, two tones.
     for (let k = 0; k < 160; k++) {
       const x = Math.floor(r() * w), y = Math.floor(r() * h), dx = r() < 0.5 ? 1 : -1, len = 2 + Math.floor(r() * 3);
