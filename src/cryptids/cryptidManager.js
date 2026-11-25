@@ -31,6 +31,11 @@ export class CryptidManager {
     return c;
   }
 
+  clear() {
+    for (const c of this.cryptids) c.dispose();
+    this.cryptids.length = 0;
+  }
+
   update(dt) {
     for (const c of this.cryptids) c.update(dt);
   }
