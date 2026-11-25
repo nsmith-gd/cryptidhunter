@@ -38,7 +38,7 @@ await page.waitForTimeout(300);
 const s0 = await bf();
 check('Bigfoot spawns in the level', !!s0, s0);
 // (#24 replaced the capsule with a model; its bounds include the crest and arms.)
-check('body is about 2.4 m tall', s0 && Math.abs(s0.height - 2.4) < 0.3, s0);
+check('body matches the profile height (3.4 m)', s0 && Math.abs(s0.height - 3.4) < 0.3, s0);
 check('stands on walkable ground', s0?.walkable, s0);
 check('has big-footprint clue data', s0?.footprint >= 0.4, s0);
 
