@@ -77,26 +77,31 @@ const input = new Input(renderer.domElement);
 const player = new Player(camera, input, colliders);
 player.speedAt = map.speedAt ?? null;
 if (map.playerStart) { player.position.set(map.playerStart.x, 0, map.playerStart.z); player.yaw = map.playerStart.yaw ?? 0; }
-// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the van before dawn.
+// The night's hunt: briefing -> track -> photograph Bigfoot -> back to the van and leave (before dawn for a bonus).
 // The extraction van parks at the map's exit spot (or 7 m behind the start). Built before the
 // cryptids so it's baked into their walkable grid.
 if (map.exit) HUNT.exit.set(map.exit.x, 0, map.exit.z);
 else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.position.z + Math.cos(player.yaw) * 7);
 // Base camp: money, owned gear and past hunts carry over between hunts. This hunt's photos only
-// count if you drive home from the van; getting caught (or dawn) loses them, gear comes home.
+// count if you drive home from the van; getting caught loses them, gear comes home.
 const camp = new Camp();
 addEventListener('pagehide', () => camp.save());   // save on quit (money is also saved whenever it changes)
 const packed = camp.packForHunt();
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: 'Bigfoot',
   onEnd: (outcome) => {
     const h = camp.settleHunt({
-      outcome, target: 'Bigfoot',
+      outcome, target: 'Bigfoot', dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
       gearLeft: { bait: bait.carried, spareBatteries: flashlight.spares },
     });
     const summary = huntSummary(h);
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
     return { summary, money: camp.state.money };
+  },
+  // First light: every cryptid bolts for cover and is gone from the area a little later.
+  onDawn: () => {
+    for (const c of cryptids.cryptids) { c.leavingAtDawn = true; c.enterFlee?.(player.position, 'dawn: leaving'); }
+    setTimeout(() => { for (const c of cryptids.cryptids) c.mesh.visible = false; cryptids.clear(); }, 20000);
   } });
 showCampPanel(camp);
 scene.add(camera); // camera carries the flashlight
@@ -231,7 +236,7 @@ const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => input.requestLock());
 document.addEventListener('pointerlockchange', () => {
   overlay.classList.toggle('hidden', input.locked);
-  if (input.locked) hunt.start();   // the dawn clock starts with the first click into the game
+  if (input.locked) hunt.start();   // the night clock starts with the first click into the game
 });
 
 const hud = document.getElementById('hud');

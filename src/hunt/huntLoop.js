@@ -1,16 +1,21 @@
 import * as THREE from 'three';
 
-// A Night's Hunt (L0 greybox): briefing -> search & track -> photograph the target ->
-// return to the van before dawn -> results. Caught (HuntFailure) and dawn end it early.
+// A Night's Hunt: briefing -> search & track -> photograph the target -> return to the van and
+// choose to leave (H) -> results. A 15-minute night clock runs: at dawn the cryptid leaves the
+// area (no more photos) and the before-dawn bonus is gone, but the hunt still only ends when
+// you drive home from the van (director's call) or get caught.
 export const HUNT = {
-  dawnSeconds: 7 * 60,          // real seconds from start until dawn
+  dawnSeconds: 15 * 60,         // real seconds from start until dawn (11:00 PM -> 5:30 AM)
+  dawnBonus: 0.25,              // drive home before dawn: photo earnings +25%
   exit: new THREE.Vector3(0, 0, 7),     // extraction point (the van parks just behind it)
   extractRadius: 4,
   giveUpAfter: 20,              // seconds before "leave without a photo" is offered
 };
 
 export class HuntLoop {
-  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null }) {
+  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null, onDawn = null }) {
+    this.onDawn = onDawn;         // () => void: the cryptid leaves at first light
+    this.dawned = false;
     this.player = player;
     this.onEnd = onEnd;           // (outcome) => { summary, money } from base camp, shown on the end screen
     this.journal = journal;
@@ -21,7 +26,7 @@ export class HuntLoop {
     this.photo = null;            // best photo of the target: { subject, distance, score, source, at }
     this.photos = [];             // every photo of the target this hunt (handheld + gear)
     this.missedShots = 0;
-    this.outcome = null;          // complete | abandoned | dawn | caught
+    this.outcome = null;          // complete | abandoned | caught
     this.inZone = false;
     this.buildVan(scene, colliders);
     this.buildHud();
@@ -44,7 +49,10 @@ export class HuntLoop {
 
   get timeLeft() { return Math.max(0, HUNT.dawnSeconds - this.elapsed); }
 
-  canGiveUp() { return this.stage === 'search' && this.inZone && this.elapsed >= HUNT.giveUpAfter; }
+  canGiveUp() { return this.stage === 'search' && this.inZone && (this.elapsed >= HUNT.giveUpAfter || this.dawned); }
+
+  /** True while it's still night (leaving now earns the before-dawn bonus). */
+  get beforeDawn() { return !this.dawned; }
 
   canLeaveWithPhoto() { return this.stage === 'extract' && this.inZone; }
 
@@ -66,7 +74,10 @@ export class HuntLoop {
     this.inZone = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z) < HUNT.extractRadius;
     if (this.stage === 'search' || this.stage === 'extract') {
       this.elapsed += dt;
-      if (this.elapsed >= HUNT.dawnSeconds) this.end('dawn');
+      if (!this.dawned && this.elapsed >= HUNT.dawnSeconds) {
+        this.dawned = true;                // first light: the cryptid leaves, the bonus is gone
+        this.onDawn?.();
+      }
     }
     this.renderHud();
   }
@@ -75,6 +86,7 @@ export class HuntLoop {
     if (this.stage === 'ended') return;
     this.stage = 'ended';
     this.outcome = outcome;
+    this.leftBeforeDawn = !this.dawned;
     this.settlement = this.onEnd?.(outcome) ?? null;  // base camp: photos sold or lost, gear kept
     this.renderHud();                                 // clears the objective + clock
     if (outcome === 'caught') return;                 // HuntFailure shows its own screen
@@ -168,6 +180,7 @@ export class HuntLoop {
         const lines = [`OBJECTIVE: Photograph ${this.target}`,
           n === 0 ? 'Search for tracks with your flashlight. Aim at one and press E to examine it.'
             : `Clues logged: ${n}. Follow the trail; when you see ${this.target}, hold right mouse to raise your camera and left-click to snap.`];
+        if (this.dawned) lines[1] = `Dawn: ${this.target} has left the area. Head back to the van and drive home.`;
         if (this.canGiveUp()) lines.push('[H] Head home without a photo');
         return lines.join('\n');
       }
@@ -175,7 +188,9 @@ export class HuntLoop {
         const best = this.photo ? ` (best: score ${this.photo.score})` : '';
         return this.inZone
           ? `At the van with your photo${best}.\n[H] Drive home and end the hunt — or keep hunting for a better shot.`
-          : `GOT THE SHOT${best}! Return to the van (green light) before dawn — ${dVan.toFixed(0)} m\nThen press H there to drive home.`;
+          : this.dawned
+            ? `Dawn: ${this.target} is gone. Bring your photo${best} back to the van (green light), ${dVan.toFixed(0)} m, and press H.`
+            : `GOT THE SHOT${best}! Back to the van (green light) before dawn for a +${Math.round(HUNT.dawnBonus * 100)}% bonus: ${dVan.toFixed(0)} m\nThen press H there to drive home.`;
       }
       case 'ended': return '';
     }
@@ -191,8 +206,13 @@ export class HuntLoop {
     const mins = 23 * 60 + (this.elapsed / HUNT.dawnSeconds) * night;
     const h = Math.floor(mins / 60) % 24, m = Math.floor(mins % 60);
     const h12 = ((h + 11) % 12) + 1;
+    if (this.dawned) {
+      this.clock.textContent = '5:30 AM  ·  DAWN: the trail has gone cold';
+      this.clock.style.color = '#ffb070';
+      return;
+    }
     this.clock.textContent = `${h12}:${String(m).padStart(2, '0')} ${h >= 12 && h < 24 ? 'PM' : 'AM'}  ·  dawn in ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-    this.clock.style.color = t < 60 ? '#ffb070' : '#cfd8ff';
+    this.clock.style.color = t < 60 ? '#ffb070' : t < 180 ? '#ffd9a0' : '#cfd8ff';
   }
 
   buildEndScreen() {
@@ -215,7 +235,6 @@ export class HuntLoop {
     const titles = {
       complete: ['HUNT COMPLETE', '#7dff9e'],
       abandoned: ['HUNT ABANDONED', '#ffd27a'],
-      dawn: ['DAWN BROKE', '#ffb070'],
     };
     const [title, color] = titles[this.outcome];
     this.endTitle.textContent = title;
@@ -223,7 +242,7 @@ export class HuntLoop {
     const t = Math.floor(this.elapsed);
     const v = this.journal?.verdict?.();
     const lines = [];
-    if (this.outcome === 'dawn') lines.push(`The sun came up before you made it back to the van.${this.photo ? '\nThe photo never left the woods.' : ''}`);
+    if (this.outcome === 'complete') lines.push(this.leftBeforeDawn ? `Home before dawn: +${Math.round(HUNT.dawnBonus * 100)}% bonus on your photos.` : 'You drove home after dawn: no before-dawn bonus.');
     if (this.outcome === 'abandoned') lines.push('You drove home empty-handed.');
     const best = this.photo && this.outcome === 'complete' ? this.photo : null;
     lines.push('', `Best photo of ${this.target}:  ${best ? `score ${best.score} (${best.source}, ${best.distance.toFixed(0)} m)` : 'none'}`);
