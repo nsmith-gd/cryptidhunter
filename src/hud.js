@@ -1,4 +1,4 @@
-// Plain HUD bars for stamina and flashlight battery, top-left.
+// Plain HUD bars for stamina, flashlight battery and (debug) player noise, top-left.
 export class Hud {
   constructor(player, flashlight) {
     this.player = player;
@@ -9,6 +9,7 @@ export class Hud {
     document.body.appendChild(root);
     this.stamina = this.bar(root, 'STAMINA', '#7fc8ff');
     this.battery = this.bar(root, 'BATTERY', '#ffe27a');
+    this.noise = this.bar(root, 'NOISE', '#c9a0ff');   // debug readout of what cryptids can hear
   }
 
   bar(root, label, color) {
@@ -34,6 +35,10 @@ export class Hud {
     this.stamina.note.textContent = p.exhausted ? 'winded' : '';
     this.battery.fill.style.width = `${(f.battery * 100).toFixed(1)}%`;
     this.battery.fill.style.background = f.battery < 0.15 ? '#c0504d' : this.battery.color;
+    const n = p.noise;
+    const label = n < 0.02 ? 'silent' : n < 0.25 ? 'quiet' : n < 0.7 ? 'medium' : 'loud';
+    this.noise.fill.style.width = `${(n * 100).toFixed(1)}%`;
+    this.noise.note.textContent = `${n.toFixed(2)} ${label}  (${p.noiseRadius.toFixed(1)} m)`;
     this.battery.note.textContent = `${Math.ceil(f.battery * 100)}%  spares ${f.spares}${f.battery < 0.15 && f.spares ? '  [R] swap' : ''}`;
   }
 }

@@ -9,6 +9,7 @@ import { Mothman } from './cryptids/mothman.js';
 import { Chupacabra } from './cryptids/chupacabra.js';
 import { BatteryPickups } from './pickups.js';
 import { Hud } from './hud.js';
+import { NoiseRing } from './noiseRing.js';
 
 // Render at a low internal resolution and upscale with nearest-neighbour:
 // the base of the game's 3D pixel-art look.
@@ -42,6 +43,7 @@ const mothman = new Mothman(scene, player, flashlight);
 const chupacabra = new Chupacabra(scene, player, camera, colliders);
 const batteries = new BatteryPickups(scene, player, flashlight);
 const bars = new Hud(player, flashlight);
+const noiseRing = new NoiseRing(scene, player);
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPlayerPosition: () => player.position });
@@ -75,10 +77,11 @@ function frame() {
   hud.textContent = `${player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK'}  ${v.toFixed(1)} m/s   LIGHT ${flashlight.on ? 'ON' : 'OFF'}` +
     cryptids.cryptids.map((c) => `\n${c.profile.name}: ${c.state.toUpperCase()} ${c.playerDistance.toFixed(1)} m`).join('');
   bars.update();
+  noiseRing.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, player, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, input, scene, camera, renderer, overlay };
+window.__game = { THREE, player, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, input, scene, camera, renderer, overlay };
