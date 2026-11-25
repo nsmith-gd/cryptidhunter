@@ -12,6 +12,7 @@ export const PLAYER = {
   accel: 14,             // ground acceleration toward target speed
   gravity: 20,
   crouchLerp: 10,        // how fast the camera drops/rises
+  stepHeight: 0.36,      // ledges up to this tall (boardwalks, stairs) are stepped onto
   mouseSens: 0.0022,
   maxPitch: Math.PI / 2 - 0.01,
 };
@@ -32,6 +33,9 @@ export class Player {
     this.crouching = false;
     this.sprinting = false;
     this.grounded = true;
+    // Optional map hook: (x, z, feetY) => speed multiplier (e.g. wading in water slows you).
+    this.speedAt = null;
+    this.speedFactor = 1;
     camera.rotation.order = 'YXZ';
   }
 
@@ -58,9 +62,12 @@ export class Player {
     const wish = new THREE.Vector3(r, 0, -f);
     if (wish.lengthSq() > 0) wish.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
 
-    // Sprint only while moving forward and not crouched.
-    this.sprinting = !this.crouching && f > 0 && inp.down('ShiftLeft', 'ShiftRight');
-    const speed = this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
+    // Ground under the feet can slow you (water); you can't sprint while slowed.
+    this.speedFactor = this.speedAt ? this.speedAt(this.position.x, this.position.z, this.position.y) : 1;
+    // Sprint only while moving forward, not crouched and not slowed.
+    this.sprinting = !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight');
+    const speed = this.speedFactor *
+      (this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed);
 
     const k = 1 - Math.exp(-PLAYER.accel * dt);
     this.velocity.x += (wish.x * speed - this.velocity.x) * k;
@@ -93,6 +100,17 @@ export class Player {
     return !this.colliders.some((c) => c.intersectsBox(box));
   }
 
+  // Walking into a low ledge: lift onto it if there's room, instead of being blocked.
+  tryStepUp(c) {
+    const rise = c.max.y - this.position.y;
+    if (rise <= 0 || rise > PLAYER.stepHeight || this.velocity.y > 0.5) return false;
+    const lifted = this.bodyBox(new THREE.Vector3(this.position.x, c.max.y + 1e-3, this.position.z));
+    if (this.colliders.some((o) => o.intersectsBox(lifted))) return false;
+    this.position.y = c.max.y + 1e-3;
+    this.velocity.y = 0;
+    return true;
+  }
+
   // Move along one axis, then push out of any overlapping collider along that axis.
   moveAxis(axis, delta) {
     if (delta === 0) return;
@@ -104,6 +122,7 @@ export class Player {
       const b = box.clone();
       for (const a of ['x', 'y', 'z']) if (a !== axis) { b.min[a] += eps; b.max[a] -= eps; }
       if (!c.intersectsBox(b)) continue;
+      if (axis !== 'y' && this.tryStepUp(c)) { this.bodyBox(this.position, this.height, box); continue; }
       if (delta > 0) this.position[axis] -= (b.max[axis] + eps) - c.min[axis];
       else this.position[axis] += c.max[axis] - (b.min[axis] - eps);
       if (axis === 'y') {
