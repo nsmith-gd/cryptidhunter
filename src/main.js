@@ -58,7 +58,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x05070b);
 scene.fog = new THREE.Fog(0x05070b, 12, 45);
 
-const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 200);
+const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200);   // near 0.1: depth precision for the ground layers (#61)
 
 // Faint moonlight so silhouettes are just readable without the flashlight.
 const hemi = new THREE.HemisphereLight(0x4a5a78, 0x0a0a0c, 0.12);

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { ForestKit } from '../art/forestKit.js';
 import { dressForest } from './forestDressing.js';
+import { TerrainPainter, ribbonGeometry } from './terrainPainter.js';
+import { leafLitterTexture, dirtTexture, mossTexture, grassTexture } from '../art/forestTex.js';
 
 // Pine Hollow Forest — greybox (L0). The starter hunting ground and Bigfoot's home.
 // Layout (north = -z), 300 x 300 m:
@@ -89,30 +91,29 @@ export function buildForestMap(scene) {
     return m;
   };
 
-  // --- Ground ------------------------------------------------------------------------------
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(H * 2, H * 2), new THREE.MeshStandardMaterial({ map: floorTexture(H), roughness: 1 }));
+  // --- Ground: one terrain surface with the trails, clearings and creek banks painted in ------
+  // (#61, terrainPainter.js). No strips or discs laid over the floor, so nothing z-fights.
+  const terrain = new TerrainPainter({ half: H, res: 1024, seed: 1337 });
+  const creekPts = CREEK.map(([x, z]) => ({ x, z }));
+  for (const t of TRAILS) terrain.paintPath(t, 'grass', { width: 7, edge: 1.2, wobble: 1.4 });      // grassy shoulders
+  for (const [c, r] of CLEARINGS) terrain.paintDisc(c, r * 1.05, 'grass', { edge: 2, wobble: 2.5 });
+  terrain.paintPath(creekPts, 'bank', { width: FOREST.creekHalfWidth * 2 + 1.8, edge: 0.45, wobble: 0.5 });
+  for (const t of TRAILS) terrain.paintPath(t, 'dirt', { width: 3, edge: 0.45, wobble: 0.45 });
+  for (const [c, r] of CLEARINGS) terrain.paintDisc(c, r * 0.7, 'dirt', { edge: 1.2, wobble: 1.6 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(H * 2, H * 2), new THREE.MeshStandardMaterial({ color: 0x2b3324, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
-  ground.name = 'forest-floor';
+  ground.name = 'forest-terrain';
   scene.add(ground);
 
-  // Trails: flat dirt strips per segment (just above the floor, below clue decals).
-  for (const t of TRAILS) for (let i = 0; i < t.length - 1; i++) strip(scene, t[i], t[i + 1], 3, 0.004, mat(COLORS.trail), 'trail');
-  for (const [c, r] of CLEARINGS) {
-    const d = new THREE.Mesh(new THREE.CircleGeometry(r * 0.7, 16), mat(COLORS.trail));
-    d.rotation.x = -Math.PI / 2;
-    d.position.set(c.x, 0.003, c.z);
-    d.receiveShadow = true;
-    scene.add(d);
-  }
-
-  // --- Creek: water strips along the centre line, with a dark bed edge. -------------------
-  for (let i = 0; i < CREEK.length - 1; i++) {
-    const a = { x: CREEK[i][0], z: CREEK[i][1] }, b = { x: CREEK[i + 1][0], z: CREEK[i + 1][1] };
-    strip(scene, a, b, FOREST.creekHalfWidth * 2 + 1.2, 0.006, mat(COLORS.bed), 'creek-bank');
-    strip(scene, a, b, FOREST.creekHalfWidth * 2, 0.06, new THREE.MeshStandardMaterial({
+  // --- Creek: one continuous water ribbon over the painted bank (no overlapping strips). ----
+  {
+    const water = new THREE.Mesh(ribbonGeometry(creekPts, FOREST.creekHalfWidth * 2, 0.06, 4), new THREE.MeshStandardMaterial({
       color: COLORS.water, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.85, depthWrite: false,
-    }), 'creek');
+    }));
+    water.receiveShadow = true;
+    water.name = 'creek';
+    scene.add(water);
   }
   // Footbridge over the creek on the main trail (deck at FOREST.deck so the player steps on).
   {
@@ -313,7 +314,8 @@ export function buildForestMap(scene) {
     }
     colliders.push(new THREE.Box3(new THREE.Vector3(t.x - t.r, 0, t.z - t.r), new THREE.Vector3(t.x + t.r, t.h, t.z + t.r)));
     // Needle litter and fallen cones around most trunks.
-    if (!t.young && rng() < 0.75) kit.add('litter:0', t.x + rnd(-0.6, 0.6), 0, t.z + rnd(-0.6, 0.6), rng() * 6.28, [rnd(3, 5.5), 1, rnd(3, 5.5)]);
+    // Needle litter under the trunk is painted into the terrain (moss/duff pad) instead of a decal.
+    if (!t.young && rng() < 0.75) { rnd(-0.6, 0.6); rnd(-0.6, 0.6); rng(); rnd(3, 5.5); rnd(3, 5.5); if (((Math.sin(t.x * 12.9898 + t.z * 78.233) * 43758.5453) % 1 + 1) % 1 < 0.35) terrain.paintDisc({ x: t.x, z: t.z }, 1.2 + t.r * 3, 'moss', { edge: 0.8, wobble: 1 }); }
   }
 
   // Ferns: thickest in shade under the pines and along the creek banks.
@@ -416,7 +418,24 @@ export function buildForestMap(scene) {
   if (swayer) swayer.onBeforeRender = () => { kit.wind.value = performance.now() / 1000; };
 
   // Texture pass: painted pixel textures on every surface (art #38, docs/art-style-guide.md).
-  for (const p of dressForest({ meshes: scene.children.slice(firstChild), colors: COLORS, half: H, rng, keepClear })) scene.add(p);
+  // #38 texture pass for buildings, rocks, water etc. Its loose moss/grass ground patches are
+  // painted into the terrain instead (no overlays).
+  dressForest({ meshes: scene.children.slice(firstChild), colors: COLORS, half: H, rng, keepClear });
+  for (let k = 0, n = 0; k < 6000 && n < 700; k++) {
+    const x = (rng() * 2 - 1) * (H - 2), z = (rng() * 2 - 1) * (H - 2);
+    if (keepClear(x, z)) continue;
+    terrain.paintDisc({ x, z }, 1.2 + rng() * 2.2, 'moss', { edge: 0.8, wobble: 1.2 }); n++;
+  }
+  for (let k = 0, n = 0; k < 4000 && n < 500; k++) {
+    const x = (rng() * 2 - 1) * (H - 2), z = (rng() * 2 - 1) * (H - 2);
+    if (!keepClear(x, z)) continue;
+    if (TRAILS.some((t) => distToPolyline(x, z, t) < 2.2)) continue;
+    terrain.paintDisc({ x, z }, 1.2 + rng() * 2.2, 'grass', { edge: 1, wobble: 1.2 }); n++;
+  }
+  ground.material = terrain.material({
+    base: { map: leafLitterTexture(), tile: 2 }, grass: { map: grassTexture(), tile: 2 }, moss: { map: mossTexture(), tile: 1 },
+    bank: { map: dirtTexture(), tile: 2, tint: 0x8a8078 }, dirt: { map: dirtTexture(), tile: 2 },
+  });
 
   /** 'dry' | 'shallow' — wading the creek (bridge and stones count as dry). */
   const surfaceAt = (x, z, y = 0) => {
@@ -433,6 +452,7 @@ export function buildForestMap(scene) {
     trees: trees.length,
     forestKit: kit.stats, // { draws, count } for the instanced foliage and props
     trails: TRAILS,
+    terrain,                    // painted ground (#61): terrain.sample(x, z, 'dirt' | 'moss' | 'grass' | 'bank')
     keepClear,                  // open ground (clearings, trails, creek, ridge): used by the atmosphere pass
     playerStart: { x: L.trailhead.x, z: L.trailhead.z, yaw: 0 },
     // Level flow: where the extraction van is parked (walk into its ring to end the hunt) and the
@@ -465,19 +485,6 @@ export function buildForestMap(scene) {
   };
 }
 
-// Flat strip from a to b (width w) lying on the ground at height y.
-function strip(scene, a, b, w, y, material, name) {
-  const len = Math.hypot(b.x - a.x, b.z - a.z);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len + w * 0.6), material);
-  m.rotation.order = 'YXZ';
-  m.rotation.set(-Math.PI / 2, Math.atan2(b.x - a.x, b.z - a.z), 0);
-  m.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2);
-  m.receiveShadow = true;
-  m.name = name;
-  scene.add(m);
-  return m;
-}
-
 export function distToPolyline(x, z, pts) {
   let best = Infinity;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -487,22 +494,6 @@ export function distToPolyline(x, z, pts) {
     best = Math.min(best, Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t)));
   }
   return best;
-}
-
-// Mottled forest-floor texture (nearest-filtered so it reads as pixels up close).
-function floorTexture(H) {
-  const n = 16, c = document.createElement('canvas');
-  c.width = c.height = n;
-  const g = c.getContext('2d');
-  const r = mulberry32(5);
-  const shades = ['#2b3324', '#283021', '#30382a', '#262b20', '#2f3326'];
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { g.fillStyle = shades[Math.floor(r() * shades.length)]; g.fillRect(x, y, 1, 1); }
-  const t = new THREE.CanvasTexture(c);
-  t.magFilter = t.minFilter = THREE.NearestFilter;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(H / 4, H / 4);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
 }
 
 function mulberry32(a) {
