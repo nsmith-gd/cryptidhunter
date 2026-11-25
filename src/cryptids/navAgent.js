@@ -72,10 +72,17 @@ export class NavAgent {
     const step = Math.min(dist, this.currentSpeed * align * dt);
     if (dist > 1e-4) {
       const nx = this.x + (dx / dist) * step, nz = this.z + (dz / dist) * step;
-      if (this.grid.isWalkable(nx, nz)) { this.x = nx; this.z = nz; }
-      // A smoothed path line can clip the corner of a blocked cell (common among dense trees):
-      // slide along one axis instead of giving up.
-      else if (this.grid.isWalkable(nx, this.z)) this.x = nx;
+      if (this.grid.isWalkable(nx, nz)) { this.x = nx; this.z = nz; this.sidestep = 0; return; }
+      // A smoothed path line can clip the corner of a blocked cell (common among dense trees).
+      // Side-step along the obstacle's edge (perpendicular to the way ahead, keeping one side once
+      // chosen) until the straight line is clear again; plain axis slides can stall on the corner.
+      const px = -dz / dist, pz = dx / dist;
+      for (const side of this.sidestep ? [this.sidestep] : [1, -1]) {
+        const sx = this.x + px * step * side, sz = this.z + pz * step * side;
+        if (this.grid.isWalkable(sx, sz)) { this.x = sx; this.z = sz; this.sidestep = side; return; }
+      }
+      this.sidestep = 0;
+      if (this.grid.isWalkable(nx, this.z)) this.x = nx;
       else if (this.grid.isWalkable(this.x, nz)) this.z = nz;
       else this.path = null; // map changed under us; AI will re-plan
     }
