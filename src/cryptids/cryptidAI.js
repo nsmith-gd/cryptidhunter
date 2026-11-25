@@ -6,13 +6,19 @@ const FLEE_TINT = new THREE.Color(0xc0392b);
 
 // Shared cryptid brain (L0 greybox): wander between random walkable points around home,
 // bolt away when the player gets inside the flee distance, calm down once safe.
+// Lures (bait) it can smell pull it off its roam: it walks over, eats, then roams from there.
 // Hearing / sight / investigate / attack / clue-dropping come at later levels.
 export class CryptidAI {
   /**
-   * @param {object} o { scene, grid, profile, x, z, getPlayerPosition: () => THREE.Vector3, rand }
+   * @param {object} o { scene, grid, profile, x, z, getPlayerPosition: () => THREE.Vector3, rand,
+   *   lures: { lures(): {x, z, gone, claimedBy}[], consume(lure), eatTime } (optional) }
    */
-  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random }) {
+  constructor({ scene, grid, profile = DEFAULT_PROFILE, x = 0, z = 0, getPlayerPosition, rand = Math.random, lures = null }) {
     this.profile = profile;
+    this.lureSource = lures;
+    this.lure = null;          // bait it's heading to / eating
+    this.eatLeft = 0;
+    this.unreachable = new WeakSet();
     this.rand = rand;
     this.getPlayerPosition = getPlayerPosition;
     const spot = grid.sample(x, z, 10) ?? { x, z };
@@ -38,9 +44,10 @@ export class CryptidAI {
     const p = this.getPlayerPosition?.();
     this.playerDistance = p ? Math.hypot(p.x - this.agent.x, p.z - this.agent.z) : Infinity;
 
-    if (this.state === 'roam') {
+    if (this.state === 'roam' || this.state === 'investigate') {
       if (this.playerDistance < this.profile.fleeTriggerDistance) this.enterFlee(p);
-      else this.tickRoam(dt);
+      else if (this.state === 'investigate') this.tickInvestigate(dt);
+      else if (!this.findLure()) this.tickRoam(dt);
     } else {
       if (this.playerDistance > this.profile.fleeSafeDistance) this.enterRoam();
       else this.tickFlee(dt, p);
@@ -62,7 +69,56 @@ export class CryptidAI {
     if (!this.agent.hasPath || this.agent.remainingDistance < 2 || this.replanTimer <= 0) this.pickFleePoint(player);
   }
 
+  // Nearest bait within smelling range that nobody else is already on. Starts investigating it.
+  findLure() {
+    if (!this.lureSource) return false;
+    let best = null, bestD = this.profile.lureRange;
+    for (const l of this.lureSource.lures()) {
+      if (l.gone || (l.claimedBy && l.claimedBy !== this) || this.unreachable.has(l)) continue;
+      const d = Math.hypot(l.x - this.agent.x, l.z - this.agent.z);
+      if (d < bestD) { best = l; bestD = d; }
+    }
+    if (!best) return false;
+    const spot = this.agent.grid.sample(best.x, best.z, 2);
+    if (!spot || !this.agent.setDestination(spot.x, spot.z)) { this.unreachable.add(best); return false; }
+    this.state = 'investigate';
+    this.lure = best;
+    best.claimedBy = this;
+    this.eatLeft = this.lureSource.eatTime ?? 5;
+    this.pauseLeft = 0;
+    this.agent.speed = this.profile.roamSpeed * 1.3;   // a bit eager
+    return true;
+  }
+
+  tickInvestigate(dt) {
+    const l = this.lure;
+    if (!l || l.gone) { this.releaseLure(); this.enterRoam(); return; }
+    const d = Math.hypot(l.x - this.agent.x, l.z - this.agent.z);
+    if (d > this.profile.radius + 1.2) {
+      if (!this.agent.hasPath) {
+        const spot = this.agent.grid.sample(l.x, l.z, 2);
+        if (!spot || !this.agent.setDestination(spot.x, spot.z)) { this.unreachable.add(l); this.releaseLure(); this.enterRoam(); }
+      }
+      return;
+    }
+    // At the bait: stop, face it and eat.
+    this.agent.stop();
+    this.agent.heading = Math.atan2(-(l.x - this.agent.x), -(l.z - this.agent.z));
+    this.eatLeft -= dt;
+    if (this.eatLeft <= 0) {
+      this.lureSource.consume(l);
+      this.releaseLure();
+      this.enterRoam();
+    }
+  }
+
+  releaseLure() {
+    if (this.lure && this.lure.claimedBy === this) this.lure.claimedBy = null;
+    this.lure = null;
+  }
+
   enterFlee(player) {
+    this.releaseLure();
     this.state = 'flee';
     this.pauseLeft = 0;
     this.agent.speed = this.profile.fleeSpeed;
