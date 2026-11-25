@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  pixelMaterial, furTexture, skinTexture, furFringeTexture, bigfootScowlTexture, longHairTexture,
+  pixelMaterial, furTexture, skinTexture, furFringeTexture, bigfootScowlTexture, longHairTexture, ribScarTexture,
 } from '../art/pixelTex.js';
 
 // Bigfoot (final, #42): a big, hunched, menacing low-poly body (~3.4 m tall standing, shoulders
@@ -53,6 +53,10 @@ export function buildBigfootModel(profile) {
   const fringe = [0, 1].map((v) => pixelMaterial(furFringeTexture(v), { side: THREE.DoubleSide }));
   fringe.push(pixelMaterial(longHairTexture(), { side: THREE.DoubleSide }));   // variant 2: long mane
   const claw = new THREE.MeshStandardMaterial({ color: 0x8a7a58, roughness: 0.5, flatShading: true });
+  const ribScar = pixelMaterial(ribScarTexture(), { side: THREE.DoubleSide, flatShading: true });
+  const twig = new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 1, flatShading: true });
+  const burr = new THREE.MeshStandardMaterial({ color: 0x5a4a22, roughness: 1, flatShading: true });
+  const deadLeaf = new THREE.MeshStandardMaterial({ color: 0x7a3e24, roughness: 1, side: THREE.DoubleSide });
   const tooth = new THREE.MeshStandardMaterial({ color: 0xb8a878, roughness: 0.4, flatShading: true });
   const mouth = new THREE.MeshBasicMaterial({ color: 0x0b0708 });
   // Eyeshine: two hot amber points that catch your torch from the dark.
@@ -103,6 +107,9 @@ export function buildBigfootModel(profile) {
   const chest = joint('chest', spine, 0, 0.42, 0);
   part('ribcage', chest, limbGeo(1.02, 0.56, 0.62, { taper: 0.7, taperD: 0.82, pivot: 'bottom' }), furDark, 0, 0, 0.02);
   for (const s of [-1, 1]) part(`pec${s}`, chest, limbGeo(0.36, 0.26, 0.12, { taper: 0.85, pivot: 'center' }), fur, s * 0.2, 0.34, FWD * 0.29);
+  // Worn bare patches: ribs and sinew showing through, raked with old claw scars (left flank, right chest).
+  part('ribsL', chest, new THREE.PlaneGeometry(0.34, 0.34), ribScar, -0.45, 0.22, FWD * 0.1).rotation.set(0, -Math.PI / 2 - 0.35, 0);
+  part('scarChest', chest, new THREE.PlaneGeometry(0.24, 0.24), ribScar, 0.17, 0.36, FWD * 0.352).rotation.set(0, Math.PI, 0.3);
   part('hump', chest, limbGeo(0.98, 0.38, 0.48, { taper: 1.35, pivot: 'bottom' }), furDark, 0, 0.44, 0.12);   // massive trapezius
   for (const s of [-1, 1]) part(`trap${s}`, chest, limbGeo(0.3, 0.3, 0.36, { taper: 0.6, pivot: 'bottom' }), furDark, s * 0.32, 0.6, 0.06);   // the head sinks between them
   shag(chest, 0.74, 0.34, ring(7, -Math.PI * 0.45, Math.PI * 0.45), 0.3, 0.55, { variant: 1, tilt: 0.45 });     // mane down the back
@@ -127,13 +134,16 @@ export function buildBigfootModel(profile) {
   part('brow', head, limbGeo(0.44, 0.09, 0.12, { pivot: 'center' }), furDark, 0, 0.28, FWD * 0.2);         // heavy brow shelf
   part('cheekL', head, limbGeo(0.06, 0.16, 0.08, { pivot: 'center' }), furDark, -0.22, 0.15, FWD * 0.17);
   part('cheekR', head, limbGeo(0.06, 0.16, 0.08, { pivot: 'center' }), furDark, 0.22, 0.15, FWD * 0.17);
+  // Ears: small, leathery, set back; the left one torn ragged (a chunk missing from the top).
+  part('earR', head, limbGeo(0.04, 0.11, 0.08, { taper: 0.7, pivot: 'bottom', ppm: 2 }), skin, 0.235, 0.2, FWD * 0.02).rotation.z = -0.3;
+  part('earL', head, limbGeo(0.04, 0.06, 0.08, { taper: 1.3, pivot: 'bottom', ppm: 2 }), skin, -0.235, 0.2, FWD * 0.02).rotation.z = 0.25;
   for (const x of [-0.085, 0.085]) {
     part(`eye${x}`, head, new THREE.BoxGeometry(0.05, 0.028, 0.01), eyeMat, x, 0.215, FWD * 0.212, { shadow: false });
     part(`eyeGlow${x}`, head, new THREE.PlaneGeometry(0.085, 0.06), glowMat, x, 0.215, FWD * 0.22, { shadow: false }).rotation.y = Math.PI;
   }
   // Chin: the scowl, nose, mouth and fangs are painted into the face texture (reads at pixel scale).
   const jaw = joint('jaw', head, 0, 0.02, FWD * 0.05);   // heavy chin under the painted face (nose, mouth, fangs are in the texture)
-  part('jawMesh', jaw, limbGeo(0.3, 0.1, 0.26, { taper: 0.85, pivot: 'top', ppm: 2 }), fur, 0, 0, 0);
+  part('jawMesh', jaw, limbGeo(0.38, 0.12, 0.28, { taper: 0.8, pivot: 'top', ppm: 2 }), fur, 0, 0, 0);   // wide, heavy jaw
   shag(head, 0.4, 0.24, ring(8, -Math.PI * 0.55, Math.PI * 0.55), 0.2, 0.4, { variant: 1, tilt: 0.4 });   // mane framing the face
   // Long hair pouring from the crown over the shoulders and down the back.
   shag(head, 0.44, 0.2, ring(7, -Math.PI * 0.5, Math.PI * 0.5), 0.26, 0.95, { variant: 2, tilt: 0.35 });
@@ -161,7 +171,7 @@ export function buildBigfootModel(profile) {
       const fx = (f - 1.5) * 0.042;
       const finger = joint(`finger${side}${f}`, hand, fx, -0.22, FWD * 0.02);
       part(`fingerMesh${side}${f}`, finger, limbGeo(0.035, 0.14, 0.04, { taper: 0.7, ppm: 2 }), skin, 0, 0, 0);
-      const c = part(`claw${side}${f}`, finger, new THREE.ConeGeometry(0.016, 0.12, 4), claw, 0, -0.18, FWD * 0.01, { shadow: false });
+      const c = part(`claw${side}${f}`, finger, new THREE.ConeGeometry(0.017, 0.17, 4), claw, 0, -0.2, FWD * 0.01, { shadow: false });
       c.rotation.x = Math.PI + 0.5;
       finger.rotation.x = 0.35;     // curled forward
     }
@@ -181,10 +191,21 @@ export function buildBigfootModel(profile) {
     const foot = joint(`foot${side}`, shin, 0, -0.46, 0);
     part(`footMesh${side}`, foot, limbGeo(0.22, 0.1, 0.46, { taper: 1, pivot: 'top', ppm: 2 }), skin, 0, 0, FWD * 0.12);
     for (let t = 0; t < 4; t++) {
-      const c = part(`toeClaw${side}${t}`, foot, new THREE.ConeGeometry(0.02, 0.1, 4), claw, (t - 1.5) * 0.05, -0.08, FWD * 0.38, { shadow: false });
+      const c = part(`toeClaw${side}${t}`, foot, new THREE.ConeGeometry(0.022, 0.14, 4), claw, (t - 1.5) * 0.05, -0.08, FWD * 0.4, { shadow: false });
       c.rotation.x = -Math.PI / 2 - 0.3;
     }
   }
+
+  // Debris matted into the fur: twigs, burrs and dead leaves on the shoulders, back and mane.
+  const stuck = [[bones.chest, 0.3, 0.66, 0.2], [bones.chest, -0.36, 0.6, 0.24], [bones.chest, 0.05, 0.7, 0.32],
+    [bones.chest, -0.15, 0.45, 0.34], [bones.head, 0.12, 0.42, 0.15], [bones.head, -0.16, 0.36, 0.12],
+    [bones.shoulderL, 0, 0.22, 0.1], [bones.shoulderR, 0, 0.2, -0.05], [bones.spine, 0.25, 0.3, 0.3]];
+  stuck.forEach(([parent, x, y, z], i) => {
+    const t = part(`twig${i}`, parent, new THREE.BoxGeometry(0.02, 0.02, 0.22 + (i % 3) * 0.08), twig, x, y, z, { shadow: false });
+    t.rotation.set(0.6 * ((i % 2) * 2 - 1), i * 1.3, 0.4);
+    part(`burr${i}`, parent, new THREE.IcosahedronGeometry(0.025, 0), burr, x + 0.04, y - 0.05, z + 0.02, { shadow: false });
+    if (i % 2 === 0) part(`leaf${i}`, parent, new THREE.PlaneGeometry(0.07, 0.05), deadLeaf, x - 0.05, y + 0.02, z + 0.03, { shadow: false }).rotation.set(0.4, i, 0.7);
+  });
 
   // An invisible proxy keeps the AI's state tinting (debug readout) off the textured body.
   const proxy = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshBasicMaterial({ visible: false }));
