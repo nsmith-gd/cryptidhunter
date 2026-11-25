@@ -1,4 +1,5 @@
-// Minimal save file (#15): one JSON document, { "version": 1, "money": <int> }.
+// Minimal save file (#15): one JSON document, { "version": 1, "money": <int> }
+// (+ optional "bountiesDone": [ids] once a bounty has been paid, #45).
 // Room to grow (gear, upgrades, reputation, album, compendium) under new keys / versions later.
 //
 // The game runs in a browser, so its "user-data directory" is the page's local storage; the
@@ -20,6 +21,11 @@ export function normalizeSave(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return d;
   const money = Number(raw.money);
   if (Number.isFinite(money) && money >= 0) d.money = Math.floor(money);
+  // Optional (#45): ids of bounties already paid. Only written once there is one.
+  if (Array.isArray(raw.bountiesDone)) {
+    const ids = raw.bountiesDone.filter((x) => typeof x === 'string');
+    if (ids.length) d.bountiesDone = [...new Set(ids)];
+  }
   return d;
 }
 

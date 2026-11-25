@@ -126,7 +126,8 @@ export class CryptidAI {
   tickCharge(dt, p) {
     const ch = this.charge ?? { bluff: false };
     if (ch.bluff) {
-      if (!ch.roared && (this.playerDistance <= 3.2 || this.stateTime > 4)) {
+      // A bluff is indistinguishable until the last moment: full speed, pulling up ~2 m from you.
+      if (!ch.roared && (this.playerDistance <= this.profile.radius + 1.4 || this.stateTime > 4)) {
         ch.roared = true; this.agent.stop(); this.emit('roar', { distance: this.playerDistance });
       }
       if (ch.roared) {
