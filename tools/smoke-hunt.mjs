@@ -70,8 +70,8 @@ await page.evaluate(() => {
 });
 await shot('00-start-screen');
 
-await step('1. start the night: clicking into the game starts the hunt and the night clock', async () => {
-  await page.click('#overlay');
+await step('1. start the night: COMMIT on the prep screen pays the trip, and clicking into the game starts the hunt and the night clock', async () => {
+  await page.click('#prep-panel button[data-act="commit"]');   // #98: the expedition is committed (and pointer lock requested) here
   await until(() => __game.hunt.stage === 'search' && __game.input.locked);
   const e0 = await page.evaluate(() => __game.hunt.elapsed);
   await page.waitForTimeout(1500);
@@ -138,7 +138,7 @@ await step('4. photograph Bigfoot: raise the camera (right mouse), click: a HIT,
   return { ok: r.result === 'HIT' && r.subject && r.stage === 'extract', detail: r };
 });
 
-await step('5. drive home: walk to the van, press H: the hunt ends complete and shows the results', async () => {
+await step('5. drive home: walk to the van, press H to review the manifest and H to drive out: the hunt ends complete and shows the results', async () => {
   await page.evaluate(() => {
     const g = __game, v = g.HUNT.exit;
     window.__standAt(v.x + 1, v.z + 1, { x: v.x, z: v.z - 5 });
@@ -146,7 +146,8 @@ await step('5. drive home: walk to the van, press H: the hunt ends complete and 
     g.hunt.onRestart = () => {};
   });
   await until(() => __game.hunt.inZone, null, 20000);
-  await page.keyboard.press('KeyH');
+  await page.keyboard.press('KeyH');   // #98: opens the extraction manifest...
+  await page.keyboard.press('KeyH');   // ...and H again drives out
   await until(() => __game.hunt.stage === 'ended', null, 20000).catch(() => {});
   await page.waitForTimeout(600);
   await shot('05-hunt-complete');

@@ -53,7 +53,7 @@ await page.screenshot({ path: `${out}/02-last-minute.png` });
 // ---- 2) Leave before dawn: bonus ----
 await photoAndLeave();
 await page.waitForTimeout(200);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForTimeout(300);
 const early = await page.evaluate(() => ({ outcome: __game.hunt.outcome, last: __game.camp.lastHunt }));
 check('driving home before dawn pays the photo plus the +25% bonus', early.outcome === 'complete' && early.last.bonus > 0
@@ -75,7 +75,7 @@ await page.waitForTimeout(1500);
 check('the hunt is still waiting for you to leave', (await st()).outcome === null, await st());
 await photoAndLeave();
 await page.waitForTimeout(200);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForTimeout(300);
 const lateHome = await page.evaluate(() => ({ outcome: __game.hunt.outcome, last: __game.camp.lastHunt, body: __game.hunt.endBody.textContent }));
 check('driving home after dawn pays the photo but no bonus', lateHome.outcome === 'complete' && lateHome.last.bonus === 0

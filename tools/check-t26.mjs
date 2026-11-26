@@ -73,11 +73,11 @@ await page.waitForTimeout(400);
 const caught = await page.evaluate(() => ({ outcome: __game.hunt.outcome, text: __game.huntFailure.reason.textContent, money: __game.camp.state.money }));
 await shot('01-caught-photos-lost');
 check('caught after photographing Bigfoot: the photo is lost and earns nothing', photos1.length === 1 && photos1[0].score > 0
-  && caught.outcome === 'caught' && /1 photo lost/.test(caught.text) && /no new earnings/.test(caught.text) && caught.money === 250, { photos1, caught });
+  && caught.outcome === 'caught' && /1 photo lost/.test(caught.text) && /no new earnings/.test(caught.text) && caught.money === 225, { photos1, caught });
 
 const after1 = await load();
 await shot('02-base-camp-after-caught');
-check('base camp after being caught shows no new earnings', after1.money === 250 && /Caught — 1 photo lost: no new earnings \(\$0\)/.test(after1.panel), after1);
+check('base camp after being caught shows no new earnings (only the $25 trip was paid, #98)', after1.money === 225 && /Caught — 1 photo lost: no new earnings \(\$0\)/.test(after1.panel), after1);
 check('gear is kept: the extra battery you were carrying comes home', after1.spares === carried.spares && carried.spares === 2, { carried, nextHunt: after1 });
 
 // ---- Hunt 2: photo, drive home from the van ----
@@ -85,14 +85,14 @@ await begin();
 const photos2 = await photograph();
 await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });
 await page.waitForTimeout(300);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForTimeout(400);
 const done = await page.evaluate(() => ({ outcome: __game.hunt.outcome, settlement: __game.hunt.settlement, screen: __game.hunt.endBody.textContent }));
 await shot('03-hunt-complete-earnings');
 check('driving home with the photo sells it', done.outcome === 'complete' && done.settlement?.money > 0 && /BASE CAMP/.test(done.screen), { photos2, done: { outcome: done.outcome, money: done.settlement?.money } });
 const after2 = await load();
 await shot('04-base-camp-after-success');
-check('base camp then shows the new earnings', after2.money > 250 && /Made it out: \+\$\d+/.test(after2.panel), after2);
+check('base camp then shows the new earnings', after2.money > 200 && /Made it out: \+\$\d+/.test(after2.panel), after2);
 
 check('no page errors', errors.length === 0, errors);
 console.log(results.join('\n'));

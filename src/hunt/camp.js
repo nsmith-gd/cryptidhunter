@@ -23,6 +23,7 @@ import { SaveService } from '../save/saveService.js';
 import { BountyBoard } from './bounties.js';
 import { valueEvidence } from '../evidence/evidence.js';
 import { Ledger, ECONOMY, cents, formatCAD } from '../economy/ledger.js';
+import { classifyOutcome } from './expedition.js';
 
 let memory = null;
 
@@ -134,9 +135,9 @@ export class Camp {
    * photos: every HIT taken this hunt ({ subject, score }). gearLeft: what you still carry.
    * Only a hunt you drove home from (complete / abandoned) keeps its photos.
    */
-  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null }) {
+  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null, charges = [], leftBehind = [] }) {
     const aid = attemptId ?? this.newAttemptId();
-    const keptPhotos = outcome === 'complete' || outcome === 'abandoned';
+    const keptPhotos = outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency';
     // Physical evidence (#73): what you drove home with sells at base value × novelty; otherwise it's lost.
     const evidenceSold = keptPhotos ? valueEvidence(evidence) : [];
     const evidenceValue = evidenceSold.reduce((a, e) => a + e.value, 0);
@@ -146,7 +147,9 @@ export class Camp {
       : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0, records: [], bonuses: [] };
     // One settlement per attempt in the ledger: nothing is paid for records you didn't drive home.
     const evRecords = evidenceSold.map((e) => ({ id: `ev:${aid}:${e.id}`, cents: cents(e.value), memo: e.name }));
-    const settlement = this.ledger.settleAttempt(aid, { records: [...evRecords, ...sale.records], bonuses: sale.bonuses, extracted: keptPhotos });
+    const settlement = this.ledger.settleAttempt(aid, { records: [...evRecords, ...sale.records], bonuses: sale.bonuses, extracted: keptPhotos, charges });
+    const outcomeClass = classifyOutcome({ huntOutcome: outcome, targetPhoto: keptPhotos && sale.sold.some((p) => p.subject === target),
+      evidence: evidenceSold.length, photos: sale.sold.length });
     const { sold, bounties, bountyBonus } = sale;
     const bonus = sale.extra;
     const total = sale.total + evidenceValue;
@@ -157,7 +160,12 @@ export class Camp {
     const repGain = outcome === 'complete' && best > 0 ? (best >= CAMP.greatPhoto ? 2 : 1) : 0;
     this.state.reputation = (this.state.reputation ?? 0) + repGain;
     const entry = {
-      n: this.state.hunts.length + 1, outcome, target, attemptId: aid, settledCents: settlement.closing - settlement.opening,
+      n: this.state.hunts.length + 1, outcome, outcomeClass, target, attemptId: aid, settledCents: settlement.closing - settlement.opening,
+      // Debrief (GDD 7.5), all in cents from the ledger: payouts, bonuses, the trip, charges, closing cash.
+      ledger: { gross: settlement.gross, bonus: settlement.bonus, expense: settlement.expense ?? 0,
+        charges: (settlement.charges ?? []).reduce((a, c) => a + c.collected, 0), waived: (settlement.charges ?? []).reduce((a, c) => a + c.waived, 0),
+        opening: settlement.opening, closing: settlement.closing, duplicate: !!settlement.duplicate },
+      leftBehind,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
       evidenceSold: evidenceSold.map((e) => ({ name: e.name, cryptid: e.cryptid, value: e.value, novelty: e.novelty })),
       evidenceLost: keptPhotos ? 0 : evidence.length,
@@ -183,7 +191,7 @@ export function huntSummary(h) {
   const lostParts = [h.photosLost ? `${h.photosLost} photo${h.photosLost > 1 ? 's' : ''}` : '',
     h.evidenceLost ? `${h.evidenceLost} evidence item${h.evidenceLost > 1 ? 's' : ''}` : ''].filter(Boolean);
   const lost = lostParts.length ? `${lostParts.join(' and ')} lost` : '';
-  const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home' }[h.outcome] ?? h.outcome;
+  const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home', emergency: 'Evacuated' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
   return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
     ...(h.evidenceSold ?? []).map((e) => `  ${e.name} (${e.cryptid})${e.novelty < 1 ? ', repeat' : ''}: $${e.value}`),

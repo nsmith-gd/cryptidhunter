@@ -81,7 +81,7 @@ check('a photo of a footprint is kept as a footprint-photo evidence item', fp2 &
 // Drive home from the van (no Bigfoot photo: you can leave after a short while).
 await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });
 await steps(25 * 60);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await steps(2);
 const sold = await page.evaluate(() => {
   const g = __game, h = g.camp.lastHunt;
