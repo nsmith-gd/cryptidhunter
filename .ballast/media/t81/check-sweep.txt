@@ -24,4 +24,4 @@ check-mmwxp67tt exit=0 pass=8 fail=0 205s
 SWEEP-DONE
 check-t9 (forest map + pathing): pass=10 fail=0 after the footbridge fix (was: footbridge walk FAIL)
 check-t27 (loadout): pass=13 fail=0 after updating it to the #69 slot -> pack -> camp click rule (was: 5 FAIL)
-npm run build: ok (warning: one 1.09 MB JS chunk)   npm test: 49/49
+npm run build: ok (warning: one 1.09 MB JS chunk)   npm test: 66/66 (after merging the latest main)
