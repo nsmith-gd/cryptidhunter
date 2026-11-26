@@ -6,6 +6,7 @@ import { buildBigfootModel } from './bigfootModel.js';
 import { genericBrain } from './brains/genericBrain.js';
 import { bigfootBrain, BIGFOOT_TIERS } from './brains/bigfootBrain.js';
 import { stream } from '../core/rng.js';
+import { groundAt } from '../maps/ground.js';
 
 // Bespoke behaviour trees per cryptid (lore first, then the rules the player must learn).
 const BRAINS = { bigfoot: bigfootBrain };
@@ -456,7 +457,7 @@ export class CryptidAI {
   }
 
   syncMesh() {
-    this.mesh.position.set(this.agent.x, 0, this.agent.z);
+    this.mesh.position.set(this.agent.x, groundAt(this.agent.x, this.agent.z), this.agent.z);
     this.mesh.rotation.y = this.agent.heading;
     const bar = this.awarenessBar;
     if (bar && this.perception) {
