@@ -26,13 +26,14 @@ export class PhotoCamera {
    *   With base + height the subject is sampled as a standing column (feet to head);
    *   otherwise as a sphere around center.
    */
-  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, canvas = null, film = PHOTO.filmRoll }) {
+  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, getAimOffset = null, canvas = null, film = PHOTO.filmRoll }) {
     this.camera = camera;
     this.canvas = canvas;       // the rendered view, for album thumbnails
     this.filmTotal = film;
     this.film = film;           // shots left on the roll
     this.raisedFov = PHOTO.raisedFov;   // zoom lens (base-camp shop upgrade)
     this.getShake = getShake;   // () => degrees/second the view is shaking (fear sway)
+    this.getAimOffset = getAimOffset;   // () => { yaw, pitch } of shake the screen hides (comfort share); evidence adds it back
     this.scene = scene;
     this.input = input;
     this.getSubjects = getSubjects;
@@ -66,7 +67,7 @@ export class PhotoCamera {
     this.cooldown = Math.max(0, this.cooldown - dt);
     // How fast the view is turning (degrees/second) for motion blur in photos: total rotation
     // over the last LOOK_WINDOW seconds of simulation, so it reads the same at any frame rate.
-    this.camera.getWorldQuaternion(_q);
+    this.withEvidencePose(() => this.camera.getWorldQuaternion(_q));
     if (this._lastQ && dt > 0) {
       const deg = THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(1, Math.abs(_q.dot(this._lastQ)))));
       (this._turns ??= []).push([deg, dt]);
@@ -119,8 +120,23 @@ export class PhotoCamera {
    * What a shot taken right now would capture, using the camera's current lens.
    * Returns { subject, distance, visible, samples, reason }.
    */
-  evaluate() {
-    const cam = this.camera;
+  evaluate() { return this.withEvidencePose(() => this.evaluatePose()); }
+
+  /**
+   * Run fn with the camera at its evidence pose: the true aim plus the hand's FULL shake. How much
+   * shake the screen shows is a comfort / display choice and must not change evidence (#77).
+   */
+  withEvidencePose(fn) {
+    const off = this.toolCamera ? null : this.getAimOffset?.();
+    if (!off || (!off.yaw && !off.pitch)) return fn();
+    const cam = this.camera, rx = cam.rotation.x, ry = cam.rotation.y;
+    cam.rotation.x += off.pitch; cam.rotation.y += off.yaw; cam.updateMatrixWorld();
+    try { return fn(); } finally { cam.rotation.x = rx; cam.rotation.y = ry; cam.updateMatrixWorld(); }
+  }
+
+  evaluatePose() {
+    // In VR the shot is taken from the camera tool's pose (controller), not the head (GDD 16.2).
+    const cam = this.toolCamera ?? this.camera;
     cam.updateMatrixWorld();
     this.frustum.setFromProjectionMatrix(_m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
     const eye = cam.getWorldPosition(new THREE.Vector3());

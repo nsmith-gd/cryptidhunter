@@ -72,7 +72,7 @@ export class HuntLoop {
   }
 
   update(dt) {
-    this.beacon.material.opacity = 0.35 + 0.2 * Math.sin(performance.now() / 300);
+    this.beacon.visible = Math.floor(performance.now() / 600) % 2 === 0;   // hazard lights blinking
     const p = this.player.position;
     this.inZone = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z) < HUNT.extractRadius;
     if (this.stage === 'search' || this.stage === 'extract') {
@@ -105,7 +105,8 @@ export class HuntLoop {
 
   // ---------- world ----------
   // The extraction van: parked just behind the exit point, with a green ring (walk in to end the
-  // hunt) and a tall pulsing green beacon you can see from anywhere.
+  // hunt). No beacon over the trees (#70): finding your way back is the task. Its amber hazard
+  // lights blink, which you only see once you're close (the fog swallows them).
   buildVan(scene, colliders) {
     const g = new THREE.Group();
     const paint = (c, r = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
@@ -138,12 +139,14 @@ export class HuntLoop {
       g.add(h, t);
     }
     for (const m of [body, nose]) { m.castShadow = m.receiveShadow = true; }
-    // Green pulsing beacon: visible from anywhere so you can find your way back.
-    this.beacon = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.25, 30, 8, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0x3cff7a, transparent: true, opacity: 0.4, depthWrite: false, fog: false }),
-    );
-    this.beacon.position.set(1.6, 15, 0);
+    this.beacon = new THREE.Group();
+    this.beacon.name = 'hazard-lights';
+    const amber = new THREE.MeshBasicMaterial({ color: 0xffa020 });
+    for (const x of [-0.98, 0.98]) for (const z of [-3.12, 2.46]) {
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.06), amber);
+      h.position.set(x, z < 0 ? 0.95 : 1.4, z);
+      this.beacon.add(h);
+    }
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(HUNT.extractRadius - 0.12, HUNT.extractRadius, 48).rotateX(-Math.PI / 2),
       // Ground marker: decal tier (#61), drawn over the terrain by depth bias, not a lift.
@@ -177,7 +180,6 @@ export class HuntLoop {
 
   objectiveText() {
     const p = this.player.position;
-    const dVan = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z);
     switch (this.stage) {
       case 'briefing': return '';
       case 'search': {
@@ -194,8 +196,8 @@ export class HuntLoop {
         return this.inZone
           ? `At the van with your photo${best}.\n[H] Drive home and end the hunt — or keep hunting for a better shot.`
           : this.dawned
-            ? `Dawn: ${this.target} is gone. Bring your photo${best} back to the van (green light), ${dVan.toFixed(0)} m, and press H.`
-            : `GOT THE SHOT${best}! Back to the van (green light) before dawn for a +${Math.round(HUNT.dawnBonus * 100)}% bonus: ${dVan.toFixed(0)} m\nThen press H there to drive home.`;
+            ? `Dawn: ${this.target} is gone. Bring your photo${best} back to the van at the trailhead parking and press H.\nFind the way with your map and compass (M) and the trail signs.`
+            : `GOT THE SHOT${best}! Back to the van at the trailhead parking before dawn for a +${Math.round(HUNT.dawnBonus * 100)}% bonus.\nFind the way with your map and compass (M) and the trail signs, then press H at the van.`;
       }
       case 'ended': return '';
     }

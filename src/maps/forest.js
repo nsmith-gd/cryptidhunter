@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ForestKit } from '../art/forestKit.js';
 import { dressForest } from './forestDressing.js';
 import { TerrainPainter, ribbonGeometry } from './terrainPainter.js';
+import { buildTrailSigns } from './trailSigns.js';
 import { leafLitterTexture, dirtTexture, mossTexture, grassTexture } from '../art/forestTex.js';
 
 // Pine Hollow Forest — greybox (L0). The starter hunting ground and Bigfoot's home.
@@ -36,6 +37,12 @@ const L = {
   westNotch: { x: -123, z: RIDGE_Z },
   lookout: { x: 70, z: -88 },
   hollow: { x: -5, z: -112 },
+};
+
+// Names on the trail signs and the paper map (#70).
+export const PLACE_NAMES = {
+  trailhead: 'Parking', cabin: 'Old cabin', campsite: 'Campsite', footbridge: 'Footbridge', boulders: 'Boulders',
+  ridgePass: 'Ridge pass', westNotch: 'West notch', lookout: 'Lookout', hollow: 'The hollow',
 };
 
 // Dirt trails (polylines). Trees stay off them.
@@ -444,9 +451,18 @@ export function buildForestMap(scene) {
   };
   const speedAt = (x, z, y) => (surfaceAt(x, z, y) === 'shallow' ? FOREST.creekSpeed : 1);
 
+  // Trail signposts at the junctions (#70): the way home is read off the signs, the paper map and
+  // the compass; there is no beacon or distance readout.
+  const places = Object.entries(PLACE_NAMES).map(([id, name]) => ({ id, name, ...L[id] }));
+  const signs = buildTrailSigns(scene, colliders, { trails: TRAILS, places, home: 'trailhead' });
+
   return {
     colliders,
     bounds: H,
+    signs,
+    places,
+    creek: CREEK.map(([x, z]) => ({ x, z })),
+    ridge: { z: RIDGE_Z, gaps: RIDGE_GAPS },
     surfaceAt,
     speedAt,
     trees: trees.length,

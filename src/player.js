@@ -53,6 +53,9 @@ export class Player {
     this.recoveryScale = 1;    // stamina recovery multiplier, set by the survival systems (GDD 2.8)
     this.loadSpeed = 1;        // carried-load speed multiplier, floor 0.45 (set by the pack, #69)
     this.loadFactor = 1;       // carried-load exertion multiplier on stamina cost
+    this.lookScale = 1;        // look sensitivity multiplier (settings)
+    this.invertY = false;      // invert vertical look (settings)
+    this.readingMap = false;   // map and compass raised (#70): walk slowly, no sprint
     this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
     this.sinceSprint = 99;
     this.noise = 0;           // 0 silent .. 1 sprinting
@@ -65,8 +68,10 @@ export class Player {
 
     // Look.
     const [dx, dy] = inp.consumeMouse();
-    this.yaw -= dx * PLAYER.mouseSens;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * PLAYER.mouseSens, -PLAYER.maxPitch, PLAYER.maxPitch);
+    // Look sensitivity and invert (settings, #76) apply to mouse and gamepad alike.
+    const sens = PLAYER.mouseSens * this.lookScale;
+    this.yaw -= dx * sens;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * sens * (this.invertY ? -1 : 1), -PLAYER.maxPitch, PLAYER.maxPitch);
 
     // Crouch: held. Standing up is blocked if something is overhead.
     const wantCrouch = inp.down('ControlLeft', 'ControlRight', 'KeyC');
@@ -87,10 +92,10 @@ export class Player {
     this.speedFactor = this.speedAt ? this.speedAt(this.position.x, this.position.z, this.position.y) : 1;
     // Sprint only while moving forward, not crouched and not slowed.
     // Stamina gates sprinting; emptying it locks sprint until it partly refills.
-    this.sprinting = !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight') && !this.exhausted;
+    this.sprinting = !this.readingMap && !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight') && !this.exhausted;
     this.updateStamina(dt, wish.lengthSq() > 0);
     // Carried load (#69, GDD 2.8): movement_speed = action_speed * max(0.45, 1 - load_penalty).
-    const speed = this.speedFactor * this.loadSpeed *
+    const speed = this.speedFactor * this.loadSpeed * (this.readingMap ? 0.5 : 1) *   // reading the map: slow walk (#70)
       (this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed);
 
     const k = 1 - Math.exp(-PLAYER.accel * dt);

@@ -27,6 +27,7 @@ export const WORN = [
   { name: 'Clothes and boots', kg: 3.2 },
   { name: 'Flashlight', kg: 0.4 },
   { name: 'Camera', kg: 0.9 },
+  { name: 'Map and compass', kg: 0.15 },
 ];
 
 /** B03 Daypack (12 L) is the starter pack. */
