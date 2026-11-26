@@ -55,7 +55,9 @@ export function createBigfootAnimator(root, bones, { worldScale = 1, poseFps = P
     hipsY: bones.hips.position.y,
     legLen: Math.abs(bones.shinL.position.y) + Math.abs(bones.footL.position.y),
   };
-  const STRIDE = 1.53 * rest.legLen * worldScale;        // world metres per step pair
+  // World metres per step. #78: planted feet (bigfootBody.js) need a stride the legs can actually
+  // sweep, so this is shorter than the old sliding-foot cycle (1.53) and the cadence quicker.
+  const STRIDE = 0.8 * rest.legLen * worldScale;
   const L = rest.legLen;                                   // scales vertical offsets with the legs
 
   let phase = 0, idleT = 0, clock = 0;

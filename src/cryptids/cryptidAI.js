@@ -6,6 +6,7 @@ import { buildBigfootModel } from './bigfootModel.js';
 import { genericBrain } from './brains/genericBrain.js';
 import { bigfootBrain, BIGFOOT_TIERS } from './brains/bigfootBrain.js';
 import { stream } from '../core/rng.js';
+import { groundAt } from '../maps/ground.js';
 
 // Bespoke behaviour trees per cryptid (lore first, then the rules the player must learn).
 const BRAINS = { bigfoot: bigfootBrain };
@@ -92,6 +93,17 @@ export class CryptidAI {
     else this.thinkL0(dt, p);
     this.agent.update(dt);
     this.syncMesh();
+    // What it's looking at (#78 targeting): you when it's watching, stalking, warning or charging;
+    // the noise it's checking out; you, a little, as it becomes aware of you.
+    if (this.mesh.userData.body3) {
+      const look = (this.mesh.userData.look ??= { target: new THREE.Vector3(), weight: 0 });
+      const watching = ['observe', 'warn', 'aggress', 'shadow'].includes(this.state);
+      if (p && (watching || this.state === 'roam' || this.state === 'flee')) {
+        look.target.set(p.x, (p.y ?? 0) + 1.5, p.z);
+        look.weight = watching ? 1 : this.state === 'flee' ? 0.35 : Math.min(0.8, (this.perception?.awareness ?? 0) * 1.2);
+      } else if (this.state === 'investigate' && this.target) { look.target.set(this.target.x, 0.5, this.target.z); look.weight = 0.9; }
+      else look.weight = 0;
+    }
     this.mesh.userData.animate?.(dt, this.agent.currentSpeed, this.state);
   }
 
@@ -445,7 +457,7 @@ export class CryptidAI {
   }
 
   syncMesh() {
-    this.mesh.position.set(this.agent.x, 0, this.agent.z);
+    this.mesh.position.set(this.agent.x, groundAt(this.agent.x, this.agent.z), this.agent.z);
     this.mesh.rotation.y = this.agent.heading;
     const bar = this.awarenessBar;
     if (bar && this.perception) {

@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { setSeed, randomSeed, getSeed } from './core/rng.js';
 import { FixedStepLoop } from './core/simLoop.js';
 import { WebXRPresenter, PauseState, mountPauseScreen } from './xr/webxr.js';
+import { ProfilingRecorder } from './profiling/recorder.js';
+import { attachProbes } from './profiling/gameProbe.js';
+import { ProfilerPanel } from './profiling/profilerPanel.js';
 import { Input } from './input.js';
 import { SaveService } from './save/saveService.js';
 import { Settings } from './settings/settings.js';
@@ -15,6 +18,7 @@ import { buildGymMap } from './maps/gymG00.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
+import { setGroundHeight } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
 import { PixelWater } from './art/pixelWater.js';
 import { Atmosphere, timeOfDayConfig } from './maps/atmosphere.js';
@@ -101,6 +105,7 @@ const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap,
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
+setGroundHeight(map.heightAt);    // sunken trail ruts (forest): feet, cryptids and ground clues follow the terrain
 const { colliders, bounds, spawns } = map;
 if (map.environment) {
   scene.background.set(map.environment.background);
@@ -513,15 +518,27 @@ vr.mountButtons([document.querySelector('#overlay > div')]);
 vr.detect();
 vr.watchPage();
 // The renderer's loop runs on XRSession.requestAnimationFrame while in VR, the page's otherwise.
+// Profiling recorder (#67, GDD 17): a dev tool, opt-in. F6 opens its panel; ?profile starts recording
+// at load. It reads frame timings and game events; it never changes the game or the save.
+const profiler = new ProfilingRecorder({ build: 'dev', gym: 'none', scenario: mapId, platform: 'desktop', seed: getSeed(),
+  getTick: () => sim.tick });
+attachProbes(profiler, { photo, trailCams, journal, hunt, camp, pauseState });
+const profilerPanel = new ProfilerPanel(profiler);
+if (new URLSearchParams(location.search).has('profile')) { profiler.start(); profilerPanel.toggle(true); }
+let lastFrameAt = null;
 renderer.setAnimationLoop((time, xrFrame) => {
+  const frameStart = performance.now();
+  profiler.meta.platform = vr.presenting ? 'immersive-webxr' : 'desktop';
   const dt = clock.getDelta();
   vr.onFrame(xrFrame, dt);
   // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
   if (sim.paused || pauseState.paused || statusScreen.open) drawFrame();
   else sim.frame(dt);
+  if (lastFrameAt != null) profiler.frame(frameStart - lastFrameAt, performance.now() - frameStart);
+  lastFrameAt = frameStart;
 });
 
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { THREE, evidence, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
