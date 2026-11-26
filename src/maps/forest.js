@@ -116,6 +116,10 @@ export function buildForestMap(scene) {
       const d = Math.hypot(x - c.x, z - c.z) / (r * 0.75);
       f = Math.min(f, Math.min(1, Math.max(0, (d - 0.55) / 0.45)));
     }
+    // ...and level with the footbridge: the deck (FOREST.deck high) must stay one easy step up
+    // from the trail, so the ruts ramp out over the last few metres to each end (#81 fix).
+    const db = Math.hypot(x - L.footbridge.x, z - L.footbridge.z);
+    f = Math.min(f, Math.min(1, Math.max(0, (db - 6.5) / 3)));
     return f;
   };
   const rutDepth = new URLSearchParams(location.search).has('flattrails') ? 0 : FOREST.rutDepth; // ?flattrails: before/after
