@@ -268,14 +268,22 @@ const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi,
 // left-click with the camera down) to use. Only slotted gear is carried.
 // ?loadout=nightVision,knockStick,... packs those items instead (testing / quick setups).
 const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',').filter(Boolean);
-const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input,
+// Pack (#69): unslotted gear can ride in the pack, with food and water; load slows you and makes
+// running cost more stamina. ?pack=bait,... and ?water=N set it for testing.
+const qs = new URLSearchParams(location.search);
+const urlPack = qs.get('pack')?.split(',').filter(Boolean);
+const getFood = () => survival.nutrition.food;
+const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
+  pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
   gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight } });
 photo.onLoweredClick = () => loadout.use();
-const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange: (slots) => {
-  if (hunt.stage !== 'briefing') return;         // packing happens before you set off
-  camp.state.loadout = slots; camp.save();
-  loadout.setSlots(slots);
-} });
+const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
+  onChange: ({ slots, pack, water }) => {
+    if (hunt.stage !== 'briefing') return;         // packing happens before you set off
+    camp.state.loadout = slots; camp.state.pack = pack; camp.state.water = water; camp.save();
+    loadout.water = water;
+    loadout.setSlots(slots, pack);
+  } });
 // Shop (#46): buy gear and permanent upgrades at base camp, before you set off. Upgrades are
 // saved with camp and applied to the camera and torch at the start of every hunt.
 applyUpgrades(camp, { photo, flashlight });
@@ -379,6 +387,7 @@ function present(dt) {
   nightVision.update(dt);
   viewmodel.update(dt);
   loadout.render();
+  loadout.update(dt);
   survival.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
