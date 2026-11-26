@@ -145,7 +145,7 @@ export class Viewmodel {
     const p = this.player;
     const speed = Math.hypot(p.velocity.x, p.velocity.z);
     this.bobPhase += speed * dt * 2.2;
-    const moving = Math.min(1, speed / 3);
+    const moving = Math.min(1, speed / 3) * (this.bobScale ?? 1);   // reduced camera shake (settings) damps the bob
     // Turn lag: the hands trail a little behind fast mouse turns, then settle.
     let dyaw = p.yaw - this.lastYaw; this.lastYaw = p.yaw;
     dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));

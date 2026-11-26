@@ -53,6 +53,8 @@ export class Player {
     this.recoveryScale = 1;    // stamina recovery multiplier, set by the survival systems (GDD 2.8)
     this.loadSpeed = 1;        // carried-load speed multiplier, floor 0.45 (set by the pack, #69)
     this.loadFactor = 1;       // carried-load exertion multiplier on stamina cost
+    this.lookScale = 1;        // look sensitivity multiplier (settings)
+    this.invertY = false;      // invert vertical look (settings)
     this.readingMap = false;   // map and compass raised (#70): walk slowly, no sprint
     this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
     this.sinceSprint = 99;
@@ -66,8 +68,10 @@ export class Player {
 
     // Look.
     const [dx, dy] = inp.consumeMouse();
-    this.yaw -= dx * PLAYER.mouseSens;
-    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * PLAYER.mouseSens, -PLAYER.maxPitch, PLAYER.maxPitch);
+    // Look sensitivity and invert (settings, #76) apply to mouse and gamepad alike.
+    const sens = PLAYER.mouseSens * this.lookScale;
+    this.yaw -= dx * sens;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * sens * (this.invertY ? -1 : 1), -PLAYER.maxPitch, PLAYER.maxPitch);
 
     // Crouch: held. Standing up is blocked if something is overhead.
     const wantCrouch = inp.down('ControlLeft', 'ControlRight', 'KeyC');
