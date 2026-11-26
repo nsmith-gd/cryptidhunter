@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { setSeed, randomSeed, getSeed } from './core/rng.js';
+import { FixedStepLoop } from './core/simLoop.js';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
@@ -45,6 +47,10 @@ import { renderAlbum } from './hunt/album.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
 import { CinematicLighting } from './maps/cinematicLighting.js';
+
+// One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
+setSeed(Number(new URLSearchParams(location.search).get('seed')) || randomSeed());
+console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
 
 // Render at a low internal resolution (~360 rows) and upscale by an exact integer with
 // nearest-neighbour, snapping the view to whole pixels: see render/pixelPipeline.js.
@@ -326,18 +332,16 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 const hud = document.getElementById('hud');
-const clock = new THREE.Clock();
-function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+// Fixed-step loop (#66): the world simulates in exact 1/60 s steps whatever the frame rate;
+// rendering, HUD and post effects run once per drawn frame with positions interpolated.
+const ended = () => huntFailure.isCaught || hunt.stage === 'ended';
+function simulate(dt) {
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
-  if (huntFailure.isCaught || hunt.stage === 'ended') {   // world freezes behind the end screens
-    drawFrame();
-    requestAnimationFrame(frame);
-    return;
-  }
+  if (ended()) return;                       // world freezes behind the end screens
   player.update(dt);
   fear.update(dt);
-  fear.applySway(dt);
+  fear.applySway(dt);                        // after the player sets the view; sim-timed so photos blur the same at any fps
+  photo.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
   bait.update(dt);
@@ -350,14 +354,18 @@ function frame() {
     mothman.update(dt);
     chupacabra.update(dt);
   }
-  photo.update(dt);
   rocks.update(dt);
-  nightVision.update(dt);
-  viewmodel.update(dt);
   audioLures.update(dt);
   trailCams.update(dt);
-  loadout.render();
   hunt.update(dt);
+  huntFailure.update(dt);
+}
+function present(dt) {
+  if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
+  if (ended()) { drawFrame(); return; }
+  nightVision.update(dt);
+  viewmodel.update(dt);
+  loadout.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
@@ -370,7 +378,6 @@ function frame() {
   noiseRing.update();
   clueFinder.update();
   journalUI.update(dt);
-  huntFailure.update();
   aiDebug.update(camera);
   night?.update(player.position, dt);
   water?.update(dt);
@@ -378,9 +385,17 @@ function frame() {
   cine?.update(dt);
   trailReader.update(dt);
   drawFrame();
+}
+const sim = new FixedStepLoop({ simulate, present,
+  tracked: () => [camera, ...cryptids.cryptids.map((c) => c.mesh)] });
+sim.paused = new URLSearchParams(location.search).has('simpaused');   // tests drive the sim themselves
+const clock = new THREE.Clock();
+function frame() {
+  // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
+  if (!sim.paused) sim.frame(clock.getDelta()); else { clock.getDelta(); drawFrame(); }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

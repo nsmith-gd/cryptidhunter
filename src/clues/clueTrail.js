@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { stream } from '../core/rng.js';
 
 const PATH_STEP = 0.25;   // metres between recorded debug-path points
 const PATH_MAX = 4000;    // points kept per cryptid
@@ -8,7 +9,7 @@ const PATH_MAX = 4000;    // points kept per cryptid
 // Scratches go on a nearby tall surface (tree trunk / rock); if none is in reach they wait.
 // Also records the true route so it can be drawn as a debug path.
 export class ClueTrail {
-  constructor(cryptid, clueSystem, colliders, rand = Math.random) {
+  constructor(cryptid, clueSystem, colliders, rand = stream(`clues:${cryptid.profile.id}`)) {
     this.cryptid = cryptid;
     this.clues = clueSystem;
     this.colliders = colliders;

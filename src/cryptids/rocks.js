@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { stream } from '../core/rng.js';
+const ROCK_RNG = (...a) => stream('rocks')(...a);
 
 // Thrown rocks (Bigfoot's warning). A rock arcs from the thrower's hand to a landing spot;
 // on landing it thuds, kicks up a little dust and reports where it fell.
@@ -15,7 +17,7 @@ export class Rocks {
     mesh.position.set(from.x, from.y, from.z);
     mesh.name = 'thrown-rock';
     this.scene.add(mesh);
-    this.flying.push({ mesh, from: { ...from }, to: { x: to.x, y: 0.12, z: to.z }, t: 0, T: flightTime, onLand, spin: new THREE.Vector3(Math.random(), Math.random(), Math.random()) });
+    this.flying.push({ mesh, from: { ...from }, to: { x: to.x, y: 0.12, z: to.z }, t: 0, T: flightTime, onLand, spin: new THREE.Vector3(ROCK_RNG(), ROCK_RNG(), ROCK_RNG()) });
   }
 
   update(dt) {

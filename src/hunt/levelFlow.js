@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { stream } from '../core/rng.js';
 import { DECAL_OFFSET } from '../maps/terrainPainter.js';
 
 // Level flow (L1): at the start of a hunt, pick where the cryptid beds down and where its fresh
@@ -12,7 +13,7 @@ export const FLOW = {
 };
 
 export class LevelFlow {
-  constructor({ scene, map, rand = Math.random }) {
+  constructor({ scene, map, rand = stream('levelFlow') }) {
     this.scene = scene;
     this.map = map;
     this.rand = rand;
