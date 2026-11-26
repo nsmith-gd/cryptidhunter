@@ -137,7 +137,9 @@ check('deer tracks: the photo stays on the roll (source: ordinary animal) but is
 const before = await page.evaluate(() => __game.photo.records.length);
 await page.evaluate(() => { const g = __game, v = g.HUNT.exit; g.player.position.set(v.x + 1, 0, v.z + 1); });
 await page.waitForFunction(() => __game.hunt.inZone, null, { timeout: 20000 });
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH');   // #98: opens the extraction manifest review...
+await page.waitForTimeout(300);
+await page.keyboard.press('KeyH');   // ...and H again drives out
 await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 20000 });
 await page.waitForTimeout(800);
 const ext = await page.evaluate(() => {
