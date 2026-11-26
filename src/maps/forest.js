@@ -3,6 +3,7 @@ import { ForestKit } from '../art/forestKit.js';
 import { dressForest } from './forestDressing.js';
 import { TerrainPainter, ribbonGeometry } from './terrainPainter.js';
 import { buildTrailSigns } from './trailSigns.js';
+import { planLandmarks, buildLandmarks } from './forestLandmarks.js';
 import { leafLitterTexture, dirtTexture, mossTexture, grassTexture } from '../art/forestTex.js';
 
 // Pine Hollow Forest — greybox (L0). The starter hunting ground and Bigfoot's home.
@@ -277,7 +278,10 @@ export function buildForestMap(scene) {
 
   const creekLine = CREEK.map(([x, z]) => ({ x, z }));
   // --- Trees and undergrowth: the forest kit (art/forestKit.js), instanced. --------------
+  // GDD map pieces (#91): kiosk, boundary fence, tree stand, traces, puddles. ?nolandmarks: off.
+  const landmarkPlan = new URLSearchParams(location.search).has('nolandmarks') ? null : planLandmarks(L, H);
   const keepClear = (x, z) => {
+    if (landmarkPlan?.clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.r)) return true;
     for (const [c, r] of CLEARINGS) if (Math.hypot(x - c.x, z - c.z) < r) return true;
     for (const t of TRAILS) if (distToPolyline(x, z, t) < 3.2) return true;
     if (distToPolyline(x, z, creekLine) < FOREST.creekHalfWidth + 1.5) return true;
@@ -286,6 +290,7 @@ export function buildForestMap(scene) {
   };
   // Softer rule for low undergrowth: may crowd trail edges and clearing rims, never the tread.
   const onTread = (x, z) => {
+    if (landmarkPlan?.clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.r * 0.8)) return true;
     for (const [c, r] of CLEARINGS) if (Math.hypot(x - c.x, z - c.z) < r * 0.62) return true;
     for (const t of TRAILS) if (distToPolyline(x, z, t) < 2.1) return true;
     if (distToPolyline(x, z, creekLine) < FOREST.creekHalfWidth + 0.4) return true;
@@ -432,6 +437,8 @@ export function buildForestMap(scene) {
   placeLog('log:3', L.hollow.x + 6, L.hollow.z - 4, 0.7 - Math.PI / 2, 14, 1.4);
 
   const kitGroup = kit.build(scene);
+  const landmarks = landmarkPlan ? buildLandmarks(scene, colliders, landmarkPlan, { heightAt: (x, z) => terrain.heightAt(x, z), rng }) : null;
+
   // Wind: advance the sway clock from the render loop (no extra hook needed in main).
   const swayer = kitGroup.children.find((c) => c.name.startsWith('kit-fern')) ?? kitGroup.children[0];
   if (swayer) swayer.onBeforeRender = () => { kit.wind.value = performance.now() / 1000; };
@@ -503,6 +510,7 @@ export function buildForestMap(scene) {
     },
     spawns: { bigfoot: { x: L.hollow.x, z: L.hollow.z } },
     landmarks: { ...L },
+    props: landmarks ? { ...landmarks.stats, spots: landmarkPlan.spots, standTop: landmarks.standTop, fence: landmarkPlan.fence } : null,
     // Safe interiors: fear drains fast in here (the van is added by the hunt).
     safeZones: [
       { x: L.cabin.x, z: L.cabin.z, r: 3.6, name: 'cabin' },
