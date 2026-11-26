@@ -299,8 +299,9 @@ export function buildLandmarks(scene, colliders, plan, { heightAt = () => 0, rng
   let standTop = null;
   {
     const { x, z } = S.treeStand;
-    parts.bark.push(cylGeo(0.4, 0.48, 14, 1, { x: x - 1.5, y: 7, z: z - 1.5, seg: 8 }));          // the pine it's lashed to
-    solid(x - 1.95, 0, z - 1.95, x - 1.05, 14, z - 1.05);
+    // The pine it's lashed to stands at the back (south-east) corner, out of the view to the hollow.
+    parts.bark.push(cylGeo(0.4, 0.48, 14, 1, { x: x + 1.55, y: 7, z: z + 1.55, seg: 8 }));
+    solid(x + 1.1, 0, z + 1.1, x + 2.0, 14, z + 2.0);
     for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) parts.wood.push(boxGeo(0.14, H, 0.14, 1, { x: x + dx, y: H / 2, z: z + dz }));
     parts.plank.push(boxGeo(2.3, 0.12, 2.3, 1, { x, y: H - 0.06, z }));
     solid(x - 1.15, H - 0.12, z - 1.15, x + 1.15, H, z + 1.15);

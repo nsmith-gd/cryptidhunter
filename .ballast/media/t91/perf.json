@@ -1,26 +1,26 @@
 {
   "after": {
     "trailhead": {
-      "ms_per_frame": 2605,
-      "draw_calls": 865,
-      "triangles": 3040836
+      "ms_per_frame": 2577.2,
+      "draw_calls": 974,
+      "triangles": 3041968
     },
     "hollow": {
-      "ms_per_frame": 2296.9,
-      "draw_calls": 176,
-      "triangles": 3034908
+      "ms_per_frame": 2368.5,
+      "draw_calls": 329,
+      "triangles": 3036616
     }
   },
   "before": {
     "trailhead": {
-      "ms_per_frame": 2540,
-      "draw_calls": 1190,
-      "triangles": 3041863
+      "ms_per_frame": 2633,
+      "draw_calls": 857,
+      "triangles": 3038413
     },
     "hollow": {
-      "ms_per_frame": 2340.7,
-      "draw_calls": 266,
-      "triangles": 3033567
+      "ms_per_frame": 2320.2,
+      "draw_calls": 245,
+      "triangles": 3033429
     }
   }
 }
