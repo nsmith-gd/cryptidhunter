@@ -329,6 +329,15 @@ export class HuntLoop {
       lines.push(pad('Losses', d.losses.length ? d.losses.join(', ') : 'none'));
       lines.push(pad('Closing cash', $(d.closing)));
     }
+    // Research dossier (#101): milestones from this trip's field notes, and the career total.
+    const res = this.settlement?.entry?.research;
+    if (res) {
+      const NAMES = { located: 'Located', documented: 'Documented', characterized: 'Characterized', confirmed: 'Confirmed', tagged: 'Tagged', captured: 'Captured' };
+      lines.push('', 'RESEARCH');
+      for (const n of res.newly) lines.push(pad(`${n.species} ${NAMES[n.milestone]}`, `+${n.credibility} credibility`));
+      if (!res.newly.length) lines.push(pad('New milestones', res.ignored.length ? 'none (ambiguous record)' : 'none'));
+      lines.push(pad('Career credibility', `${res.credibility}`));
+    }
     lines.push('', pad('Time out', `${Math.floor(r.seconds / 60)}m ${String(r.seconds % 60).padStart(2, '0')}s`));
     return lines.join('\n');
   }

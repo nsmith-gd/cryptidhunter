@@ -20,6 +20,8 @@ const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', s
   trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick' };
 
 import { SaveService } from '../save/saveService.js';
+import { addAttempt, emptyResearch, dossierLine, researchLines, buyersFor } from '../research/dossier.js';
+import { MAP_CHOICES, unlockContext, isUnlocked } from './mapSelect.js';
 import { BountyBoard } from './bounties.js';
 import { valueEvidence } from '../evidence/evidence.js';
 import { Ledger, ECONOMY, cents, formatCAD } from '../economy/ledger.js';
@@ -61,7 +63,7 @@ export class Camp {
   }
 
   static fresh() {
-    return { gear: { ...CAMP.starter }, hunts: [], reputation: 0, map: null };
+    return { gear: { ...CAMP.starter }, hunts: [], reputation: 0, map: null, research: emptyResearch(), extractedFrom: [] };
   }
 
   load() {
@@ -135,7 +137,7 @@ export class Camp {
    * photos: every HIT taken this hunt ({ subject, score }). gearLeft: what you still carry.
    * Only a hunt you drove home from (complete / abandoned) keeps its photos.
    */
-  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null, charges = [], leftBehind = [] }) {
+  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null, charges = [], leftBehind = [], research = null, mapId = null }) {
     const aid = attemptId ?? this.newAttemptId();
     const keptPhotos = outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency';
     // Physical evidence (#73): what you drove home with sells at base value × novelty; otherwise it's lost.
@@ -159,6 +161,15 @@ export class Camp {
     const best = sold.find((s) => s.subject === target)?.score ?? 0;
     const repGain = outcome === 'complete' && best > 0 ? (best >= CAMP.greatPhoto ? 2 : 1) : 0;
     this.state.reputation = (this.state.reputation ?? 0) + repGain;
+    // Research dossier (#101): field notes from an extracted attempt go into the species dossier;
+    // new milestones award credibility once. A normal drive-home counts as a successful extraction.
+    let researchResult = null;
+    if (research) {
+      const r = addAttempt(this.state.research ?? emptyResearch(), { ...research, id: aid, extracted: keptPhotos });
+      this.state.research = r.research;
+      researchResult = { newly: r.newly, ignored: r.ignored, credibility: r.research.credibility, species: research.species?.id };
+    }
+    if (mapId && (outcome === 'complete' || outcome === 'abandoned') && !(this.state.extractedFrom ??= []).includes(mapId)) this.state.extractedFrom.push(mapId);
     const entry = {
       n: this.state.hunts.length + 1, outcome, outcomeClass, target, attemptId: aid, settledCents: settlement.closing - settlement.opening,
       // Debrief (GDD 7.5), all in cents from the ledger: payouts, bonuses, the trip, charges, closing cash.
@@ -169,7 +180,7 @@ export class Camp {
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
       evidenceSold: evidenceSold.map((e) => ({ name: e.name, cryptid: e.cryptid, value: e.value, novelty: e.novelty })),
       evidenceLost: keptPhotos ? 0 : evidence.length,
-      sold, bonus, bounties, bountyBonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation,
+      sold, bonus, bounties, bountyBonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation, research: researchResult,
     };
     this.state.hunts.push(entry);
     if (this.state.hunts.length > 50) this.state.hunts.shift();
@@ -196,10 +207,19 @@ export function huntSummary(h) {
   return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
     ...(h.evidenceSold ?? []).map((e) => `  ${e.name} (${e.cryptid})${e.novelty < 1 ? ', repeat' : ''}: $${e.value}`),
     ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : []),
-    ...(h.bounties ?? []).map((b) => `  Bounty claimed: ${b.title} (score ${b.minScore}+): +$${b.bonus}`), ...(h.repGain ? [`  Reputation +${h.repGain} (now ${h.reputation})`] : [])].join('\n');
+    ...(h.bounties ?? []).map((b) => `  Bounty claimed: ${b.title} (score ${b.minScore}+): +$${b.bonus}`), ...researchLines(h.research)].join('\n');
 }
 
 /** BASE CAMP panel on the start screen: money, what happened last hunt, gear you own. */
+/** Buyers (#101, GDD 7.2): open by furthest unlocked expedition and career credibility; enthusiasts always. */
+export function buyerLine(camp) {
+  const ctx = unlockContext(camp);
+  const level = Math.max(1, ...MAP_CHOICES.filter((c) => isUnlocked(c, ctx)).map((c) => c.level ?? 1));
+  const bs = buyersFor({ level, credibility: ctx.research?.credibility ?? 0 });
+  const open = bs.filter((b) => b.open).map((b) => b.name), next = bs.find((b) => !b.open);
+  return `Buyers: ${open.join(', ')}${next ? `  ·  next: ${next.name} (expedition ${next.level}${next.credibility ? `, credibility ${next.credibility}` : ''})` : ''}`;
+}
+
 export function showCampPanel(camp, root = document.querySelector('#overlay > div')) {
   if (!root) return null;
   const el = document.createElement('div');
@@ -209,7 +229,10 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
   const s = camp.state, last = camp.lastHunt;
   el.textContent = [`BASE CAMP  ·  ${formatCAD(camp.ledger.cash)}`,
     last ? `Last hunt (#${last.n}): ${huntSummary(last)}` : 'First night out. No photos sold yet.',
-    `Gear: ${gearList(s.gear)}`].join('\n');
+    `Gear: ${gearList(s.gear)}`,
+    `Credibility ${s.research?.credibility ?? 0} (career; earned once per research milestone, never spent)`,
+    ...Object.values(s.research?.species ?? {}).map(dossierLine),
+    buyerLine(camp)].join('\n');
   root.prepend(el);
   // The start screen is taller now: let it scroll instead of spilling off the top.
   const overlay = root.parentElement;
