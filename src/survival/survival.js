@@ -42,6 +42,10 @@ export class Survival {
     this.health.update(dt);
     const hunger = this.nutrition.hungerDeficit * 0.5, cold = this.thermo.coldDeficit * 0.6;
     this.player.recoveryScale = Math.max(0.25, 1 - hunger - cold);
+    // Derived capability (GDD 2.8): wounds and cold slow you and cap your stamina; never below the floors.
+    const h = this.health;
+    this.player.injuryPenalty = Math.max(0, (70 - h.value) / 70) * 0.35 + (h.bleeding.some((c) => c.severity === 'heavy') ? 0.1 : 0);
+    this.player.thermalPenalty = this.thermo.coldDeficit * 0.2;
   }
 
   /** Use another (consolidated) warning list for the HUD: fn() -> [{ id, level, text }]. */
