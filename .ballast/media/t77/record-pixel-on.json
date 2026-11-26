@@ -1,0 +1,5428 @@
+{
+ "perception": [
+  {
+   "f": 0,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0,
+    false
+   ]
+  },
+  {
+   "f": 165,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0.03138,
+    0,
+    0,
+    0.001569,
+    false
+   ]
+  },
+  {
+   "f": 166,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.100656,
+    0,
+    0,
+    0.009994,
+    false
+   ]
+  },
+  {
+   "f": 167,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.154967,
+    0,
+    0,
+    0.024221,
+    false
+   ]
+  },
+  {
+   "f": 168,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.196831,
+    0,
+    0,
+    0.042926,
+    false
+   ]
+  },
+  {
+   "f": 169,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.229121,
+    0,
+    0,
+    0.065082,
+    false
+   ]
+  },
+  {
+   "f": 170,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.254607,
+    0,
+    0,
+    0.089941,
+    false
+   ]
+  },
+  {
+   "f": 171,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.275305,
+    0,
+    0,
+    0.116979,
+    false
+   ]
+  },
+  {
+   "f": 172,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.292606,
+    0,
+    0,
+    0.145825,
+    false
+   ]
+  },
+  {
+   "f": 173,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.307929,
+    0,
+    0,
+    0.17625,
+    false
+   ]
+  },
+  {
+   "f": 174,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.321277,
+    0,
+    0,
+    0.208054,
+    false
+   ]
+  },
+  {
+   "f": 175,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.333283,
+    0,
+    0,
+    0.241089,
+    false
+   ]
+  },
+  {
+   "f": 176,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.344336,
+    0,
+    0,
+    0.275251,
+    false
+   ]
+  },
+  {
+   "f": 177,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.354686,
+    0,
+    0,
+    0.310465,
+    false
+   ]
+  },
+  {
+   "f": 178,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.364551,
+    0,
+    0,
+    0.346676,
+    false
+   ]
+  },
+  {
+   "f": 179,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.374083,
+    0,
+    0,
+    0.383848,
+    false
+   ]
+  },
+  {
+   "f": 180,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.313632,
+    0,
+    0,
+    0.416671,
+    false
+   ]
+  },
+  {
+   "f": 181,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.260972,
+    0,
+    0,
+    0.444038,
+    false
+   ]
+  },
+  {
+   "f": 182,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.215319,
+    0,
+    0,
+    0.46667,
+    false
+   ]
+  },
+  {
+   "f": 183,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.175915,
+    0,
+    0,
+    0.48521,
+    false
+   ]
+  },
+  {
+   "f": 184,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.142052,
+    0,
+    0,
+    0.500229,
+    false
+   ]
+  },
+  {
+   "f": 185,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.113084,
+    0,
+    0,
+    0.512233,
+    false
+   ]
+  },
+  {
+   "f": 186,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.088428,
+    0,
+    0,
+    0.521667,
+    false
+   ]
+  },
+  {
+   "f": 187,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.067564,
+    0,
+    0,
+    0.528923,
+    false
+   ]
+  },
+  {
+   "f": 188,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.050028,
+    0,
+    0,
+    0.534345,
+    false
+   ]
+  },
+  {
+   "f": 189,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.035412,
+    0,
+    0,
+    0.538234,
+    false
+   ]
+  },
+  {
+   "f": 190,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.023355,
+    0,
+    0,
+    0.540856,
+    false
+   ]
+  },
+  {
+   "f": 191,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.013539,
+    0,
+    0,
+    0.542442,
+    false
+   ]
+  },
+  {
+   "f": 192,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.005686,
+    0,
+    0,
+    0.543196,
+    false
+   ]
+  },
+  {
+   "f": 193,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.53915,
+    false
+   ]
+  },
+  {
+   "f": 194,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.530817,
+    false
+   ]
+  },
+  {
+   "f": 195,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.522483,
+    false
+   ]
+  },
+  {
+   "f": 196,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.51415,
+    false
+   ]
+  },
+  {
+   "f": 197,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.505817,
+    false
+   ]
+  },
+  {
+   "f": 198,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.497483,
+    false
+   ]
+  },
+  {
+   "f": 199,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.48915,
+    false
+   ]
+  },
+  {
+   "f": 200,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.480817,
+    false
+   ]
+  },
+  {
+   "f": 201,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.472483,
+    false
+   ]
+  },
+  {
+   "f": 202,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.46415,
+    false
+   ]
+  },
+  {
+   "f": 203,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.455817,
+    false
+   ]
+  },
+  {
+   "f": 204,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0,
+    0,
+    0,
+    0.447483,
+    false
+   ]
+  },
+  {
+   "f": 205,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.002896,
+    0,
+    0,
+    0.447685,
+    false
+   ]
+  },
+  {
+   "f": 206,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.006631,
+    0,
+    0,
+    0.448253,
+    false
+   ]
+  },
+  {
+   "f": 207,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.010624,
+    0,
+    0,
+    0.449214,
+    false
+   ]
+  },
+  {
+   "f": 208,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.014842,
+    0,
+    0,
+    0.450591,
+    false
+   ]
+  },
+  {
+   "f": 209,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.019255,
+    0,
+    0,
+    0.452406,
+    false
+   ]
+  },
+  {
+   "f": 210,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.023837,
+    0,
+    0,
+    0.454674,
+    false
+   ]
+  },
+  {
+   "f": 211,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.028566,
+    0,
+    0,
+    0.457411,
+    false
+   ]
+  },
+  {
+   "f": 212,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.033421,
+    0,
+    0,
+    0.460631,
+    false
+   ]
+  },
+  {
+   "f": 213,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.038386,
+    0,
+    0,
+    0.464345,
+    false
+   ]
+  },
+  {
+   "f": 214,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.043443,
+    0,
+    0,
+    0.468562,
+    false
+   ]
+  },
+  {
+   "f": 215,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.048581,
+    0,
+    0,
+    0.473292,
+    false
+   ]
+  },
+  {
+   "f": 216,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.053787,
+    0,
+    0,
+    0.47854,
+    false
+   ]
+  },
+  {
+   "f": 217,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.05905,
+    0,
+    0,
+    0.484313,
+    false
+   ]
+  },
+  {
+   "f": 218,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.064362,
+    0,
+    0,
+    0.490616,
+    false
+   ]
+  },
+  {
+   "f": 219,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.06975,
+    0,
+    0,
+    0.497456,
+    false
+   ]
+  },
+  {
+   "f": 220,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.148823,
+    0,
+    0,
+    0.510154,
+    false
+   ]
+  },
+  {
+   "f": 221,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.244875,
+    0,
+    0,
+    0.532218,
+    false
+   ]
+  },
+  {
+   "f": 222,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.337261,
+    0,
+    0,
+    0.563693,
+    false
+   ]
+  },
+  {
+   "f": 223,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.417746,
+    0,
+    0,
+    0.603541,
+    false
+   ]
+  },
+  {
+   "f": 224,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.484325,
+    0,
+    0,
+    0.650395,
+    false
+   ]
+  },
+  {
+   "f": 225,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.537858,
+    0,
+    0,
+    0.702919,
+    false
+   ]
+  },
+  {
+   "f": 226,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.580303,
+    0,
+    0,
+    0.75995,
+    false
+   ]
+  },
+  {
+   "f": 227,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.613836,
+    0,
+    0,
+    0.820545,
+    false
+   ]
+  },
+  {
+   "f": 228,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.640462,
+    0,
+    0,
+    0.883963,
+    false
+   ]
+  },
+  {
+   "f": 229,
+   "who": "bigfoot",
+   "state": "investigate",
+   "p": [
+    0.66186,
+    0,
+    0,
+    0.949642,
+    false
+   ]
+  },
+  {
+   "f": 230,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.67937,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 231,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.690836,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 232,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.700147,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 233,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.707871,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 234,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.714423,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 235,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.720096,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 236,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.725101,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 237,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.72874,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 238,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.730643,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 239,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.73079,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 240,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.659842,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 241,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.595465,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 242,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.536997,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 243,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.483918,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 244,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.436068,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 245,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.393072,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 246,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.354343,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 247,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.319356,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 248,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.287648,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 249,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.258812,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 250,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.232488,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 251,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.208363,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 252,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.186159,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 253,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.165634,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 254,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.146577,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 255,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.128801,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 256,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.112146,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 257,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.096468,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 258,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.081644,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 259,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.067564,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 260,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.054135,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 261,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.051027,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 262,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.048028,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 263,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.045008,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 264,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.041854,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 265,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.038482,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 266,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.034852,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 267,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.030972,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 268,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.026899,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 269,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.022643,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 270,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.018186,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 271,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.013515,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 272,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.008619,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 273,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0.003489,
+    0,
+    0,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 274,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.995833,
+    true
+   ]
+  },
+  {
+   "f": 275,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.9875,
+    true
+   ]
+  },
+  {
+   "f": 276,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.979167,
+    true
+   ]
+  },
+  {
+   "f": 277,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.970833,
+    true
+   ]
+  },
+  {
+   "f": 278,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.9625,
+    true
+   ]
+  },
+  {
+   "f": 279,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.954167,
+    true
+   ]
+  },
+  {
+   "f": 280,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.945833,
+    true
+   ]
+  },
+  {
+   "f": 281,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.9375,
+    true
+   ]
+  },
+  {
+   "f": 282,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.929167,
+    true
+   ]
+  },
+  {
+   "f": 283,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.920833,
+    true
+   ]
+  },
+  {
+   "f": 284,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.9125,
+    true
+   ]
+  },
+  {
+   "f": 285,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.904167,
+    true
+   ]
+  },
+  {
+   "f": 286,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.895833,
+    true
+   ]
+  },
+  {
+   "f": 287,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.8875,
+    true
+   ]
+  },
+  {
+   "f": 288,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.879167,
+    true
+   ]
+  },
+  {
+   "f": 289,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.870833,
+    true
+   ]
+  },
+  {
+   "f": 290,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.8625,
+    true
+   ]
+  },
+  {
+   "f": 291,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.854167,
+    true
+   ]
+  },
+  {
+   "f": 292,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.845833,
+    true
+   ]
+  },
+  {
+   "f": 293,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.8375,
+    true
+   ]
+  },
+  {
+   "f": 294,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.829167,
+    true
+   ]
+  },
+  {
+   "f": 295,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.820833,
+    true
+   ]
+  },
+  {
+   "f": 296,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.8125,
+    true
+   ]
+  },
+  {
+   "f": 297,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.804167,
+    true
+   ]
+  },
+  {
+   "f": 298,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.795833,
+    true
+   ]
+  },
+  {
+   "f": 299,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.7875,
+    true
+   ]
+  },
+  {
+   "f": 300,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.779167,
+    true
+   ]
+  },
+  {
+   "f": 301,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.770833,
+    true
+   ]
+  },
+  {
+   "f": 302,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.7625,
+    true
+   ]
+  },
+  {
+   "f": 303,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.754167,
+    true
+   ]
+  },
+  {
+   "f": 304,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.745833,
+    true
+   ]
+  },
+  {
+   "f": 305,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.7375,
+    true
+   ]
+  },
+  {
+   "f": 306,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.729167,
+    true
+   ]
+  },
+  {
+   "f": 307,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.720833,
+    true
+   ]
+  },
+  {
+   "f": 308,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.7125,
+    true
+   ]
+  },
+  {
+   "f": 309,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.704167,
+    true
+   ]
+  },
+  {
+   "f": 310,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.695833,
+    true
+   ]
+  },
+  {
+   "f": 311,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.6875,
+    true
+   ]
+  },
+  {
+   "f": 312,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.679167,
+    true
+   ]
+  },
+  {
+   "f": 313,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.670833,
+    true
+   ]
+  },
+  {
+   "f": 314,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.6625,
+    true
+   ]
+  },
+  {
+   "f": 315,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.654167,
+    true
+   ]
+  },
+  {
+   "f": 316,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.645833,
+    true
+   ]
+  },
+  {
+   "f": 317,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.6375,
+    true
+   ]
+  },
+  {
+   "f": 318,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.629167,
+    true
+   ]
+  },
+  {
+   "f": 319,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.620833,
+    true
+   ]
+  },
+  {
+   "f": 320,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.6125,
+    true
+   ]
+  },
+  {
+   "f": 321,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.604167,
+    true
+   ]
+  },
+  {
+   "f": 322,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.595833,
+    true
+   ]
+  },
+  {
+   "f": 323,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.5875,
+    true
+   ]
+  },
+  {
+   "f": 324,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.579167,
+    true
+   ]
+  },
+  {
+   "f": 325,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.570833,
+    true
+   ]
+  },
+  {
+   "f": 326,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.5625,
+    true
+   ]
+  },
+  {
+   "f": 327,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.554167,
+    true
+   ]
+  },
+  {
+   "f": 328,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.545833,
+    true
+   ]
+  },
+  {
+   "f": 329,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.5375,
+    true
+   ]
+  },
+  {
+   "f": 330,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.529167,
+    true
+   ]
+  },
+  {
+   "f": 331,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.520833,
+    true
+   ]
+  },
+  {
+   "f": 332,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.5125,
+    true
+   ]
+  },
+  {
+   "f": 333,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.504167,
+    true
+   ]
+  },
+  {
+   "f": 334,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.495833,
+    false
+   ]
+  },
+  {
+   "f": 335,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.4875,
+    false
+   ]
+  },
+  {
+   "f": 336,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.479167,
+    false
+   ]
+  },
+  {
+   "f": 337,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.470833,
+    false
+   ]
+  },
+  {
+   "f": 338,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.4625,
+    false
+   ]
+  },
+  {
+   "f": 339,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.454167,
+    false
+   ]
+  },
+  {
+   "f": 340,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.445833,
+    false
+   ]
+  },
+  {
+   "f": 341,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.4375,
+    false
+   ]
+  },
+  {
+   "f": 342,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.429167,
+    false
+   ]
+  },
+  {
+   "f": 343,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.420833,
+    false
+   ]
+  },
+  {
+   "f": 344,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.4125,
+    false
+   ]
+  },
+  {
+   "f": 345,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.404167,
+    false
+   ]
+  },
+  {
+   "f": 346,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.395833,
+    false
+   ]
+  },
+  {
+   "f": 347,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.3875,
+    false
+   ]
+  },
+  {
+   "f": 348,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.379167,
+    false
+   ]
+  },
+  {
+   "f": 349,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.370833,
+    false
+   ]
+  },
+  {
+   "f": 350,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.3625,
+    false
+   ]
+  },
+  {
+   "f": 351,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.354167,
+    false
+   ]
+  },
+  {
+   "f": 352,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.345833,
+    false
+   ]
+  },
+  {
+   "f": 353,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.3375,
+    false
+   ]
+  },
+  {
+   "f": 354,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.329167,
+    false
+   ]
+  },
+  {
+   "f": 355,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.320833,
+    false
+   ]
+  },
+  {
+   "f": 356,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.3125,
+    false
+   ]
+  },
+  {
+   "f": 357,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.304167,
+    false
+   ]
+  },
+  {
+   "f": 358,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.295833,
+    false
+   ]
+  },
+  {
+   "f": 359,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.2875,
+    false
+   ]
+  },
+  {
+   "f": 360,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.279167,
+    false
+   ]
+  },
+  {
+   "f": 361,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.270833,
+    false
+   ]
+  },
+  {
+   "f": 362,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.2625,
+    false
+   ]
+  },
+  {
+   "f": 363,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.254167,
+    false
+   ]
+  },
+  {
+   "f": 364,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.245833,
+    false
+   ]
+  },
+  {
+   "f": 365,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.2375,
+    false
+   ]
+  },
+  {
+   "f": 366,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.229167,
+    false
+   ]
+  },
+  {
+   "f": 367,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.220833,
+    false
+   ]
+  },
+  {
+   "f": 368,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.2125,
+    false
+   ]
+  },
+  {
+   "f": 369,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.204167,
+    false
+   ]
+  },
+  {
+   "f": 370,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.195833,
+    false
+   ]
+  },
+  {
+   "f": 371,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.1875,
+    false
+   ]
+  },
+  {
+   "f": 372,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.179167,
+    false
+   ]
+  },
+  {
+   "f": 373,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.170833,
+    false
+   ]
+  },
+  {
+   "f": 374,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.1625,
+    false
+   ]
+  },
+  {
+   "f": 375,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.154167,
+    false
+   ]
+  },
+  {
+   "f": 376,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.145833,
+    false
+   ]
+  },
+  {
+   "f": 377,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.1375,
+    false
+   ]
+  },
+  {
+   "f": 378,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.129167,
+    false
+   ]
+  },
+  {
+   "f": 379,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.120833,
+    false
+   ]
+  },
+  {
+   "f": 380,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.1125,
+    false
+   ]
+  },
+  {
+   "f": 381,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.104167,
+    false
+   ]
+  },
+  {
+   "f": 382,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.095833,
+    false
+   ]
+  },
+  {
+   "f": 383,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.0875,
+    false
+   ]
+  },
+  {
+   "f": 384,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.079167,
+    false
+   ]
+  },
+  {
+   "f": 385,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.070833,
+    false
+   ]
+  },
+  {
+   "f": 386,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.0625,
+    false
+   ]
+  },
+  {
+   "f": 387,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.054167,
+    false
+   ]
+  },
+  {
+   "f": 388,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.045833,
+    false
+   ]
+  },
+  {
+   "f": 389,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.0375,
+    false
+   ]
+  },
+  {
+   "f": 390,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.029167,
+    false
+   ]
+  },
+  {
+   "f": 391,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.020833,
+    false
+   ]
+  },
+  {
+   "f": 392,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.0125,
+    false
+   ]
+  },
+  {
+   "f": 393,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.004167,
+    false
+   ]
+  },
+  {
+   "f": 394,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0,
+    false
+   ]
+  },
+  {
+   "f": 480,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.281986,
+    0.140471,
+    0.028153,
+    false
+   ]
+  },
+  {
+   "f": 481,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.283801,
+    0.141633,
+    0.056488,
+    false
+   ]
+  },
+  {
+   "f": 482,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.285616,
+    0.142794,
+    0.085004,
+    false
+   ]
+  },
+  {
+   "f": 483,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.287431,
+    0.143956,
+    0.113702,
+    false
+   ]
+  },
+  {
+   "f": 484,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.289245,
+    0.145117,
+    0.142581,
+    false
+   ]
+  },
+  {
+   "f": 485,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.290736,
+    0.146071,
+    0.17162,
+    false
+   ]
+  },
+  {
+   "f": 486,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.291931,
+    0.146836,
+    0.200784,
+    false
+   ]
+  },
+  {
+   "f": 487,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.292941,
+    0.147482,
+    0.230054,
+    false
+   ]
+  },
+  {
+   "f": 488,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.293834,
+    0.148054,
+    0.259416,
+    false
+   ]
+  },
+  {
+   "f": 489,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0.294654,
+    0.148578,
+    0.288861,
+    false
+   ]
+  },
+  {
+   "f": 490,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.294518,
+    0.148491,
+    0.318339,
+    false
+   ]
+  },
+  {
+   "f": 491,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.293442,
+    0.147803,
+    0.34771,
+    false
+   ]
+  },
+  {
+   "f": 492,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.292346,
+    0.147101,
+    0.376973,
+    false
+   ]
+  },
+  {
+   "f": 493,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.291235,
+    0.14639,
+    0.406124,
+    false
+   ]
+  },
+  {
+   "f": 494,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.290113,
+    0.145673,
+    0.435163,
+    false
+   ]
+  },
+  {
+   "f": 495,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.288985,
+    0.14495,
+    0.46409,
+    false
+   ]
+  },
+  {
+   "f": 496,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.28785,
+    0.144224,
+    0.492903,
+    false
+   ]
+  },
+  {
+   "f": 497,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.286711,
+    0.143495,
+    0.521603,
+    false
+   ]
+  },
+  {
+   "f": 498,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.285567,
+    0.142763,
+    0.550188,
+    false
+   ]
+  },
+  {
+   "f": 499,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.28442,
+    0.142029,
+    0.578659,
+    false
+   ]
+  },
+  {
+   "f": 500,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.283269,
+    0.141292,
+    0.607015,
+    false
+   ]
+  },
+  {
+   "f": 501,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.282115,
+    0.140553,
+    0.635255,
+    false
+   ]
+  },
+  {
+   "f": 502,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.280957,
+    0.139813,
+    0.66338,
+    false
+   ]
+  },
+  {
+   "f": 503,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.279797,
+    0.13907,
+    0.691388,
+    false
+   ]
+  },
+  {
+   "f": 504,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.278633,
+    0.138325,
+    0.719281,
+    false
+   ]
+  },
+  {
+   "f": 505,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.277467,
+    0.137579,
+    0.747057,
+    false
+   ]
+  },
+  {
+   "f": 506,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.276298,
+    0.13683,
+    0.774716,
+    false
+   ]
+  },
+  {
+   "f": 507,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.275125,
+    0.13608,
+    0.802258,
+    false
+   ]
+  },
+  {
+   "f": 508,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.27395,
+    0.135328,
+    0.829682,
+    false
+   ]
+  },
+  {
+   "f": 509,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.272772,
+    0.134574,
+    0.856989,
+    false
+   ]
+  },
+  {
+   "f": 510,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.27159,
+    0.133818,
+    0.884177,
+    false
+   ]
+  },
+  {
+   "f": 511,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.270406,
+    0.13306,
+    0.911247,
+    false
+   ]
+  },
+  {
+   "f": 512,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.269219,
+    0.1323,
+    0.938199,
+    false
+   ]
+  },
+  {
+   "f": 513,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.26803,
+    0.131539,
+    0.965032,
+    false
+   ]
+  },
+  {
+   "f": 514,
+   "who": "bigfoot",
+   "state": "observe",
+   "p": [
+    0,
+    0.266837,
+    0.130776,
+    0.991745,
+    false
+   ]
+  },
+  {
+   "f": 515,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.265642,
+    0.130011,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 516,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.264444,
+    0.129244,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 517,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.263243,
+    0.128475,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 518,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.262039,
+    0.127705,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 519,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.260832,
+    0.126933,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 520,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.259623,
+    0.126159,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 521,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.258411,
+    0.125383,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 522,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.257196,
+    0.124605,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 523,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.255979,
+    0.123826,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 524,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.254758,
+    0.123045,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 525,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.253535,
+    0.122263,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 526,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.25231,
+    0.121478,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 527,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.251082,
+    0.120692,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 528,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.249851,
+    0.119905,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 529,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.248617,
+    0.119115,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 530,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.247381,
+    0.118324,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 531,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.246142,
+    0.117531,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 532,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.244901,
+    0.116737,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 533,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.243657,
+    0.115941,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 534,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.242411,
+    0.115143,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 535,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.241162,
+    0.114343,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 536,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.23991,
+    0.113542,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 537,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.238656,
+    0.11274,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 538,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.237399,
+    0.111936,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 539,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.23614,
+    0.11113,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 540,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.234879,
+    0.110322,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 541,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.233614,
+    0.109513,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 542,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.232348,
+    0.108703,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 543,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.231079,
+    0.10789,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 544,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.229807,
+    0.107077,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 545,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.228533,
+    0.106261,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 546,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.227257,
+    0.105444,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 547,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.225978,
+    0.104626,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 548,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.224697,
+    0.103806,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 549,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.223413,
+    0.102985,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 550,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.222128,
+    0.102162,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 551,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.220839,
+    0.101337,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 552,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.219549,
+    0.100511,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 553,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.218256,
+    0.099684,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 554,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.21696,
+    0.098855,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 555,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.215663,
+    0.098024,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 556,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.214363,
+    0.097192,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 557,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.21306,
+    0.096359,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 558,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.211756,
+    0.095524,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 559,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0.210449,
+    0.094687,
+    1,
+    true
+   ]
+  },
+  {
+   "f": 560,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.991667,
+    true
+   ]
+  },
+  {
+   "f": 561,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.983333,
+    true
+   ]
+  },
+  {
+   "f": 562,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.975,
+    true
+   ]
+  },
+  {
+   "f": 563,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.966667,
+    true
+   ]
+  },
+  {
+   "f": 564,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.958333,
+    true
+   ]
+  },
+  {
+   "f": 565,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.95,
+    true
+   ]
+  },
+  {
+   "f": 566,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.941667,
+    true
+   ]
+  },
+  {
+   "f": 567,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.933333,
+    true
+   ]
+  },
+  {
+   "f": 568,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.925,
+    true
+   ]
+  },
+  {
+   "f": 569,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.916667,
+    true
+   ]
+  },
+  {
+   "f": 570,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.908333,
+    true
+   ]
+  },
+  {
+   "f": 571,
+   "who": "bigfoot",
+   "state": "warn",
+   "p": [
+    0,
+    0,
+    0,
+    0.9,
+    true
+   ]
+  },
+  {
+   "f": 572,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.891667,
+    true
+   ]
+  },
+  {
+   "f": 573,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.883333,
+    true
+   ]
+  },
+  {
+   "f": 574,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.875,
+    true
+   ]
+  },
+  {
+   "f": 575,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.866667,
+    true
+   ]
+  },
+  {
+   "f": 576,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.858333,
+    true
+   ]
+  },
+  {
+   "f": 577,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.85,
+    true
+   ]
+  },
+  {
+   "f": 578,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.841667,
+    true
+   ]
+  },
+  {
+   "f": 579,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.833333,
+    true
+   ]
+  },
+  {
+   "f": 580,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.825,
+    true
+   ]
+  },
+  {
+   "f": 581,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.816667,
+    true
+   ]
+  },
+  {
+   "f": 582,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.808333,
+    true
+   ]
+  },
+  {
+   "f": 583,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.8,
+    true
+   ]
+  },
+  {
+   "f": 584,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.791667,
+    true
+   ]
+  },
+  {
+   "f": 585,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.783333,
+    true
+   ]
+  },
+  {
+   "f": 586,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.775,
+    true
+   ]
+  },
+  {
+   "f": 587,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.766667,
+    true
+   ]
+  },
+  {
+   "f": 588,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.758333,
+    true
+   ]
+  },
+  {
+   "f": 589,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.75,
+    true
+   ]
+  },
+  {
+   "f": 590,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.741667,
+    true
+   ]
+  },
+  {
+   "f": 591,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.733333,
+    true
+   ]
+  },
+  {
+   "f": 592,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.725,
+    true
+   ]
+  },
+  {
+   "f": 593,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.716667,
+    true
+   ]
+  },
+  {
+   "f": 594,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.708333,
+    true
+   ]
+  },
+  {
+   "f": 595,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.7,
+    true
+   ]
+  },
+  {
+   "f": 596,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.691667,
+    true
+   ]
+  },
+  {
+   "f": 597,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.683333,
+    true
+   ]
+  },
+  {
+   "f": 598,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.675,
+    true
+   ]
+  },
+  {
+   "f": 599,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.666667,
+    true
+   ]
+  },
+  {
+   "f": 600,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.658333,
+    true
+   ]
+  },
+  {
+   "f": 601,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.65,
+    true
+   ]
+  },
+  {
+   "f": 602,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.641667,
+    true
+   ]
+  },
+  {
+   "f": 603,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.633333,
+    true
+   ]
+  },
+  {
+   "f": 604,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.625,
+    true
+   ]
+  },
+  {
+   "f": 605,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.616667,
+    true
+   ]
+  },
+  {
+   "f": 606,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.608333,
+    true
+   ]
+  },
+  {
+   "f": 607,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.6,
+    true
+   ]
+  },
+  {
+   "f": 608,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.591667,
+    true
+   ]
+  },
+  {
+   "f": 609,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.583333,
+    true
+   ]
+  },
+  {
+   "f": 610,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.575,
+    true
+   ]
+  },
+  {
+   "f": 611,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.566667,
+    true
+   ]
+  },
+  {
+   "f": 612,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.558333,
+    true
+   ]
+  },
+  {
+   "f": 613,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.55,
+    true
+   ]
+  },
+  {
+   "f": 614,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.541667,
+    true
+   ]
+  },
+  {
+   "f": 615,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.533333,
+    true
+   ]
+  },
+  {
+   "f": 616,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.525,
+    true
+   ]
+  },
+  {
+   "f": 617,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.516667,
+    true
+   ]
+  },
+  {
+   "f": 618,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.508333,
+    true
+   ]
+  },
+  {
+   "f": 619,
+   "who": "bigfoot",
+   "state": "flee",
+   "p": [
+    0,
+    0,
+    0,
+    0.5,
+    true
+   ]
+  },
+  {
+   "f": 620,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.491667,
+    false
+   ]
+  },
+  {
+   "f": 621,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.483333,
+    false
+   ]
+  },
+  {
+   "f": 622,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.475,
+    false
+   ]
+  },
+  {
+   "f": 623,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.466667,
+    false
+   ]
+  },
+  {
+   "f": 624,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.458333,
+    false
+   ]
+  },
+  {
+   "f": 625,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.45,
+    false
+   ]
+  },
+  {
+   "f": 626,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.441667,
+    false
+   ]
+  },
+  {
+   "f": 627,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.433333,
+    false
+   ]
+  },
+  {
+   "f": 628,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.425,
+    false
+   ]
+  },
+  {
+   "f": 629,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.416667,
+    false
+   ]
+  },
+  {
+   "f": 630,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.408333,
+    false
+   ]
+  },
+  {
+   "f": 631,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.4,
+    false
+   ]
+  },
+  {
+   "f": 632,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.391667,
+    false
+   ]
+  },
+  {
+   "f": 633,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.383333,
+    false
+   ]
+  },
+  {
+   "f": 634,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.375,
+    false
+   ]
+  },
+  {
+   "f": 635,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.366667,
+    false
+   ]
+  },
+  {
+   "f": 636,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.358333,
+    false
+   ]
+  },
+  {
+   "f": 637,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.35,
+    false
+   ]
+  },
+  {
+   "f": 638,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.341667,
+    false
+   ]
+  },
+  {
+   "f": 639,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.333333,
+    false
+   ]
+  },
+  {
+   "f": 640,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.325,
+    false
+   ]
+  },
+  {
+   "f": 641,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.316667,
+    false
+   ]
+  },
+  {
+   "f": 642,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.308333,
+    false
+   ]
+  },
+  {
+   "f": 643,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.3,
+    false
+   ]
+  },
+  {
+   "f": 644,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.291667,
+    false
+   ]
+  },
+  {
+   "f": 645,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.283333,
+    false
+   ]
+  },
+  {
+   "f": 646,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.275,
+    false
+   ]
+  },
+  {
+   "f": 647,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.266667,
+    false
+   ]
+  },
+  {
+   "f": 648,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.258333,
+    false
+   ]
+  },
+  {
+   "f": 649,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.25,
+    false
+   ]
+  },
+  {
+   "f": 650,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.241667,
+    false
+   ]
+  },
+  {
+   "f": 651,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.233333,
+    false
+   ]
+  },
+  {
+   "f": 652,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.225,
+    false
+   ]
+  },
+  {
+   "f": 653,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.216667,
+    false
+   ]
+  },
+  {
+   "f": 654,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.208333,
+    false
+   ]
+  },
+  {
+   "f": 655,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.2,
+    false
+   ]
+  },
+  {
+   "f": 656,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.191667,
+    false
+   ]
+  },
+  {
+   "f": 657,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.183333,
+    false
+   ]
+  },
+  {
+   "f": 658,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.175,
+    false
+   ]
+  },
+  {
+   "f": 659,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.166667,
+    false
+   ]
+  },
+  {
+   "f": 660,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.158333,
+    false
+   ]
+  },
+  {
+   "f": 661,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.15,
+    false
+   ]
+  },
+  {
+   "f": 662,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.141667,
+    false
+   ]
+  },
+  {
+   "f": 663,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.133333,
+    false
+   ]
+  },
+  {
+   "f": 664,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.125,
+    false
+   ]
+  },
+  {
+   "f": 665,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.116667,
+    false
+   ]
+  },
+  {
+   "f": 666,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.108333,
+    false
+   ]
+  },
+  {
+   "f": 667,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.1,
+    false
+   ]
+  },
+  {
+   "f": 668,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.091667,
+    false
+   ]
+  },
+  {
+   "f": 669,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.083333,
+    false
+   ]
+  },
+  {
+   "f": 670,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.075,
+    false
+   ]
+  },
+  {
+   "f": 671,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.066667,
+    false
+   ]
+  },
+  {
+   "f": 672,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.058333,
+    false
+   ]
+  },
+  {
+   "f": 673,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.05,
+    false
+   ]
+  },
+  {
+   "f": 674,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.041667,
+    false
+   ]
+  },
+  {
+   "f": 675,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.033333,
+    false
+   ]
+  },
+  {
+   "f": 676,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.025,
+    false
+   ]
+  },
+  {
+   "f": 677,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.016667,
+    false
+   ]
+  },
+  {
+   "f": 678,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0.008333,
+    false
+   ]
+  },
+  {
+   "f": 679,
+   "who": "bigfoot",
+   "state": "roam",
+   "p": [
+    0,
+    0,
+    0,
+    0,
+    false
+   ]
+  }
+ ],
+ "states": [],
+ "events": [
+  {
+   "type": "whoop",
+   "name": "Bigfoot"
+  },
+  {
+   "type": "rock",
+   "name": "Bigfoot",
+   "distance": 9.164839
+  }
+ ],
+ "player": [
+  [
+   0,
+   0,
+   12.5,
+   1
+  ],
+  [
+   30,
+   0,
+   10.109534,
+   1
+  ],
+  [
+   60,
+   0.025387,
+   7.133708,
+   1
+  ],
+  [
+   90,
+   0.114303,
+   4.159107,
+   1
+  ],
+  [
+   120,
+   0.257467,
+   1.186617,
+   1
+  ],
+  [
+   150,
+   2.148322,
+   -0.443225,
+   1
+  ],
+  [
+   180,
+   2.157672,
+   -4.086131,
+   0.876341
+  ],
+  [
+   210,
+   2.157672,
+   -7.160167,
+   0.903255
+  ],
+  [
+   240,
+   2.157672,
+   -11.760358,
+   0.811699
+  ],
+  [
+   270,
+   2.157672,
+   -14.834389,
+   0.838613
+  ],
+  [
+   300,
+   2.157672,
+   -15.1999,
+   0.747058
+  ],
+  [
+   330,
+   2.157672,
+   -15.1999,
+   0.780383
+  ],
+  [
+   360,
+   2.157672,
+   -15.1999,
+   1
+  ],
+  [
+   390,
+   2.157672,
+   -15.1999,
+   1
+  ],
+  [
+   420,
+   2.157672,
+   -15.1999,
+   1
+  ],
+  [
+   450,
+   2.157672,
+   -15.1999,
+   1
+  ],
+  [
+   480,
+   2.157672,
+   -15.1999,
+   1
+  ],
+  [
+   510,
+   0.716055,
+   -15.1999,
+   1
+  ],
+  [
+   540,
+   -1.078679,
+   -15.1999,
+   1
+  ],
+  [
+   570,
+   -2.208064,
+   -15.143048,
+   1
+  ],
+  [
+   600,
+   -1.940053,
+   -12.725617,
+   1
+  ],
+  [
+   630,
+   0.399612,
+   -11.863411,
+   1
+  ],
+  [
+   660,
+   1.024161,
+   -9.700878,
+   1
+  ],
+  [
+   690,
+   2.392577,
+   -8.102312,
+   1
+  ]
+ ],
+ "photos": [
+  {
+   "result": "HIT",
+   "subject": "Bigfoot",
+   "distance": 28.894389,
+   "visible": 6,
+   "samples": 6,
+   "offCentre": 0.1098,
+   "screenSize": 0.190262,
+   "reason": "in frame",
+   "shake": 3.260935,
+   "motion": 3.753292,
+   "score": 31,
+   "steadiness": 0.530838,
+   "parts": {
+    "centring": 89,
+    "size": 42,
+    "visibility": 100,
+    "steadiness": 53
+   },
+   "frame": 1
+  },
+  {
+   "result": "HIT",
+   "subject": "Bigfoot",
+   "distance": 26.550269,
+   "visible": 6,
+   "samples": 6,
+   "offCentre": 0.067871,
+   "screenSize": 0.206956,
+   "reason": "in frame",
+   "shake": 7.420163,
+   "motion": 8.28768,
+   "score": 6,
+   "steadiness": 0.1,
+   "parts": {
+    "centring": 93,
+    "size": 46,
+    "visibility": 100,
+    "steadiness": 10
+   },
+   "frame": 2
+  },
+  {
+   "result": "HIT",
+   "subject": "Bigfoot",
+   "distance": 24.217099,
+   "visible": 6,
+   "samples": 6,
+   "offCentre": 0.218789,
+   "screenSize": 0.227609,
+   "reason": "in frame",
+   "shake": 5.271697,
+   "motion": 5.854591,
+   "score": 16,
+   "steadiness": 0.268176,
+   "parts": {
+    "centring": 78,
+    "size": 51,
+    "visibility": 100,
+    "steadiness": 27
+   },
+   "frame": 3
+  }
+ ],
+ "journal": [
+  {
+   "clueId": 2,
+   "type": "footprint",
+   "label": "Footprint",
+   "description": "Huge bare footprint, 70 cm long",
+   "clue": {
+    "type": "footprint",
+    "y": 0,
+    "data": {
+     "length": 0.7,
+     "width": 0.31,
+     "stride": 2.3
+    }
+   },
+   "ageWhenFound": 9.916667,
+   "foundAt": 5.066667,
+   "position": {
+    "x": 2.142763,
+    "z": -1.473063
+   },
+   "hint": "Very fresh footprint, heading north."
+  }
+ ],
+ "hunt": {
+  "stage": "extract",
+  "photos": 3,
+  "best": 31
+ }
+}

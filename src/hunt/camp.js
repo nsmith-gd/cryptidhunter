@@ -48,7 +48,8 @@ export class Camp {
   }
 
   save() {
-    this.saveService.save({ money: this.state.money, bountiesDone: this.bounties?.completedIds ?? [] });
+    // Keep the rest of the save (e.g. settings, #76) and update what camp owns.
+    this.saveService.save({ ...this.saveService.load(), money: this.state.money, bountiesDone: this.bounties?.completedIds ?? [] });
     const raw = JSON.stringify(this.state);
     memory = raw;
     try { this.storage?.setItem(CAMP.storageKey, raw); } catch { /* private mode etc. */ }

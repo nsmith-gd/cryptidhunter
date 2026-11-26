@@ -2,9 +2,20 @@ import * as THREE from 'three';
 import { setSeed, randomSeed, getSeed } from './core/rng.js';
 import { FixedStepLoop } from './core/simLoop.js';
 import { WebXRPresenter, PauseState, mountPauseScreen } from './xr/webxr.js';
+import { ProfilingRecorder } from './profiling/recorder.js';
+import { attachProbes } from './profiling/gameProbe.js';
+import { ProfilerPanel } from './profiling/profilerPanel.js';
 import { Input } from './input.js';
+import { SaveService } from './save/saveService.js';
+import { Settings } from './settings/settings.js';
+import { KeyRemap } from './settings/keyRemap.js';
+import { GamepadControls } from './settings/gamepad.js';
+import { Captions } from './settings/captions.js';
+import { showSettingsPanel } from './settings/settingsPanel.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
+import { buildGymMap } from './maps/gymG00.js';
+import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
 import { setGroundHeight } from './maps/ground.js';
@@ -55,6 +66,11 @@ import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
 import { CinematicLighting } from './maps/cinematicLighting.js';
 
+// Settings (#76) and key remapping: the remapper goes first so it runs before every key listener.
+const settings = new Settings(new SaveService());
+const keyRemap = new KeyRemap();
+
+
 // One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
 setSeed(Number(new URLSearchParams(location.search).get('seed')) || randomSeed());
 console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
@@ -84,7 +100,7 @@ scene.add(moon);
 // Base camp (money, gear, reputation, chosen map) is loaded first: it decides where you hunt.
 const camp = new Camp();
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
-const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap };
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap };   // gym: G00 bench (#77)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
@@ -195,7 +211,7 @@ function cryptidEvent(type, e) {
   cryptidEvents.push({ type, name: e.name, distance: e.distance, why: e.why, bluff: e.bluff, t: performance.now() });
   if (cryptidEvents.length > 50) cryptidEvents.shift();
   const where = (x, z) => { const d = Math.hypot(x - player.position.x, z - player.position.z); return `${d.toFixed(0)} m away`; };
-  if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
+  if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: true }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
   if (type === 'rock') { fear.scare(e.distance < 3 ? 22 : 12, 'rock'); photo.toast(`A rock slams into the ground ${e.distance.toFixed(0)} m from you. Back off.`); }
   if (type === 'rock-hit') { fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
   if (type === 'roar') { fear.scare(30, 'roar'); photo.toast(`${e.name} stops short and ROARS in your face.`); }
@@ -264,6 +280,7 @@ const photo = new PhotoCamera({
   ],
   onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); },
   getShake: () => fear.swaySpeed,
+  getAimOffset: () => fear.hiddenSway,      // evidence sees the full hand shake whatever the screen shows (#77)
 });
 // T sets a trail camera facing where you look: it photographs any cryptid that walks into its
 // view, on its own (grainy shots, lower score).
@@ -367,10 +384,41 @@ addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); 
 
 const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => input.requestLock());
-document.addEventListener('pointerlockchange', () => {
-  overlay.classList.toggle('hidden', input.locked);
-  if (input.locked) { hunt.start(); if (picker) picker.el.style.display = 'none'; }   // the night clock starts with the first click into the game
+function setInGame(on) {
+  overlay.classList.toggle('hidden', on);
+  if (on) { hunt.start(); if (picker) picker.el.style.display = 'none'; }   // the night clock starts with the first click into the game
+}
+document.addEventListener('pointerlockchange', () => { if (!gamepad.engaged) setInGame(input.locked); });
+
+// Gamepad (#76): the same inputs as keyboard and mouse; A or Menu on the start screen plays with it.
+const gamepad = new GamepadControls({ input, player, photo, isEnded: () => ended(),
+  onEngage: () => setInGame(true), onRelease: () => setInGame(false) });
+// Captions for sounds, with a direction cue (#76): knocks, whoops, the lure, thrown rocks.
+const captions = new Captions({ player });
+knocks.showCaption = (text) => {
+  const last = knocks.log[knocks.log.length - 1];
+  captions.say(text.replace(/\s*\([^)]*\)\s*$/, ''), last && last.who !== 'player' ? { x: last.x, z: last.z } : null);
+};
+{
+  const playCall = audioLures.playCall.bind(audioLures);
+  audioLures.playCall = (l) => { playCall(l); captions.say(l.cryptid ? 'A deep whoop' : 'Your audio lure plays a whoop', l); };
+}
+// Apply settings live: view, look, shake, brightness (display only), captions, keys, pad.
+const baseSway = fear.screenSway;
+settings.onChange((s) => {
+  if (!nightVision.on) { camera.fov = s.fov; camera.updateProjectionMatrix(); }
+  nightVision.nakedFov = s.fov;
+  if (!nightVision.on) photo.baseFov = s.fov;
+  player.lookScale = s.lookSensitivity; player.invertY = s.invertY;
+  gamepad.lookSpeed = s.padLookSpeed;
+  if (!renderer.xr?.isPresenting) fear.screenSway = s.reducedShake ? 0 : baseSway;   // VR keeps its own (none)
+  viewmodel.bobScale = s.reducedShake ? 0.25 : 1;
+  renderer.domElement.style.filter = s.brightness === 1 ? '' : `brightness(${s.brightness})`;
+  captions.enabled = s.captions;
+  keyRemap.apply(s);
 });
+const settingsPanel = showSettingsPanel(settings);
+keyRemap.paused = () => !!settingsPanel?.waiting;
 
 const hud = document.getElementById('hud');
 // Fixed-step loop (#66): the world simulates in exact 1/60 s steps whatever the frame rate;
@@ -404,6 +452,7 @@ function simulate(dt) {
   huntFailure.update(dt);
 }
 function present(dt) {
+  gamepad.update(dt);
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) { drawFrame(); return; }
   nightVision.update(dt);
@@ -458,13 +507,27 @@ vr.mountButtons([document.querySelector('#overlay > div')]);
 vr.detect();
 vr.watchPage();
 // The renderer's loop runs on XRSession.requestAnimationFrame while in VR, the page's otherwise.
+// Profiling recorder (#67, GDD 17): a dev tool, opt-in. F6 opens its panel; ?profile starts recording
+// at load. It reads frame timings and game events; it never changes the game or the save.
+const profiler = new ProfilingRecorder({ build: 'dev', gym: 'none', scenario: mapId, platform: 'desktop', seed: getSeed(),
+  getTick: () => sim.tick });
+attachProbes(profiler, { photo, trailCams, journal, hunt, camp, pauseState });
+const profilerPanel = new ProfilerPanel(profiler);
+if (new URLSearchParams(location.search).has('profile')) { profiler.start(); profilerPanel.toggle(true); }
+let lastFrameAt = null;
 renderer.setAnimationLoop((time, xrFrame) => {
+  const frameStart = performance.now();
+  profiler.meta.platform = vr.presenting ? 'immersive-webxr' : 'desktop';
   const dt = clock.getDelta();
   vr.onFrame(xrFrame, dt);
   // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
   if (sim.paused || pauseState.paused || statusScreen.open) drawFrame();
   else sim.frame(dt);
+  if (lastFrameAt != null) profiler.frame(frameStart - lastFrameAt, performance.now() - frameStart);
+  lastFrameAt = frameStart;
 });
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+// Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
+if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
+window.__game = { THREE, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
