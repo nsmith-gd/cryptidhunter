@@ -136,5 +136,8 @@ export class Fear {
     this.swayYaw = yaw; this.swayPitch = pitch;
     this.camera.rotation.y += yaw * this.screenSway;
     this.camera.rotation.x += pitch * this.screenSway;
+    // The part of the hand's shake the screen doesn't show (comfort share, reduced-shake setting,
+    // VR). The photo camera adds it back, so evidence always sees the full shake (#77).
+    this.hiddenSway = { yaw: yaw * (1 - this.screenSway), pitch: pitch * (1 - this.screenSway) };
   }
 }

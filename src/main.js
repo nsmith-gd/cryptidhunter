@@ -11,6 +11,8 @@ import { Captions } from './settings/captions.js';
 import { showSettingsPanel } from './settings/settingsPanel.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
+import { buildGymMap } from './maps/gymG00.js';
+import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
 import { NightLighting } from './maps/nightLighting.js';
@@ -94,7 +96,7 @@ scene.add(moon);
 // Base camp (money, gear, reputation, chosen map) is loaded first: it decides where you hunt.
 const camp = new Camp();
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
-const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap };
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap };   // gym: G00 bench (#77)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
@@ -273,6 +275,7 @@ const photo = new PhotoCamera({
   ],
   onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); },
   getShake: () => fear.swaySpeed,
+  getAimOffset: () => fear.hiddenSway,      // evidence sees the full hand shake whatever the screen shows (#77)
 });
 // T sets a trail camera facing where you look: it photographs any cryptid that walks into its
 // view, on its own (grainy shots, lower score).
@@ -508,4 +511,6 @@ renderer.setAnimationLoop((time, xrFrame) => {
 });
 
 // Test/debug hook (used by automated captures).
+// Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
+if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
 window.__game = { THREE, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
