@@ -51,6 +51,8 @@ export class Player {
     this.speedFactor = 1;
     this.stamina = 1;
     this.recoveryScale = 1;    // stamina recovery multiplier, set by the survival systems (GDD 2.8)
+    this.loadSpeed = 1;        // carried-load speed multiplier, floor 0.45 (set by the pack, #69)
+    this.loadFactor = 1;       // carried-load exertion multiplier on stamina cost
     this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
     this.sinceSprint = 99;
     this.noise = 0;           // 0 silent .. 1 sprinting
@@ -87,7 +89,8 @@ export class Player {
     // Stamina gates sprinting; emptying it locks sprint until it partly refills.
     this.sprinting = !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight') && !this.exhausted;
     this.updateStamina(dt, wish.lengthSq() > 0);
-    const speed = this.speedFactor *
+    // Carried load (#69, GDD 2.8): movement_speed = action_speed * max(0.45, 1 - load_penalty).
+    const speed = this.speedFactor * this.loadSpeed *
       (this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed);
 
     const k = 1 - Math.exp(-PLAYER.accel * dt);
@@ -130,12 +133,13 @@ export class Player {
   updateStamina(dt, moving) {
     if (this.sprinting) {
       this.sinceSprint = 0;
-      this.stamina = Math.max(0, this.stamina - PLAYER.staminaDrain * dt);
+      this.stamina = Math.max(0, this.stamina - PLAYER.staminaDrain * this.loadFactor * dt);   // exertion_cost = cost * load_factor
       if (this.stamina === 0) { this.exhausted = true; this.sprinting = false; }
     } else {
       this.sinceSprint += dt;
       if (this.sinceSprint >= PLAYER.staminaRegenDelay) {
-        const rate = (moving ? PLAYER.staminaRegenMove : PLAYER.staminaRegenRest) * this.recoveryScale; // hunger/cold slow it (survival)
+        // Hunger/cold slow recovery (survival); hauling a load while walking is exertion too.
+        const rate = (moving ? PLAYER.staminaRegenMove / this.loadFactor : PLAYER.staminaRegenRest) * this.recoveryScale;
         this.stamina = Math.min(1, this.stamina + rate * dt);
       }
       if (this.exhausted && this.stamina >= PLAYER.staminaRecover) this.exhausted = false;
