@@ -1,0 +1,21 @@
+# CI (#81): every push and pull request must build and pass the unit tests.
+# The in-browser checks (tools/check-*.mjs) need a GPU-less Chromium and minutes each, so they stay
+# local / per task; this keeps the base branch honest about the build and the fast tests.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
