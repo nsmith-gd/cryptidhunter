@@ -1,5 +1,5 @@
 // Player status (GDD 2.11, 13.1): one read-only view over every system that affects the player.
-// It owns no state: it reads stamina (player), energy (S01 nutrition), body temperature and
+// It owns no state: it reads health and wounds (S08), stamina (player), energy (S01 nutrition), body temperature and
 // wetness (S02 thermoregulation), fear, and torch power, then names for each condition:
 //   cause  - the root cause ("Wet clothing", "Darkness"), never a downstream symptom;
 //   effect - what it does to you now, or what it is about to do;
@@ -43,6 +43,21 @@ export class StatusModel {
     const add = (c) => out.push({ ...c, severityName: SEVERITY[c.severity] });
     const p = this.player, s = this.survival, f = this.fear, fl = this.flashlight;
     const recovery = Math.round((p.recoveryScale ?? 1) * 100);
+
+    if (s?.health) {   // S08 (#72): wounds come first, they're the only thing that can end the hunt
+      const h = s.health, bleeding = h.bleeding;
+      const fixWound = h.firstAid ? `Bandage it (B): ${h.firstAid} first-aid kit${h.firstAid === 1 ? '' : 's'} left` : 'No first-aid left: get back to the van';
+      if (bleeding.length) {
+        const heavy = bleeding.some((c) => c.severity === 'heavy');
+        add({ id: 'bleeding', stage: 'now', severity: 2, name: heavy ? 'Heavy bleeding' : 'Bleeding',
+          cause: `Wound from ${bleeding[0].cause}`, effect: `Losing health (${Math.ceil(h.value)} left): at 0 the hunt is over`, fix: fixWound });
+      }
+      if (h.value <= 40 && !h.dead) {
+        add({ id: 'hurt', stage: 'now', severity: h.value <= 15 ? 2 : 1, name: h.value <= 15 ? 'Critically hurt' : 'Badly hurt',
+          cause: h.conditions.length ? `Injured by ${h.conditions[h.conditions.length - 1].cause}` : 'Injured', effect: 'Another hit could end the hunt',
+          fix: 'Keep your distance and head back to the van' });
+      }
+    }
 
     if (s) {
       const n = s.nutrition, t = s.thermo;
@@ -119,6 +134,7 @@ export class StatusModel {
   attributes() {
     const p = this.player, s = this.survival, f = this.fear, fl = this.flashlight;
     const a = [{ id: 'stamina', name: 'Stamina', value: p.stamina, text: `${Math.round(p.stamina * 100)}%${p.exhausted ? ' (winded)' : ''}` }];
+    if (s?.health) a.push({ id: 'health', name: 'Health', value: s.health.value / 100, text: `${Math.ceil(s.health.value)} (${s.health.band})${s.health.bleeding.length ? ' · bleeding' : ''} · ${s.health.firstAid} first-aid` });
     if (s) {
       const n = s.nutrition, t = s.thermo;
       a.push({ id: 'energy', name: 'Energy', value: n.energy / 100, text: `${Math.round(n.energy)} (${n.band})` });
