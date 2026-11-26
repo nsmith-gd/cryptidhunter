@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { setSeed, randomSeed, getSeed } from './core/rng.js';
 import { FixedStepLoop } from './core/simLoop.js';
+import { WebXRPresenter, PauseState, mountPauseScreen } from './xr/webxr.js';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
@@ -317,7 +318,19 @@ const pixels = new PixelPipeline({ renderer, camera });
 const water = mapId === 'swamp' ? new PixelWater({ renderer, scene, camera, height: map.waterHeight ?? 0.3,
   moonDir: night?.moonDir, moonColor: night ? new THREE.Color(night.cfg.moonColor) : undefined }) : null;
 water?.applyToScene();
-const drawFrame = () => pixels.frame(() => { water?.renderReflection(); if (!nightVision.render()) renderer.render(scene, camera); });
+// In VR (#74) the headset gives the view: the rig sits at the player's feet (floor-relative space adds
+// real head height), turned by the player's yaw only (no pitch, roll or sway: GDD 16.3), drawn
+// straight to the headset (no desktop pixel pass, night-vision post or water mirror pass).
+const drawFrame = () => {
+  if (vr?.presenting) {
+    // 'local' space starts at the user's eyes, so lift it to standing eye height; 'local-floor' starts at the floor.
+    camera.position.set(player.position.x, player.position.y + (vr.refSpaceType === 'local-floor' ? 0 : 1.6), player.position.z);
+    camera.rotation.set(0, player.yaw, 0, 'YXZ');
+    renderer.render(scene, camera);
+    return;
+  }
+  pixels.frame(() => { water?.renderReflection(); if (!nightVision.render()) renderer.render(scene, camera); });
+};
 
 // Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
 // once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
@@ -351,7 +364,7 @@ function simulate(dt) {
   player.update(dt);
   survival.update(dt);
   fear.update(dt);
-  fear.applySway(dt);                        // after the player sets the view; sim-timed so photos blur the same at any fps
+  if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
   photo.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
@@ -402,12 +415,24 @@ const sim = new FixedStepLoop({ simulate, present,
   tracked: () => [camera, ...cryptids.cryptids.map((c) => c.mesh)] });
 sim.paused = new URLSearchParams(location.search).has('simpaused');   // tests drive the sim themselves
 const clock = new THREE.Clock();
-function frame() {
+// WebXR (#74): Enter VR appears only when immersive VR is supported. Leaving VR, the headset going
+// hidden, tracking loss or a hidden tab pauses the simulation safely (no time passes).
+const pauseState = new PauseState();
+mountPauseScreen(pauseState);
+const vr = new WebXRPresenter({ renderer, pause: pauseState, notify: (m) => photo.toast(m),
+  onEnter: () => { overlay.classList.add('hidden'); },
+  onExit: () => { pixels.resize?.(); } });
+vr.mountButtons([document.querySelector('#overlay > div')]);
+vr.detect();
+vr.watchPage();
+// The renderer's loop runs on XRSession.requestAnimationFrame while in VR, the page's otherwise.
+renderer.setAnimationLoop((time, xrFrame) => {
+  const dt = clock.getDelta();
+  vr.onFrame(xrFrame, dt);
   // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
-  if (!sim.paused) sim.frame(clock.getDelta()); else { clock.getDelta(); drawFrame(); }
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
+  if (sim.paused || pauseState.paused) drawFrame();
+  else sim.frame(dt);
+});
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, vr, pauseState, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
