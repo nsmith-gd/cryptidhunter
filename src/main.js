@@ -48,6 +48,7 @@ import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
+import { EvidenceKit } from './evidence/evidence.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
 import { XRControls } from './xr/xrControls.js';
@@ -128,6 +129,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
     const h = camp.settleHunt({
       outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      evidence: evidence.settle(outcome === 'complete' || outcome === 'abandoned'),
       gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
     });
     const summary = huntSummary(h);
@@ -277,6 +279,13 @@ const photo = new PhotoCamera({
   getShake: () => fear.swaySpeed,
   getAimOffset: () => fear.hiddenSway,      // evidence sees the full hand shake whatever the screen shows (#77)
 });
+// Physical evidence (#73): X bags a hair tuft or casts a footprint; a photo of a footprint or
+// scratch marks is kept as evidence too. Drive home to sell it at base camp; caught = lost.
+const evidence = new EvidenceKit({ camera, clues, input, notify: (m) => photo.toast(m) });
+{
+  const snap = photo.snap.bind(photo);
+  photo.snap = () => { const shot = snap(); if (shot) evidence.photographed(); return shot; };
+}
 // T sets a trail camera facing where you look: it photographs any cryptid that walks into its
 // view, on its own (grainy shots, lower score).
 const trailCams = new TrailCameras({ scene, player, input, getSubjects: () => photo.getSubjects(),
@@ -435,6 +444,7 @@ function simulate(dt) {
   knocks.update(dt);
   clueTrails.update();
   clues.update(dt);
+  evidence.update(dt);
   journal.update(dt);
   if (sandbox) {
     mothman.update(dt);
@@ -456,6 +466,7 @@ function present(dt) {
   loadout.update(dt);
   fieldMap.update(dt);
   survival.render();
+  evidence.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
   const gait = player.crouching ? 'CROUCH' : player.sprinting ? 'SPRINT' : 'WALK';
@@ -513,4 +524,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { THREE, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, evidence, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

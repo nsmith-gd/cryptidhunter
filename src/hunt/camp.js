@@ -18,6 +18,7 @@ const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', s
 
 import { SaveService } from '../save/saveService.js';
 import { BountyBoard } from './bounties.js';
+import { valueEvidence } from '../evidence/evidence.js';
 
 let memory = null;
 
@@ -102,14 +103,19 @@ export class Camp {
    * photos: every HIT taken this hunt ({ subject, score }). gearLeft: what you still carry.
    * Only a hunt you drove home from (complete / abandoned) keeps its photos.
    */
-  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0 }) {
+  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [] }) {
     const keptPhotos = outcome === 'complete' || outcome === 'abandoned';
+    // Physical evidence (#73): what you drove home with sells at base value × novelty; otherwise it's lost.
+    const evidenceSold = keptPhotos ? valueEvidence(evidence) : [];
+    const evidenceValue = evidenceSold.reduce((a, e) => a + e.value, 0);
+    for (const e of evidence) e.stage = keptPhotos ? 'sold' : 'lost';
+    this.state.money += evidenceValue;
     // Sell what you brought home: score value, the home-before-dawn bonus, then bounties (#45).
     const sale = keptPhotos ? this.sellPhotos(photos, target, { extraRate: dawnBonus })
       : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0 };
     const { sold, bounties, bountyBonus } = sale;
     const bonus = sale.extra;
-    const total = sale.total;
+    const total = sale.total + evidenceValue;
     // Gear always comes home: what you carried at the end of the hunt is what camp owns.
     for (const [k, n] of Object.entries(gearLeft ?? {})) this.state.gear[k] = n;
     // Reputation (#47): bringing home a photo of the night's target earns +1, a great one (70+) +2.
@@ -119,6 +125,8 @@ export class Camp {
     const entry = {
       n: this.state.hunts.length + 1, outcome, target,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
+      evidenceSold: evidenceSold.map((e) => ({ name: e.name, cryptid: e.cryptid, value: e.value, novelty: e.novelty })),
+      evidenceLost: keptPhotos ? 0 : evidence.length,
       sold, bonus, bounties, bountyBonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation,
     };
     this.state.hunts.push(entry);
@@ -138,10 +146,13 @@ export function gearList(gear) {
 /** One-paragraph summary of a settled hunt for end screens and the camp panel. */
 export function huntSummary(h) {
   if (!h) return '';
-  const lost = h.photosLost ? `${h.photosLost} photo${h.photosLost > 1 ? 's' : ''} lost` : '';
+  const lostParts = [h.photosLost ? `${h.photosLost} photo${h.photosLost > 1 ? 's' : ''}` : '',
+    h.evidenceLost ? `${h.evidenceLost} evidence item${h.evidenceLost > 1 ? 's' : ''}` : ''].filter(Boolean);
+  const lost = lostParts.length ? `${lostParts.join(' and ')} lost` : '';
   const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
   return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
+    ...(h.evidenceSold ?? []).map((e) => `  ${e.name} (${e.cryptid})${e.novelty < 1 ? ', repeat' : ''}: $${e.value}`),
     ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : []),
     ...(h.bounties ?? []).map((b) => `  Bounty claimed: ${b.title} (score ${b.minScore}+): +$${b.bonus}`), ...(h.repGain ? [`  Reputation +${h.repGain} (now ${h.reputation})`] : [])].join('\n');
 }
