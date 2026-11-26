@@ -44,6 +44,9 @@ export class Survival {
     this.player.recoveryScale = Math.max(0.25, 1 - hunger - cold);
   }
 
+  /** Use another (consolidated) warning list for the HUD: fn() -> [{ id, level, text }]. */
+  setWarningSource(fn) { this.warningSource = fn; }
+
   /** Every active warning, each naming its cause. */
   warnings() { return [...this.health.warnings(), ...this.thermo.warnings(), ...this.nutrition.warnings()]; }
 
@@ -51,7 +54,7 @@ export class Survival {
   buildHud() {
     const css = document.createElement('style');
     css.textContent = `
-#survival { position: fixed; left: 8px; top: 64px; font: 11px monospace; color: #ccc; text-shadow: 0 0 2px #000; pointer-events: none; }
+#survival { position: fixed; left: 8px; top: 86px; font: 11px monospace; color: #ccc; text-shadow: 0 0 2px #000; pointer-events: none; }
 #survival .row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
 #survival .row > span:first-child { width: 58px; }
 #survival .track { width: 120px; height: 8px; background: #0008; border: 1px solid #888; }
@@ -86,7 +89,8 @@ export class Survival {
     tf.style.width = `${(Math.max(0, Math.min(1, frac)) * 100).toFixed(1)}%`;
     tf.style.background = t.core < THERMO.coldBelow ? '#6aa8ff' : t.core < THERMO.comfortLow ? '#a8c8ff' : '#f0c070';
     this.el.querySelector('.tn').textContent = `${t.core.toFixed(1)}°C${t.wetness >= 5 ? ` · wet ${Math.round(t.wetness)}%` : ''}${t.nearHeat ? ' · warming' : ''}`;
-    const w = this.warnings();
+    // The HUD list can be fed by the consolidated status model (GDD 2.11, #71).
+    const w = this.warningSource ? this.warningSource() : this.warnings();
     const html = w.map((x) => `<div class="l${x.level}">⚠ ${x.text}</div>`).join('');
     const box = this.el.querySelector('.warn');
     if (box.innerHTML !== html) box.innerHTML = html;
