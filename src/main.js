@@ -30,6 +30,7 @@ import { Rocks } from './cryptids/rocks.js';
 import { WoodKnocks } from './cryptids/woodKnock.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
+import { getSpecies } from './cryptids/species.js';
 import { Journal } from './journal/journal.js';
 import { ClueFinder } from './journal/clueFinder.js';
 import { JournalUI } from './journal/journalUI.js';
@@ -283,6 +284,13 @@ hunt.journal = journal;
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
 if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+// #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
+for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
+  const sp = getSpecies(id);
+  if (!sp || id === 'bigfoot') continue;
+  const s = map.spawns?.[id] ?? { x: player.position.x + 12, z: player.position.z - 30 };
+  cryptids.spawn(sp, s.x, s.z);
+}
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
 if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
   blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
