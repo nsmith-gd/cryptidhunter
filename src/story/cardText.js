@@ -1,6 +1,6 @@
 // All story-card wording lives here so the director can edit it without touching code.
 // PLACEHOLDER COPY, CURRENTLY NOT SHOWN: the director wants the story later in development, not on
-// the opening Bigfoot hunt (cards only appear with ?cards). No GDD yet. Premise: a failing cryptid TV show, a mysterious caller feeding
+// the opening Bigfoot hunt (cards only appear with ?cards). Written before the GDD landed (design source of truth: docs/Cryptozoology_GDD_v1.1.md). Premise: a failing cryptid TV show, a mysterious caller feeding
 // tips, build reputation, reach a final legendary hunt.
 export const STORY_CARDS = {
   intro: {
