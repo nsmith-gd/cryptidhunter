@@ -1,0 +1,27 @@
+check-t1 exit=0 pass=7 fail=0 22s
+check-t2 exit=0 pass=5 fail=0 9s
+check-t5 exit=0 pass=8 fail=0 33s
+check-t46 exit=0 pass=15 fail=0 318s
+check-t47 exit=0 pass=6 fail=0 139s
+check-t48 exit=0 pass=8 fail=0 242s
+check-t49 exit=0 pass=6 fail=0 138s
+check-t50 exit=0 pass=7 fail=0 255s
+check-t51 exit=0 pass=6 fail=0 27s
+check-t52 exit=0 pass=3 fail=0 10s
+check-t53 exit=0 pass=16 fail=0 105s
+check-t61 exit=0 pass=7 fail=0 33s
+check-t67 exit=0 pass=9 fail=0 130s
+check-t69 exit=0 pass=10 fail=0 70s
+check-t70 exit=0 pass=9 fail=0 75s
+check-t71 exit=0 pass=11 fail=0 61s
+check-t73 exit=0 pass=8 fail=0 155s
+check-t74 exit=0 pass=15 fail=0 32s
+check-t75 exit=0 pass=14 fail=0 68s
+check-t76 exit=0 pass=13 fail=0 540s
+check-t77 exit=0 pass=7 fail=0 162s
+check-t83 exit=0 pass=9 fail=0 75s
+check-mmwxp67tt exit=0 pass=8 fail=0 205s
+SWEEP-DONE
+check-t9 (forest map + pathing): pass=10 fail=0 after the footbridge fix (was: footbridge walk FAIL)
+check-t27 (loadout): pass=13 fail=0 after updating it to the #69 slot -> pack -> camp click rule (was: 5 FAIL)
+npm run build: ok (warning: one 1.09 MB JS chunk)   npm test: 49/49

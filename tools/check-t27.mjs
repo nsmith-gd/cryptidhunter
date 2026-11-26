@@ -57,14 +57,20 @@ await load();
 const owned = await page.evaluate(() => Object.keys(__game.camp.state.gear).filter((k) => __game.camp.state.gear[k] > 0));
 const def = await slots();
 check('a default loadout of 4 is packed', def.length === 4, { def, owned });
-// Real clicks on the start screen: leave the spare battery at camp, pack the night vision.
-await pick('Spare battery');
+// Real clicks on the start screen. Since #69 a click cycles an item: quick slot -> pack -> camp.
+// Leave the spare battery at camp (two clicks), put the night vision in a slot.
+await pick('Spare battery'); await pick('Spare battery');
 await pick('Night vision');
 const chosen = await slots();
-await page.click('#loadout-picker button:has-text("Knock stick")'); // a 5th item doesn't fit
+await page.click('#loadout-picker button:has-text("Knock stick")'); // a 5th item doesn't fit a slot: it goes in the pack
 const capped = await slots();
+const packed5 = await page.evaluate(() => [...__game.loadout.pack]);
+await page.click('#loadout-picker button:has-text("Knock stick")'); // and a second click leaves it at camp
+const packAfter = await page.evaluate(() => [...__game.loadout.pack]);
 await shot('01-loadout-picker');
-check('clicking items on the start screen packs them (max 4)', chosen.includes('nightVision') && !chosen.includes('spareBatteries') && capped.length === 4 && !capped.includes('knockStick'), { chosen, capped });
+check('clicking items on the start screen packs them (max 4 quick slots; a 5th goes in the pack, clicking again leaves it at camp)',
+  chosen.includes('nightVision') && !chosen.includes('spareBatteries') && capped.length === 4 && !capped.includes('knockStick')
+  && packed5.includes('knockStick') && !packAfter.includes('knockStick') && !packAfter.includes('spareBatteries'), { chosen, capped, packed5, packAfter });
 
 await begin();
 await page.waitForTimeout(300);
