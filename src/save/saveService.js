@@ -30,6 +30,11 @@ export function normalizeSave(raw) {
   if (raw.ledger && typeof raw.ledger === 'object' && Array.isArray(raw.ledger.tx)) d.ledger = JSON.parse(JSON.stringify(raw.ledger));
   // Optional (#76): player settings (validated by settings/settings.js when read).
   if (raw.settings && typeof raw.settings === 'object' && !Array.isArray(raw.settings)) d.settings = JSON.parse(JSON.stringify(raw.settings));
+  // Optional (#85): photo evidence records brought home (GDD 4.3 metadata + small thumbnail).
+  if (Array.isArray(raw.evidenceArchive)) {
+    const recs = raw.evidenceArchive.filter((r) => r && typeof r === 'object' && typeof r.id === 'string' && r.quality && typeof r.quality.Q === 'number');
+    if (recs.length) d.evidenceArchive = JSON.parse(JSON.stringify(recs));
+  }
   return d;
 }
 

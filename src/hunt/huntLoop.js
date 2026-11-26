@@ -223,7 +223,8 @@ export class HuntLoop {
         return lines.join('\n');
       }
       case 'extract': {
-        const best = this.photo ? ` (best: score ${this.photo.score})` : '';
+        // No score in the field (#85, GDD 4.3/4.4): film is only judged once it's developed at home.
+        const best = '';
         return this.inZone
           ? `At the van with your photo${best}.\n[H] Drive home and end the hunt — or keep hunting for a better shot.`
           : this.dawned

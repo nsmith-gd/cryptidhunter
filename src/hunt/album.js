@@ -13,7 +13,13 @@ const CSS = `
 .album .card.best { outline: 2px solid #ffd88a; }
 .album.lost .card img { filter: grayscale(1) brightness(.5); }
 .album .stamp { display: inline-block; margin-left: 8px; padding: 0 6px; border: 2px solid #ff6a5a; color: #ff6a5a; transform: rotate(-4deg); }
-.album .empty { color: #999; font: 12px monospace; }`;
+.album .empty { color: #999; font: 12px monospace; }
+.album .ev { border-top: 1px dashed #8a7650; margin-top: 3px; padding-top: 2px; font: 10px monospace; }
+.album .ev .q { font-weight: bold; }
+.album .ev .bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: 2px 0; }
+.album .ev .bars span { display: block; height: 4px; background: #0002; position: relative; }
+.album .ev .bars span i { position: absolute; left: 0; top: 0; bottom: 0; background: #6a4a22; }
+.album .ev .prob { color: #8a2a1a; }`;
 
 let styled = false;
 
@@ -42,8 +48,22 @@ export function renderAlbum(entries, { filmTotal, lost = false, target = null } 
     cap.className = 'cap';
     cap.innerHTML = `<span>#${e.frame ?? '?'} ${e === best ? '★ ' : ''}${e.subject ?? 'nothing'}</span><span>${e.result === 'HIT' ? e.score : 'miss'}</span>`;
     card.append(img, cap);
+    // Evidence on this frame (#85): type, quality and its four components, and what went wrong.
+    for (const r of [e.evidence, e.clueEvidence].filter(Boolean)) card.append(evidenceBlock(r, lost));
     grid.append(card);
   }
   el.append(grid);
   return el;
+}
+
+/** One evidence record under a frame: type, Q (developed film; hidden if the roll was lost), C/I/K/P bars, problems. */
+function evidenceBlock(r, lost) {
+  const d = document.createElement('div');
+  d.className = 'ev';
+  const q = r.quality, bar = (k, v) => `<span title="${k} ${Math.round(v * 100)}"><i style="width:${Math.round(v * 100)}%"></i></span>`;
+  d.innerHTML = `${r.type} ${r.typeName.replace(' photograph', ' photo')}${lost ? ' · lost' : ` · <span class="q">Q ${q.Q}</span>`}` +
+    (lost ? '' : `<div class="bars">${bar('clarity', q.C)}${bar('identification', q.I)}${bar('completeness', q.K)}${bar('provenance', q.P)}</div>` +
+      (q.problems.length ? `<div class="prob">${q.problems[0].split(':')[0]}</div>` : ''));
+  d.dataset.q = q.Q;
+  return d;
 }
