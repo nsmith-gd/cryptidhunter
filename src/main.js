@@ -42,6 +42,7 @@ import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
+import { XRControls } from './xr/xrControls.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
@@ -374,6 +375,7 @@ const hud = document.getElementById('hud');
 // rendering, HUD and post effects run once per drawn frame with positions interpolated.
 const ended = () => huntFailure.isCaught || hunt.stage === 'ended';
 function simulate(dt) {
+  xr.update(dt);                 // VR controllers -> the same intents as keyboard/mouse (before the player reads them)
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) return;                       // world freezes behind the end screens
   player.update(dt);
@@ -443,6 +445,10 @@ survival.setWarningSource(() => status.hudWarnings());
 // hidden, tracking loss or a hidden tab pauses the simulation safely (no time passes).
 const pauseState = new PauseState();
 mountPauseScreen(pauseState);
+// VR input parity and comfort (#75, GDD 13.1 / 16.2 / 16.3): active whenever the XR session above
+// is presenting. Controllers submit the same intents as keyboard and mouse; snap/smooth turn,
+// validated teleport, seated / one-handed / left-handed layouts; the pause control uses pauseState.
+const xr = new XRControls({ renderer, camera, scene, game: { player, input, colliders, map, cryptids, survival, fear, hunt, photo, statusScreen, pauseState } });
 const vr = new WebXRPresenter({ renderer, pause: pauseState, notify: (m) => photo.toast(m),
   onEnter: () => { overlay.classList.add('hidden'); },
   onExit: () => { pixels.resize?.(); } });
@@ -459,4 +465,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 });
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, fieldMap, vr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

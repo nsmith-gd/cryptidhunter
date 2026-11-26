@@ -120,7 +120,8 @@ export class PhotoCamera {
    * Returns { subject, distance, visible, samples, reason }.
    */
   evaluate() {
-    const cam = this.camera;
+    // In VR the shot is taken from the camera tool's pose (controller), not the head (GDD 16.2).
+    const cam = this.toolCamera ?? this.camera;
     cam.updateMatrixWorld();
     this.frustum.setFromProjectionMatrix(_m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
     const eye = cam.getWorldPosition(new THREE.Vector3());

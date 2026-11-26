@@ -71,7 +71,8 @@ export class PixelPipeline {
    */
   frame(draw) {
     const cam = this.camera;
-    if (!this.snap) { draw(); return; }
+    // VR: no screen-space snapping (headset tracking owns the view; GDD 13.2 / 16.4).
+    if (!this.snap || this.renderer.xr?.isPresenting) { draw(); return; }
     const rx = cam.rotation.x, ry = cam.rotation.y, rz = cam.rotation.z, order = cam.rotation.order;
     const step = this.pixelAngle;
     cam.rotation.order = 'YXZ';
