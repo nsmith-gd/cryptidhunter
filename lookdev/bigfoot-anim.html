@@ -76,14 +76,19 @@
     const step = (dt) => {
       const [state, speed] = CLIP_DRIVE[current];
       if (current === 'knock' && !animator.action && (knockTimer += dt) > 0.8) { knockTimer = 0; animator.play('knock', { count: 3 }); }
-      animator.animate(dt, speed, state);
+      // The full body: clips + the procedural layer (planted feet, IK, inertia, targeting #78).
+      // Watching clips look at a point by the camera; the ground is a treadmill under the feet.
+      bf.userData.look = { target: new THREE.Vector3(camera.position.x, 1.7, camera.position.z), weight: state === 'observe' || state === 'shadow' ? 1 : 0 };
+      bf.userData.animate(dt, speed, state);
       const r = 8.8;
       camera.position.set(Math.sin(yaw) * r, 2.4, Math.cos(yaw) * r);
       camera.lookAt(0, 2.05, 0);
       renderer.render(scene, camera);
       label();
     };
-    window.__viewer = { setClip, setYaw: (y) => { yaw = y; }, step, animator, bf, renderer, get clip() { return animator.clip; } };
+    // Draw only (no animation step): for captures that pose the model themselves.
+    const render = () => { camera.position.set(Math.sin(yaw) * 8.8, 2.4, Math.cos(yaw) * 8.8); camera.lookAt(0, 2.05, 0); renderer.render(scene, camera); };
+    window.__viewer = { render, setClip, setYaw: (y) => { yaw = y; }, step, animator, bf, renderer, get clip() { return animator.clip; } };
     setClip(current);
     let last = performance.now();
     if (!new URLSearchParams(location.search).has('manual')) {
