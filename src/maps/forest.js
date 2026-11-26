@@ -16,6 +16,7 @@ import { leafLitterTexture, dirtTexture, mossTexture, grassTexture } from '../ar
 
 export const FOREST = {
   half: 150,
+  rutDepth: 0.17,         // how far the trails are worn into the ground (m)
   creekHalfWidth: 3,      // metres either side of the creek centre line
   creekSpeed: 0.6,        // speed multiplier wading the creek
   deck: 0.3,              // footbridge / porch height (under the player's step height)
@@ -107,8 +108,19 @@ export function buildForestMap(scene) {
   terrain.paintPath(creekPts, 'bank', { width: FOREST.creekHalfWidth * 2 + 1.8, edge: 0.45, wobble: 0.5 });
   for (const t of TRAILS) terrain.paintPath(t, 'dirt', { width: 3, edge: 0.45, wobble: 0.45 });
   for (const [c, r] of CLEARINGS) terrain.paintDisc(c, r * 0.7, 'dirt', { edge: 1.2, wobble: 1.6 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(H * 2, H * 2), new THREE.MeshStandardMaterial({ color: 0x2b3324, roughness: 1 }));
-  ground.rotation.x = -Math.PI / 2;
+  // Sunken ruts (director: "I like sunken ruts, it helps with the cinematic style"): the trails are
+  // worn ~12 cm into the forest floor, fading out where they open into a clearing.
+  const clearingFade = (x, z) => {
+    let f = 1;
+    for (const [c, r] of CLEARINGS) {
+      const d = Math.hypot(x - c.x, z - c.z) / (r * 0.75);
+      f = Math.min(f, Math.min(1, Math.max(0, (d - 0.55) / 0.45)));
+    }
+    return f;
+  };
+  const rutDepth = new URLSearchParams(location.search).has('flattrails') ? 0 : FOREST.rutDepth; // ?flattrails: before/after
+  if (rutDepth > 0) for (const t of TRAILS) terrain.carvePath(t, { width: 3, depth: rutDepth, edge: 0.45, wobble: 0.45, lip: 0.04, fade: clearingFade });
+  const ground = new THREE.Mesh(terrain.buildGeometry(), new THREE.MeshStandardMaterial({ color: 0x2b3324, roughness: 1 }));
   ground.receiveShadow = true;
   ground.name = 'forest-terrain';
   scene.add(ground);
@@ -454,7 +466,7 @@ export function buildForestMap(scene) {
   // Trail signposts at the junctions (#70): the way home is read off the signs, the paper map and
   // the compass; there is no beacon or distance readout.
   const places = Object.entries(PLACE_NAMES).map(([id, name]) => ({ id, name, ...L[id] }));
-  const signs = buildTrailSigns(scene, colliders, { trails: TRAILS, places, home: 'trailhead' });
+  const signs = buildTrailSigns(scene, colliders, { trails: TRAILS, places, home: 'trailhead', heightAt: (x, z) => terrain.heightAt(x, z) });
 
   return {
     colliders,
@@ -468,6 +480,7 @@ export function buildForestMap(scene) {
     trees: trees.length,
     forestKit: kit.stats, // { draws, count } for the instanced foliage and props
     trails: TRAILS,
+    heightAt: (x, z) => terrain.heightAt(x, z), // sunken trail ruts: ground height (<= 0) under a point
     terrain,                    // painted ground (#61): terrain.sample(x, z, 'dirt' | 'moss' | 'grass' | 'bank')
     keepClear,                  // open ground (clearings, trails, creek, ridge): used by the atmosphere pass
     playerStart: { x: L.trailhead.x, z: L.trailhead.z, yaw: 0 },

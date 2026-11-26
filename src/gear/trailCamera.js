@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { samplePoints, isPartOf, photoScore } from '../hunt/photoCamera.js';
+import { groundAt } from '../maps/ground.js';
 
 // Trail camera (Hunting Gear, L1): press T to set one on a stake in front of you, facing the way
 // you're looking. It watches a cone and photographs any cryptid that wanders into it - you don't
@@ -42,7 +43,7 @@ export class TrailCameras {
     const z = at?.z ?? p.position.z - Math.cos(y) * TRAIL_CAM.placeDistance;
     const id = this.cams.length + 1;
     const group = buildDevice();
-    group.position.set(x, 0, z);
+    group.position.set(x, groundAt(x, z), z);
     group.rotation.y = y;
     group.name = `trail-camera-${id}`;
     this.scene.add(group);

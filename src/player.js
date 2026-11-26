@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { groundAt } from './maps/ground.js';
 
 // Tunables (metres, seconds).
 export const PLAYER = {
@@ -101,9 +102,16 @@ export class Player {
 
     this.moveAxis('x', this.velocity.x * dt);
     this.moveAxis('z', this.velocity.z * dt);
+    const wasOnTerrain = this.onTerrain;
     this.grounded = false;
     this.moveAxis('y', this.velocity.y * dt);
-    if (this.position.y <= 0) { this.position.y = 0; this.velocity.y = 0; this.grounded = true; }
+    // Terrain floor (flat y = 0 unless the map carves it, e.g. the forest's sunken trail ruts).
+    // While walking on the terrain the feet follow it down into a rut instead of dropping in.
+    const floor = groundAt(this.position.x, this.position.z);
+    this.onTerrain = false;
+    if (this.position.y <= floor || (wasOnTerrain && this.velocity.y <= 0 && this.position.y - floor < 0.25)) {
+      this.position.y = floor; this.velocity.y = 0; this.grounded = true; this.onTerrain = true;
+    }
     this.updateNoise(dt, speed);
 
     // Camera.

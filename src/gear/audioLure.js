@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { groundAt } from '../maps/ground.js';
 
 // Audio lure (Hunting Gear, L1): press L to set an electronic caller on the ground. It plays a
 // recorded call every few seconds for a while; the cryptid it's made for (Bigfoot's whoop by
@@ -35,7 +36,7 @@ export class AudioLures {
     const x = at?.x ?? p.position.x - Math.sin(p.yaw) * AUDIO_LURE.placeDistance;
     const z = at?.z ?? p.position.z - Math.cos(p.yaw) * AUDIO_LURE.placeDistance;
     const mesh = buildDevice();
-    mesh.position.set(x, 0, z);
+    mesh.position.set(x, groundAt(x, z), z);
     mesh.rotation.y = p.yaw;
     mesh.name = 'audio-lure';
     this.scene.add(mesh);

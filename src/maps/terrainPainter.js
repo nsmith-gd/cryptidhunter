@@ -79,6 +79,101 @@ export class TerrainPainter {
     this.paintPath([c, c], surface, { width: radius * 2, ...opts });
   }
 
+  /**
+   * Carve a sunken rut along a polyline (director, #61 follow-up: "sunken ruts help the cinematic
+   * style"). Uses the same wobble noise as paintPath, so the rut's walls line up with the painted
+   * dirt edge. The bottom is slightly uneven (foot-worn), and `fade(x, z)` (0..1) lets it fade out
+   * where the trail opens into a clearing. Heights are kept at splat resolution (see heightAt).
+   */
+  carvePath(points, { width = 3, depth = 0.12, edge = 0.6, wobble = 0.45, lip = 0, fade = null } = {}) {
+    this.merged = null;
+    if (!this.heights) { this.heights = new Float32Array(this.res * this.res); this.lips = new Float32Array(this.res * this.res); }
+    const pad = width / 2 + edge + wobble + 1;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of points) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+    const [i0, j0] = this.cell(x0 - pad, z0 - pad), [i1, j1] = this.cell(x1 + pad, z1 + pad);
+    for (let j = Math.max(0, j0); j <= Math.min(this.res - 1, j1); j++) {
+      for (let i = Math.max(0, i0); i <= Math.min(this.res - 1, i1); i++) {
+        const x = -this.half + (i + 0.5) * this.m, z = -this.half + (j + 0.5) * this.m;
+        const d = distToPolyline(x, z, points) + this.noise(x, z) * wobble;
+        const t = Math.min(1, Math.max(0, (d - (width / 2 - edge)) / (2 * edge)));
+        const wall = 1 - t * t * (3 - 2 * t);                      // smooth shoulder, flat bottom
+        const o = j * this.res + i, f = fade ? fade(x, z) : 1;
+        if (wall > 0) {
+          const worn = 0.8 + 0.2 * this.noise(x + 41, z - 17, 0.9); // uneven, foot-worn floor
+          const h = -depth * wall * worn * f;
+          if (h < this.heights[o]) this.heights[o] = h;
+        }
+        // A low lip of pushed-aside soil just outside the wall: it catches the torch light and
+        // throws a thin shadow, which is what makes the rut read from standing height.
+        const dd = d - (width / 2 + edge) - 0.2;
+        const b = 1 - Math.abs(dd) / 0.4;
+        if (lip > 0 && b > 0) this.lips[o] = Math.max(this.lips[o], lip * b * b * (3 - 2 * b) * f);
+      }
+    }
+  }
+
+  /** Ground height (m, <= 0) at a world point: bilinear between splat texels. 0 where nothing is carved. */
+  heightAt(x, z) {
+    if (!this.heights) return 0;
+    if (!this.merged) {                                // cut wins over lip (where trails meet)
+      this.merged = new Float32Array(this.heights.length);
+      for (let k = 0; k < this.merged.length; k++) this.merged[k] = this.heights[k] < 0 ? this.heights[k] : this.lips[k];
+    }
+    const H = this.merged;
+    const fx = (x + this.half) / this.m - 0.5, fz = (z + this.half) / this.m - 0.5;
+    const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, r = this.res;
+    const at = (a, b) => (a < 0 || b < 0 || a >= r || b >= r ? 0 : H[b * r + a]);
+    return (at(i, j) * (1 - u) + at(i + 1, j) * u) * (1 - v) + (at(i, j + 1) * (1 - u) + at(i + 1, j + 1) * u) * v;
+  }
+
+  /**
+   * The terrain mesh: coarse flat cells (`coarse` m) everywhere, subdivided `sub` times wherever a
+   * rut is carved (with a one-cell margin, so every coarse/fine seam sits at height 0: no cracks).
+   * Built in the XZ plane, facing up; the ground material shades by world position.
+   */
+  buildGeometry({ coarse = 2, sub = 7 } = {}) {
+    const n = Math.round((2 * this.half) / coarse), fine = coarse / sub, N = n * sub + 1;
+    const carved = new Uint8Array(n * n);
+    if (this.heights) {
+      for (let j = 0; j < this.res; j++) for (let i = 0; i < this.res; i++) {
+        if (this.heights[j * this.res + i] === 0 && this.lips[j * this.res + i] === 0) continue;
+        const ci = Math.floor(((i + 0.5) * this.m) / coarse), cj = Math.floor(((j + 0.5) * this.m) / coarse);
+        for (let b = cj - 1; b <= cj + 1; b++) for (let a = ci - 1; a <= ci + 1; a++) {
+          if (a >= 0 && b >= 0 && a < n && b < n) carved[b * n + a] = 1;
+        }
+      }
+    }
+    const pos = [], idx = [], ids = new Map();
+    const vert = (gi, gj) => {
+      const k = gj * N + gi;
+      let id = ids.get(k);
+      if (id === undefined) {
+        const x = -this.half + gi * fine, z = -this.half + gj * fine;
+        id = pos.length / 3; ids.set(k, id);
+        pos.push(x, this.heightAt(x, z), z);
+      }
+      return id;
+    };
+    const quad = (gi0, gj0, gi1, gj1) => {
+      const a = vert(gi0, gj0), b = vert(gi1, gj0), c = vert(gi0, gj1), d = vert(gi1, gj1);
+      idx.push(a, c, b, b, c, d);
+    };
+    let fineCells = 0;
+    for (let cj = 0; cj < n; cj++) for (let ci = 0; ci < n; ci++) {
+      const gi = ci * sub, gj = cj * sub;
+      if (!carved[cj * n + ci]) { quad(gi, gj, gi + sub, gj + sub); continue; }
+      fineCells++;
+      for (let b = 0; b < sub; b++) for (let a = 0; a < sub; a++) quad(gi + a, gj + b, gi + a + 1, gj + b + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    g.userData = { verts: pos.length / 3, fineCells };
+    return g;
+  }
+
   cell(x, z) { return [Math.floor((x + this.half) / this.m), Math.floor((z + this.half) / this.m)]; }
 
   /** Weight (0..1) of a surface at a world point (for checks and gameplay queries). */
@@ -136,6 +231,11 @@ export class TerrainPainter {
           if (sp.a + dz > 0.5) col = texture2D(uBank, wp / uTiles.z) * vec4(uBankTint, 1.0);
           if (sp.r + dz > 0.5) col = texture2D(uDirt, wp / uTiles.w);
           diffuseColor *= col;
+          // Sunken ruts: the walls are shaded, damp soil and the pushed-up lip is a touch lighter,
+          // so the rut reads even under a head torch (which casts almost no shadow of its own).
+          float rd = -vTerrainW.y;
+          float wallBand = smoothstep(0.0, 0.05, rd) * (1.0 - smoothstep(0.09, 0.15, rd));
+          diffuseColor.rgb *= (1.0 - 0.38 * wallBand) * (1.0 + 3.0 * max(vTerrainW.y, 0.0));
         }`);
     };
     mat.customProgramCacheKey = () => 'terrainSplat';

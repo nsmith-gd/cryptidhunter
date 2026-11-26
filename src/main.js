@@ -7,6 +7,7 @@ import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
+import { setGroundHeight } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
 import { PixelWater } from './art/pixelWater.js';
 import { Atmosphere, timeOfDayConfig } from './maps/atmosphere.js';
@@ -87,6 +88,7 @@ const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap 
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
+setGroundHeight(map.heightAt);    // sunken trail ruts (forest): feet, cryptids and ground clues follow the terrain
 const { colliders, bounds, spawns } = map;
 if (map.environment) {
   scene.background.set(map.environment.background);
