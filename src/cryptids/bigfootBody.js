@@ -37,16 +37,16 @@ const TAU = Math.PI * 2;
 //   charge  running at you / running: pounding plants, arms wide, low head
 //   bolt    fleeing: long fast strides, light, upright head to glance back
 // width: stance x rest width · sway: hip shift over the stance foot · roll: shoulder counter-roll
-// dip: heel-plant drop · lift: foot lift x · mass: 0 light .. 1 heavy (slower body springs)
+// dip: how far the hips settle each step (rig units; natural bob, #109) · lift: foot lift x · mass: 0 light .. 1 heavy (slower body springs)
 // rise: back straightened (+) / hips lowered (-) · spread: arms out · headDrop: head lowered · heave: breathing
 export const MOVES = Object.freeze({
-  lumber: { width: 1.2, sway: 0.6, roll: 0.16, dip: 0.07, lift: 1.0, mass: 0.85, rise: 0, spread: 0.1, headDrop: 0.08, heave: 0.5 },
+  lumber: { width: 1.2, sway: 0.6, roll: 0.16, dip: 0.055, lift: 1.0, mass: 0.85, rise: 0, spread: 0.1, headDrop: 0.08, heave: 0.5 },
   shift: { width: 1.25, sway: 0.55, roll: 0.08, dip: 0.04, lift: 0.7, mass: 0.85, rise: 0, spread: 0.08, headDrop: 0.06, heave: 1 },
   loom: { width: 1.35, sway: 0.35, roll: 0.06, dip: 0.04, lift: 0.7, mass: 0.9, rise: 0.22, spread: 0.38, headDrop: 0.2, heave: 1.4 },
-  stalk: { width: 1.3, sway: 0.4, roll: 0.08, dip: 0.015, lift: 1.9, mass: 0.7, rise: -0.12, spread: 0.2, headDrop: 0.12, heave: 0.3 },
-  search: { width: 1.15, sway: 0.35, roll: 0.06, dip: 0.03, lift: 1.25, mass: 0.75, rise: -0.06, spread: 0.12, headDrop: 0.24, heave: 0.5 },
-  charge: { width: 1.1, sway: 0.3, roll: 0.14, dip: 0.11, lift: 1.6, mass: 0.7, rise: 0, spread: 0.26, headDrop: 0.06, heave: 0.2 },
-  bolt: { width: 1.0, sway: 0.2, roll: 0.1, dip: 0.06, lift: 1.5, mass: 0.5, rise: 0, spread: 0.08, headDrop: -0.04, heave: 0.1 },
+  stalk: { width: 1.3, sway: 0.4, roll: 0.08, dip: 0.05, lift: 1.9, mass: 0.7, rise: -0.12, spread: 0.2, headDrop: 0.12, heave: 0.3 },
+  search: { width: 1.15, sway: 0.35, roll: 0.06, dip: 0.05, lift: 1.25, mass: 0.75, rise: -0.06, spread: 0.12, headDrop: 0.24, heave: 0.5 },
+  charge: { width: 1.1, sway: 0.3, roll: 0.14, dip: 0.08, lift: 1.6, mass: 0.7, rise: 0, spread: 0.26, headDrop: 0.06, heave: 0.2 },
+  bolt: { width: 1.0, sway: 0.2, roll: 0.1, dip: 0.055, lift: 1.5, mass: 0.5, rise: 0, spread: 0.08, headDrop: -0.04, heave: 0.1 },
 });
 /** Which move a behaviour state and speed plays. */
 export function moveFor(state, speed) {
@@ -85,6 +85,7 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
   let yawRate = 0, lastPhase = animator.phase, settleClock = 0;
   const tmp = v3(), tmp2 = v3(), world = v3();
   const api = { enabled: true, legs, look: null, move: 'shift', stats: { reach: 0, plants: 0 } };
+  animator.bodyOwnsBob = true;                                   // this layer owns vertical motion (#109)
   const mv = { ...MOVES.shift };                                 // blended move parameters
   let clock = 0;
 
@@ -134,7 +135,7 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
     const cycle = rate > 1e-3 ? TAU / rate : Infinity;                // seconds per two steps
     // Stance: as long as possible (up to 60% of the cycle, a walk) but never longer than a planted
     // foot can be swept under the hip at this speed (fast gaits get a flight phase).
-    const maxSweep = 0.9 * (l1 + l2);                                   // rig units
+    const maxSweep = 0.72 * (l1 + l2);                                  // rig units: stays well inside reach (#109)
     const sweepTime = speed > 0.05 ? (maxSweep * S) / speed : Infinity;
     const stanceFrac = isFinite(cycle) ? clamp(sweepTime / cycle, 0.25, 0.6) : 0.6;
     const swingFrac = 1 - stanceFrac;
@@ -160,9 +161,7 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
       } else {
         if (L.swinging) {
           L.swinging = false; L.foot.y = ankleY; L.lift = 0;
-          // Heel plant: the weight lands and drops through the body (a kick on the plant spring).
-          const sp = springs.get('plant'); if (sp) sp.v -= mv.dip * (6 + speed * 1.2);
-          api.stats.plants++;
+          api.stats.plants++;                                              // (counted; the bob below is landing-synced)
         }
         // Standing still: a foot well out of place takes a small settling step (one at a time).
         if (!moving) {
@@ -192,10 +191,25 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
     bones.hips.rotation.z += rollK * mv.roll * 0.5;                        // pelvis drops over the free leg
     bones.spine.rotation.z -= rollK * mv.roll * 0.6;                       // shoulders roll against the hips
     bones.chest.rotation.z -= rollK * mv.roll * 0.5;
-    const plant = spring('plant', 0, 7, dt);                               // heel-plant drop (kicked on landing)
-    bones.hips.position.y += plant * 0.5;
-    bones.chest.rotation.x += plant * 0.6;                                 // the chest jolts forward and down
-    bones.neck.rotation.x -= plant * 0.4;
+    // Natural vertical bob (#109), synced to the real foot landings. Walking is an inverted
+    // pendulum: lowest just after a heel lands (weight acceptance, knees soften), highest as the
+    // body vaults over the planted leg. Running is a spring: lowest at mid-stance. Smooth (cosine),
+    // one dip per step, amplitude from the move's weight (dip) and speed. The chest only follows
+    // the bob's rate a little, so plants read as weight, not as a stomp.
+    // 0..1 through each step, 0 = the moment a foot lands (landing is at legPhase 0.04 + swingFrac).
+    const stepP = ((phase / Math.PI - 2 * (0.04 + swingFrac) + 0.5) % 1 + 1) % 1;
+    const runK = clamp((speed - 2.6) / 2.5, 0, 1);
+    const lowAt = lerp(0.14, stanceFrac * 0.5 + 0.0, runK);           // where in the step the hips are lowest
+    const bobA = moving ? mv.dip * lerp(0.55, 0.75, runK) * clamp(speed / 1.8, 0.75, 1.3) : 0;   // rig units
+    const bob = -bobA * (0.5 + 0.5 * Math.cos(TAU * (stepP - lowAt)));
+    const bobS = spring('bob', bob, 18, dt);
+    bones.hips.position.y += bobS;
+    // Soft knees while moving: the rest pose has dead-straight legs, so without a little flex every
+    // foot ahead of or behind the hip is out of reach and the hips get yanked down (#109).
+    bones.hips.position.y -= spring('kneeFlex', moving ? lerp(0.035, 0.11, runK) : 0, 3, dt);
+    const bobRate = (bobS - (api._lastBob ?? bobS)) / dt; api._lastBob = bobS;
+    bones.chest.rotation.x += clamp(bobRate * 0.08, -0.05, 0.05);      // a slight give in the chest as he settles
+    bones.neck.rotation.x -= clamp(bobRate * 0.05, -0.03, 0.03);
     // Posture for the move: rise up / sink low, arms hung wide, head lowered, slow heaving breaths.
     const breath = Math.sin(clock * TAU / 4.2);
     if (mv.rise > 0) { bones.spine.rotation.x += mv.rise; bones.chest.rotation.x += mv.rise * 0.4; bones.neck.rotation.x -= mv.rise * 0.6; }
@@ -244,7 +258,8 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
       need = Math.max(need, hipRig.distanceTo(L.foot) - (l1 + l2) * 0.985);
     }
     need = Math.min(need, 0.35);                                        // never fold to the ground (feet re-step instead)
-    if (need > 0) { bones.hips.position.y -= need; body.updateMatrixWorld(true); }
+    const needS = spring('reachDrop', Math.max(0, need), 16, dt);      // smoothed: no sudden yank down
+    if (needS > 1e-4) { bones.hips.position.y -= needS; body.updateMatrixWorld(true); }
     api.stats.reach = Math.max(0, need);
     for (const L of legs) solveLeg(L);
   };

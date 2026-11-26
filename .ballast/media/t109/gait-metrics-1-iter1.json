@@ -1,0 +1,52 @@
+{
+ "lumber": {
+  "hipDropCm": 8.8,
+  "accelG": 0.63,
+  "jerk": 11.6,
+  "dipsPerStep": 1,
+  "steps": 8,
+  "landPhase": 0.11,
+  "chestDeg": 3,
+  "headShakeG": 0.68
+ },
+ "search": {
+  "hipDropCm": 1.4,
+  "accelG": 0.05,
+  "jerk": 0.4,
+  "dipsPerStep": 0,
+  "steps": 7,
+  "landPhase": 0.25,
+  "chestDeg": 1.9,
+  "headShakeG": 0.06
+ },
+ "stalk": {
+  "hipDropCm": 0.6,
+  "accelG": 0.01,
+  "jerk": 0.1,
+  "dipsPerStep": 0,
+  "steps": 5,
+  "landPhase": 0.24,
+  "chestDeg": 1.5,
+  "headShakeG": 0.02
+ },
+ "charge": {
+  "hipDropCm": 14.4,
+  "accelG": 1.82,
+  "jerk": 41.8,
+  "dipsPerStep": 1,
+  "steps": 13,
+  "landPhase": 0.17,
+  "chestDeg": 5.7,
+  "headShakeG": 2.34
+ },
+ "bolt": {
+  "hipDropCm": 11.5,
+  "accelG": 2.5,
+  "jerk": 55,
+  "dipsPerStep": 1,
+  "steps": 21,
+  "landPhase": 0.31,
+  "chestDeg": 3.8,
+  "headShakeG": 3.5
+ }
+}
