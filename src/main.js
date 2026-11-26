@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { setSeed, randomSeed, getSeed } from './core/rng.js';
 import { FixedStepLoop } from './core/simLoop.js';
+import { WebXRPresenter, PauseState, mountPauseScreen } from './xr/webxr.js';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
@@ -269,14 +270,22 @@ const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi,
 // left-click with the camera down) to use. Only slotted gear is carried.
 // ?loadout=nightVision,knockStick,... packs those items instead (testing / quick setups).
 const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',').filter(Boolean);
-const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input,
+// Pack (#69): unslotted gear can ride in the pack, with food and water; load slows you and makes
+// running cost more stamina. ?pack=bait,... and ?water=N set it for testing.
+const qs = new URLSearchParams(location.search);
+const urlPack = qs.get('pack')?.split(',').filter(Boolean);
+const getFood = () => survival.nutrition.food;
+const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
+  pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
   gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight } });
 photo.onLoweredClick = () => loadout.use();
-const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange: (slots) => {
-  if (hunt.stage !== 'briefing') return;         // packing happens before you set off
-  camp.state.loadout = slots; camp.save();
-  loadout.setSlots(slots);
-} });
+const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
+  onChange: ({ slots, pack, water }) => {
+    if (hunt.stage !== 'briefing') return;         // packing happens before you set off
+    camp.state.loadout = slots; camp.state.pack = pack; camp.state.water = water; camp.save();
+    loadout.water = water;
+    loadout.setSlots(slots, pack);
+  } });
 // Shop (#46): buy gear and permanent upgrades at base camp, before you set off. Upgrades are
 // saved with camp and applied to the camera and torch at the start of every hunt.
 applyUpgrades(camp, { photo, flashlight });
@@ -295,9 +304,9 @@ const shop = showShopPanel(camp, {
 // First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
 const viewmodel = new Viewmodel({ camera, player, flashlight, photo, nightVision, trailCams });
 
-// Getting touched by a cryptid ends the hunt.
+// A cryptid's contact is an injury event (S08); the hunt ends when health reaches 0.
 const huntFailure = new HuntFailure({
-  player,
+  player, health: survival.health,   // #72: contacts wound you; only health 0 ends the hunt
   getThreats: () => [
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, z: c.agent.z, y0: 0, y1: c.profile.height, radius: c.profile.radius, catchHits: c.profile.catchHits ?? 1 })),
     ...(!sandbox ? [] : [
@@ -306,6 +315,7 @@ const huntFailure = new HuntFailure({
     ]),
   ],
 });
+survival.onDeath = (cause) => huntFailure.caught(cause);
 chupacabra.onHit = () => {
   huntFailure.touched('The Chupacabra', CHUPA.catchHits);
   chupacabra.flash.style.display = 'none'; // the hunt's own hit flash / Caught screen replaces it
@@ -320,7 +330,19 @@ const pixels = new PixelPipeline({ renderer, camera });
 const water = mapId === 'swamp' ? new PixelWater({ renderer, scene, camera, height: map.waterHeight ?? 0.3,
   moonDir: night?.moonDir, moonColor: night ? new THREE.Color(night.cfg.moonColor) : undefined }) : null;
 water?.applyToScene();
-const drawFrame = () => pixels.frame(() => { water?.renderReflection(); if (!nightVision.render()) renderer.render(scene, camera); });
+// In VR (#74) the headset gives the view: the rig sits at the player's feet (floor-relative space adds
+// real head height), turned by the player's yaw only (no pitch, roll or sway: GDD 16.3), drawn
+// straight to the headset (no desktop pixel pass, night-vision post or water mirror pass).
+const drawFrame = () => {
+  if (vr?.presenting) {
+    // 'local' space starts at the user's eyes, so lift it to standing eye height; 'local-floor' starts at the floor.
+    camera.position.set(player.position.x, player.position.y + (vr.refSpaceType === 'local-floor' ? 0 : 1.6), player.position.z);
+    camera.rotation.set(0, player.yaw, 0, 'YXZ');
+    renderer.render(scene, camera);
+    return;
+  }
+  pixels.frame(() => { water?.renderReflection(); if (!nightVision.render()) renderer.render(scene, camera); });
+};
 
 // Story cards (placeholder copy in story/cardText.js): the intro once on a new game, the finale
 // once when reputation hits max. Reputation is a stub until the hub economy lands; debug:
@@ -355,7 +377,7 @@ function simulate(dt) {
   player.update(dt);
   survival.update(dt);
   fear.update(dt);
-  fear.applySway(dt);                        // after the player sets the view; sim-timed so photos blur the same at any fps
+  if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
   photo.update(dt);
   flashlight.update(dt);
   batteries.update(dt);
@@ -381,6 +403,7 @@ function present(dt) {
   nightVision.update(dt);
   viewmodel.update(dt);
   loadout.render();
+  loadout.update(dt);
   survival.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
@@ -412,17 +435,29 @@ const clock = new THREE.Clock();
 const status = new StatusModel({ player, survival, fear, flashlight });
 const statusScreen = new StatusScreen({ model: status, input });
 survival.setWarningSource(() => status.hudWarnings());
-// VR input parity and comfort (#75, GDD 13.1 / 16.2 / 16.3): active whenever an XR session is
-// presenting. Controllers submit the same intents as keyboard and mouse; snap/smooth turn,
-// validated teleport, seated and one-handed layouts. (Entering VR itself is the #74 entry point.)
-const xr = new XRControls({ renderer, camera, scene, game: { player, input, colliders, map, cryptids, survival, fear, hunt, photo, statusScreen } });
 
-function frame() {
+// WebXR (#74): Enter VR appears only when immersive VR is supported. Leaving VR, the headset going
+// hidden, tracking loss or a hidden tab pauses the simulation safely (no time passes).
+const pauseState = new PauseState();
+mountPauseScreen(pauseState);
+// VR input parity and comfort (#75, GDD 13.1 / 16.2 / 16.3): active whenever the XR session above
+// is presenting. Controllers submit the same intents as keyboard and mouse; snap/smooth turn,
+// validated teleport, seated / one-handed / left-handed layouts; the pause control uses pauseState.
+const xr = new XRControls({ renderer, camera, scene, game: { player, input, colliders, map, cryptids, survival, fear, hunt, photo, statusScreen, pauseState } });
+const vr = new WebXRPresenter({ renderer, pause: pauseState, notify: (m) => photo.toast(m),
+  onEnter: () => { overlay.classList.add('hidden'); },
+  onExit: () => { pixels.resize?.(); } });
+vr.mountButtons([document.querySelector('#overlay > div')]);
+vr.detect();
+vr.watchPage();
+// The renderer's loop runs on XRSession.requestAnimationFrame while in VR, the page's otherwise.
+renderer.setAnimationLoop((time, xrFrame) => {
+  const dt = clock.getDelta();
+  vr.onFrame(xrFrame, dt);
   // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
-  if (!sim.paused && !statusScreen.open) sim.frame(clock.getDelta()); else { clock.getDelta(); drawFrame(); }
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
+  if (sim.paused || pauseState.paused || statusScreen.open) drawFrame();
+  else sim.frame(dt);
+});
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, xr, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
