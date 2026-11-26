@@ -292,9 +292,9 @@ const shop = showShopPanel(camp, {
 // First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
 const viewmodel = new Viewmodel({ camera, player, flashlight, photo, nightVision, trailCams });
 
-// Getting touched by a cryptid ends the hunt.
+// A cryptid's contact is an injury event (S08); the hunt ends when health reaches 0.
 const huntFailure = new HuntFailure({
-  player,
+  player, health: survival.health,   // #72: contacts wound you; only health 0 ends the hunt
   getThreats: () => [
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, x: c.agent.x, z: c.agent.z, y0: 0, y1: c.profile.height, radius: c.profile.radius, catchHits: c.profile.catchHits ?? 1 })),
     ...(!sandbox ? [] : [
@@ -303,6 +303,7 @@ const huntFailure = new HuntFailure({
     ]),
   ],
 });
+survival.onDeath = (cause) => huntFailure.caught(cause);
 chupacabra.onHit = () => {
   huntFailure.touched('The Chupacabra', CHUPA.catchHits);
   chupacabra.flash.style.display = 'none'; // the hunt's own hit flash / Caught screen replaces it
