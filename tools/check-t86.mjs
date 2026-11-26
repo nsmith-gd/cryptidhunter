@@ -91,7 +91,7 @@ const seen = new Set(after.log);
 check('walking up noisily makes it suspicious before it knows what you are', !!noticed && ['suspicious', 'investigating'].some((s) => seen.has(s)), { noticed, log: after.log });
 check('standing in front of it with the torch on: identified, and it bolts (engaged); it remembers where you were', ['identified', 'engaged'].some((s) => seen.has(s)) && after.states.includes('flee') && !!mid.memory, { mid, states: after.states });
 check('after you leave it loses contact, resets and is unaware again; it never attacked', seen.has('lost') && seen.has('reset') && after.stage === 'unaware' && !after.attacked, after);
-const panel = await page.evaluate(() => document.body.innerText.match(/Sidehill Gouger[\s\S]{0,400}/)?.[0] ?? '');
+const panel = await page.evaluate(() => { __game.sim.frame(0); return __game.aiDebug.panel.textContent.match(/Sidehill Gouger {2}\[[\s\S]{0,500}/)?.[0] ?? ''; });
 check('the AI debug panel (F4) shows its awareness stage, remembered cue and action scores', /stage [A-Z]+/.test(panel) && /scores /.test(panel), panel.slice(0, 300));
 
 check('no page errors', errors.length === 0, errors);
