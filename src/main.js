@@ -30,6 +30,7 @@ import { Rocks } from './cryptids/rocks.js';
 import { WoodKnocks } from './cryptids/woodKnock.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
+import { FieldKit } from './gear/fieldKit.js';
 import { getSpecies } from './cryptids/species.js';
 import { Journal } from './journal/journal.js';
 import { ClueFinder } from './journal/clueFinder.js';
@@ -221,12 +222,14 @@ const fear = new Fear({
 const bars = new Hud(player, flashlight, fear);
 // Survival (#68, GDD S01/S02): energy + food (Z eats) and body temperature + wetness. Heat:
 // the campfire, safe interiors (cabin, tent) and the van. Tutorial values: impairing, never lethal.
+let fieldKit = null;   // #87 field kit, built once the camera and evidence kit exist (below)
 const survival = new Survival({ player, input,
   map: { ...map, environment: { ...map.environment, airTemp: map.environment?.airTemp ?? ({ forest: 6, swamp: 13 }[mapId] ?? 10) } },
   heatSources: () => [
     ...(map.landmarks?.campsite ? [{ ...map.landmarks.campsite, r: 4.5, name: 'campfire' }] : []),
     ...(map.safeZones ?? []).map((z) => ({ x: z.x, z: z.z, r: z.r, name: z.name })),
     { x: HUNT.exit.x, z: HUNT.exit.z, r: 6, name: 'the van' },
+    ...(fieldKit?.heatSources() ?? []),   // your own fire and bivy (#87)
   ] });
 const noiseRing = new NoiseRing(scene, player);
 
@@ -242,6 +245,7 @@ function cryptidEvent(type, e) {
   cryptidEvents.push({ type, name: e.name, distance: e.distance, why: e.why, bluff: e.bluff, t: performance.now() });
   if (cryptidEvents.length > 50) cryptidEvents.shift();
   const where = (x, z) => { const d = Math.hypot(x - player.position.x, z - player.position.z); return `${d.toFixed(0)} m away`; };
+  if (type === 'whoop') fieldKit?.hear({ kind: 'whoop', x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: e.cryptid.profile.id, name: e.name });
   if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: true }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
   if (type === 'rock') { fear.scare(e.distance < 3 ? 22 : 12, 'rock'); photo.toast(`A rock slams into the ground ${e.distance.toFixed(0)} m from you. Back off.`); }
   if (type === 'rock-hit') { fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
@@ -350,9 +354,12 @@ const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',
 const qs = new URLSearchParams(location.search);
 const urlPack = qs.get('pack')?.split(',').filter(Boolean);
 const getFood = () => survival.nutrition.food;
+// Field kit (#87): binoculars, whistle, field recorder, headlamp, emergency bivy, dry clothes, fire kit.
+fieldKit = new FieldKit({ scene, camera, player, flashlight, photo, evidence, input, thermo: () => survival.thermo, notify: (m) => photo.toast(m) });
+let knocksHeard = 0;
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
   pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
-  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight } });
+  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit } });
 photo.onLoweredClick = () => loadout.use();
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
   onChange: ({ slots, pack, water }) => {
@@ -529,6 +536,12 @@ function simulate(dt) {
   rocks.update(dt);
   audioLures.update(dt);
   trailCams.update(dt);
+  fieldKit.update(dt);
+  // Wood knocks a cryptid makes are sounds the field recorder can pick up (#87).
+  for (; knocksHeard < knocks.log.length; knocksHeard++) {
+    const k = knocks.log[knocksHeard];
+    if (k.who !== 'player') fieldKit.hear({ kind: 'knock', x: k.x, z: k.z, cryptid: 'bigfoot', name: k.who });
+  }
   hunt.update(dt);
   huntFailure.update(dt);
 }
@@ -612,4 +625,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { expedition, evidenceArchive, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { fieldKit, expedition, evidenceArchive, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
