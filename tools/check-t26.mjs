@@ -85,7 +85,7 @@ await begin();
 const photos2 = await photograph();
 await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });
 await page.waitForTimeout(300);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForTimeout(400);
 const done = await page.evaluate(() => ({ outcome: __game.hunt.outcome, settlement: __game.hunt.settlement, screen: __game.hunt.endBody.textContent }));
 await shot('03-hunt-complete-earnings');

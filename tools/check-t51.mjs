@@ -68,7 +68,7 @@ check("once film runs out you can't shoot", empty.shots === roll.total && empty.
 
 await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });
 await page.waitForTimeout(400);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 30000 });
 await page.waitForTimeout(500);
 const album = await page.evaluate(() => {

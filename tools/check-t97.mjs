@@ -51,7 +51,7 @@ await page.evaluate(() => {
   const e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0);
 });
 await steps(25 * 60);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await steps(2);
 const v2 = await page.evaluate(() => {
   const g = __game, l = g.camp.ledger, h = g.camp.lastHunt;

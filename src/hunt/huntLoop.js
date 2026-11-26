@@ -14,7 +14,10 @@ export const HUNT = {
 };
 
 export class HuntLoop {
-  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null, onDawn = null }) {
+  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null, onDawn = null, onStart = null, manifest = null }) {
+    this.onStart = onStart;       // () => void: commit the expedition (#98) as the hunt begins
+    this.manifest = manifest;     // () => manifest text for the extraction review at the van (#98)
+    this.review = null;           // { outcome } while the extraction manifest is open
     this.onDawn = onDawn;         // () => void: the cryptid leaves at first light
     this.dawned = false;
     this.player = player;
@@ -36,17 +39,43 @@ export class HuntLoop {
     addEventListener('keydown', (e) => {
       // H at the van: drive home. With a photo that completes the hunt; without one (after a
       // little while) it abandons it. You choose when to leave - you can keep hunting for a better shot.
+      // #98: the first H opens the extraction manifest review; H again commits the departure.
       if (e.code === 'KeyH' && !e.repeat) {
-        if (this.canLeaveWithPhoto()) this.end('complete');
-        else if (this.canGiveUp()) this.end('abandoned');
+        const outcome = this.canLeaveWithPhoto() ? 'complete' : this.canGiveUp() ? 'abandoned' : null;
+        if (!outcome) return;
+        if (this.review && this.manifest) this.end(this.review.outcome);
+        else if (this.manifest) this.openReview(outcome);
+        else this.end(outcome);
       }
+      if (e.code === 'KeyC' && this.review) this.closeReview();
       if ((e.code === 'Space' || e.code === 'Enter') && this.stage === 'ended' && this.outcome !== 'caught') this.restart();
     });
   }
 
   start() {
     if (this.stage !== 'briefing') return;
+    this.onStart?.();
     this.stage = 'search';
+  }
+
+  // ---------- extraction manifest review (GDD 6.3) ----------
+  openReview(outcome) {
+    this.review = { outcome };
+    if (!this.reviewEl) {
+      this.reviewEl = document.createElement('div');
+      this.reviewEl.id = 'extraction-review';
+      Object.assign(this.reviewEl.style, { position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', zIndex: '15',
+        padding: '14px 20px', background: 'rgba(14,18,12,0.92)', border: '1px solid #3cff7a', color: '#e8f2e0', font: '13px/1.55 monospace',
+        whiteSpace: 'pre', pointerEvents: 'none' });
+      document.body.appendChild(this.reviewEl);
+    }
+    this.reviewEl.textContent = this.manifest();
+    this.reviewEl.style.display = 'block';
+  }
+
+  closeReview() {
+    this.review = null;
+    if (this.reviewEl) this.reviewEl.style.display = 'none';
   }
 
   get timeLeft() { return Math.max(0, HUNT.dawnSeconds - this.elapsed); }
@@ -75,6 +104,7 @@ export class HuntLoop {
     this.beacon.visible = Math.floor(performance.now() / 600) % 2 === 0;   // hazard lights blinking
     const p = this.player.position;
     this.inZone = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z) < HUNT.extractRadius;
+    if (this.review && !this.inZone) this.closeReview();   // walked away from the van: keep investigating
     if (this.stage === 'search' || this.stage === 'extract') {
       this.elapsed += dt;
       if (!this.dawned && this.elapsed >= HUNT.dawnSeconds) {
@@ -89,6 +119,7 @@ export class HuntLoop {
     if (this.stage === 'ended') return;
     this.stage = 'ended';
     this.outcome = outcome;
+    this.closeReview();
     this.leftBeforeDawn = !this.dawned;
     this.settlement = this.onEnd?.(outcome) ?? null;  // base camp: photos sold or lost, gear kept
     this.renderHud();                                 // clears the objective + clock
@@ -242,6 +273,7 @@ export class HuntLoop {
     const titles = {
       complete: ['HUNT COMPLETE', '#7dff9e'],
       abandoned: ['HUNT ABANDONED', '#ffd27a'],
+      emergency: ['EVACUATED', '#ff9c7a'],
     };
     const [title, color] = titles[this.outcome];
     this.endTitle.textContent = title;
@@ -265,6 +297,8 @@ export class HuntLoop {
     const lines = [];
     if (this.outcome === 'complete') lines.push(this.leftBeforeDawn ? `You made it home before dawn: +${Math.round(HUNT.dawnBonus * 100)}% bonus on your photos.` : 'You drove home after dawn: no before-dawn bonus.');
     if (this.outcome === 'abandoned') lines.push(r.photosOfTarget || r.evidence.length ? 'You drove home early.' : 'You drove home empty-handed.');
+    if (this.outcome === 'emergency') lines.push('A ranger evacuated you. What you carried came with you.');
+    if (r.debrief) lines.push(`Outcome: ${r.debrief.label}`);
     lines.push('', '§', 'PHOTOS');
     lines.push(pad('Taken', `${r.shotsTaken}${r.gearShots ? ` (+${r.gearShots} from trail cams)` : ''}`));
     lines.push(pad(`Of ${this.target}`, String(r.photosOfTarget)));
@@ -284,6 +318,16 @@ export class HuntLoop {
       if (this.outcome === 'complete') lines.push(pad('Before-dawn bonus', `$${r.money.bonus}`));
       lines.push(pad('Earned this hunt', `$${r.money.earned}`));
       lines.push(pad('Total money', `$${r.money.total}`));
+    }
+    if (r.debrief) {   // #98 debrief, straight from the ledger settlement (GDD 7.5)
+      const d = r.debrief, $ = (c) => `${c < 0 ? '-' : ''}$${Math.abs(c) % 100 ? (Math.abs(c) / 100).toFixed(2) : Math.abs(c) / 100}`;
+      lines.push('', `DEBRIEF · attempt ${d.attemptId}`);
+      lines.push(pad('Gross revenue', $(d.gross)));
+      lines.push(pad('Bonus', $(d.bonus)));
+      lines.push(pad('Expenses (trip)', $(-d.expense)));
+      if (d.charges || d.waived) lines.push(pad('Emergency charges', `${$(-d.charges)}${d.waived ? ` (${$(d.waived)} waived)` : ''}`));
+      lines.push(pad('Losses', d.losses.length ? d.losses.join(', ') : 'none'));
+      lines.push(pad('Closing cash', $(d.closing)));
     }
     lines.push('', pad('Time out', `${Math.floor(r.seconds / 60)}m ${String(r.seconds % 60).padStart(2, '0')}s`));
     return lines.join('\n');
@@ -309,6 +353,8 @@ export class HuntLoop {
       money: s ? { photoValue: s.earned - (s.bonus ?? 0) - (s.evidenceSold ?? []).reduce((a, e) => a + e.value, 0),
         evidenceValue: (s.evidenceSold ?? []).reduce((a, e) => a + e.value, 0), bonus: s.bonus ?? 0, earned: s.earned, total: s.moneyAfter } : null,
       seconds: Math.floor(this.elapsed),
+      debrief: s?.ledger ? { ...s.ledger, attemptId: s.attemptId, outcomeClass: s.outcomeClass, label: this.outcomeLabels?.[s.outcomeClass] ?? s.outcomeClass,
+        losses: s.leftBehind ?? [] } : null,
     };
   }
 

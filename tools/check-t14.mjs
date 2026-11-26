@@ -105,7 +105,7 @@ await page.waitForTimeout(400);
 const atVan = await st();
 check('reaching the van with the photo does not end the hunt by itself (you choose)', atVan.stage === 'extract' && /\[H\] Drive home/.test(await page.evaluate(() => __game.hunt.hud.textContent)), atVan);
 await page.screenshot({ path: `${out}/05b-at-the-van-choose-to-leave.png` });
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForTimeout(250);
 const s3 = await st();
 check('pressing H at the van with the photo completes the hunt', s3.outcome === 'complete' && s3.screen === 'flex' && s3.title === 'HUNT COMPLETE', s3);
@@ -133,7 +133,7 @@ await page.evaluate(() => { __game.player.position.set(0, 0, 5.5); __game.hunt.e
 await page.waitForTimeout(200);
 const atTruck = await st();
 check('truck without a photo: still hunting, give-up offered', atTruck.stage === 'search' && /\[H\]/.test(await page.evaluate(() => __game.hunt.hud.textContent)), atTruck);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await page.waitForTimeout(150);
 const gaveUp = await st();
 check('H ends the hunt as abandoned', gaveUp.outcome === 'abandoned' && gaveUp.title === 'HUNT ABANDONED', gaveUp);
