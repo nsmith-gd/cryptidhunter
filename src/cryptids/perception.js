@@ -225,5 +225,8 @@ export class Perception {
   }
 
   /** Forget the player (e.g. after losing them). */
-  reset() { this.awareness = 0; this.detected = false; }
+  reset() {
+    this.awareness = 0; this.detected = false;
+    this.memory = this.memory.filter((m) => m.source !== 'player');   // gave up on you: nothing left to check
+  }
 }
