@@ -4,7 +4,7 @@ STATUS: DONE
 - The fix for the flickering ground still holds: the ground is one surface, and nothing is laid on top of it.
 - To see it: start a hunt in Pine Hollow and walk or crouch at the edge of any trail. Captures in this task's folder pair each view without ruts (before-flat) and with them (after-ruts). Picture 05 uses a low raking light purely to show the shape clearly.
 - Assumption: at night under the head torch the ruts are a subtle effect, because a light at your eye casts almost no shadow. They read best from the side and in moonlit open stretches. Only the forest has ruts; the swamp is unchanged.
-- PR: PR_LINK
+- PR: https://github.com/nsmith-gd/cryptidhunter/pull/94
 
 ## Questions
 ### How deep should the trail ruts be?
