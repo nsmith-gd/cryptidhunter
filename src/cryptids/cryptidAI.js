@@ -2,14 +2,13 @@ import * as THREE from 'three';
 import { NavAgent } from './navAgent.js';
 import { DEFAULT_PROFILE } from './profiles.js';
 import { Perception } from './perception.js';
-import { buildBigfootModel } from './bigfootModel.js';
-import { genericBrain } from './brains/genericBrain.js';
-import { bigfootBrain, BIGFOOT_TIERS } from './brains/bigfootBrain.js';
+import { brainFactory, buildModel } from './species.js';
+import './catalog.js';   // registers the shared brains, body models and species (#86)
 import { stream } from '../core/rng.js';
 import { groundAt } from '../maps/ground.js';
 
-// Bespoke behaviour trees per cryptid (lore first, then the rules the player must learn).
-const BRAINS = { bigfoot: bigfootBrain };
+// Brains and bodies come from the species registry (species.js): a profile names its brain
+// ('utility' by default, 'bigfoot' for its signature tree) and its body family ('capsule', 'quadruped', ...).
 
 // Body tint per state (greybox readability); roam/investigate keep the cryptid's own colour.
 const STATE_TINT = {
@@ -68,13 +67,13 @@ export class CryptidAI {
     this.playerDistance = Infinity;
 
     // Cryptids with a model get it; the rest keep the greybox capsule.
-    this.mesh = profile.id === 'bigfoot' ? buildBigfootModel(profile) : buildCapsule(profile);
+    this.mesh = buildModel(profile);
     scene.add(this.mesh);
     if (this.perception) scene.add(this.buildAwarenessBar()); // separate from the body so it doesn't change its size
     this.baseColor = new THREE.Color(profile.color);
     this.pickRoamPoint();
     this.syncMesh();
-    this.brain = (BRAINS[profile.brain ?? profile.id] ?? genericBrain)(this);
+    this.brain = brainFactory(profile.brain ?? profile.id)(this);
   }
 
   get position() { return { x: this.agent.x, z: this.agent.z }; }
@@ -114,10 +113,14 @@ export class CryptidAI {
   think(dt, p) {
     this.dt = dt; this.p = p;
     this.observeCooldown = Math.max(0, this.observeCooldown - dt);
-    const calm = (BIGFOOT_TIERS[this.level]?.calmRate ?? 0.01);
+    const calm = this.profile.tiers?.[this.level]?.calmRate ?? this.profile.behavior.calmRate ?? 0.01;
     if (this.state !== 'aggress' && this.state !== 'warn') this.agitation = Math.max(0, this.agitation - calm * dt);
     this.brain.tick();
+    this.perception.updateStage(this.state);
   }
+
+  /** GDD 5.3 awareness stage: unaware, suspicious, investigating, identified, engaged, lost, reset. */
+  get stage() { return this.perception?.stage ?? 'unaware'; }
 
   emit(type, data = {}) { this.onEvent?.(type, { cryptid: this, name: this.profile.name, ...data }); }
 
@@ -421,6 +424,17 @@ export class CryptidAI {
   }
 
   pickRoamPoint() {
+    // roamStyle 'directional': keeps travelling the same general way (a route, a contour line)
+    // instead of milling about its home; it turns back only when the way ahead is blocked.
+    if (this.profile.roamStyle === 'directional') {
+      const step = this.profile.roamRadius * 0.6;
+      for (let i = 0; i < 8; i++) {
+        const turn = (this.rand() - 0.5) * 0.6 + (i >= 4 ? Math.PI : 0);
+        const h = this.agent.heading + turn;
+        const p = this.agent.grid.sample(this.agent.x - Math.sin(h) * step, this.agent.z - Math.cos(h) * step, 4);
+        if (p && Math.hypot(p.x - this.agent.x, p.z - this.agent.z) > 3 && this.agent.setDestination(p.x, p.z)) return;
+      }
+    }
     for (let i = 0; i < 6; i++) {
       const p = this.agent.grid.randomPoint(this.home.x, this.home.z, this.profile.roamRadius, this.rand);
       if (p && Math.hypot(p.x - this.agent.x, p.z - this.agent.z) > 2 && this.agent.setDestination(p.x, p.z)) return;
@@ -499,23 +513,3 @@ export class CryptidAI {
 }
 
 // L0 placeholder: capsule sized to the profile, feet at the origin, with a "nose" showing facing.
-function buildCapsule(profile) {
-  const group = new THREE.Group();
-  group.name = `cryptid-${profile.id}`;
-  const r = profile.radius;
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(r, Math.max(0.01, profile.height - 2 * r), 6, 12),
-    // Slight self-glow so the greybox capsule reads at night even outside the flashlight.
-    new THREE.MeshStandardMaterial({ color: profile.color, roughness: 0.8, emissive: 0x1a1410 }),
-  );
-  body.position.y = profile.height / 2;
-  body.castShadow = body.receiveShadow = true;
-  const nose = new THREE.Mesh(
-    new THREE.BoxGeometry(r * 0.8, 0.15, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0xd8c8a0, emissive: 0x2a2418 }),
-  );
-  nose.position.set(0, profile.height * 0.85, -r);
-  group.add(body, nose);
-  group.userData.body = body;
-  return group;
-}

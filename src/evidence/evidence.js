@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { lightAt, clueQuality, photoRecord } from './photoEvidence.js';
 
 // Collectable physical evidence (GDD 4.2 EV01/EV02/EV04/EV05, 4.3). Clues used to be examine-only;
 // now you can take something home and sell it.
@@ -113,15 +114,38 @@ export class EvidenceKit {
     return null;
   }
 
-  /** Called after every camera shot: a clue in the middle of the frame becomes a photo record. */
-  photographed() {
+  /**
+   * Called after every camera shot (entry: the camera log entry, photo: the PhotoCamera). A clue
+   * near the middle of the frame becomes a photo record, if it is really in the frame and visible
+   * (#85): the shot gets a quality snapshot (light, blur, framing, distance and angle) and an
+   * evidence record on the roll. Ordinary-animal signs (deer tracks) stay on the roll as a photo,
+   * but are no cryptid evidence: HQ would reject them (GDD 4.5).
+   */
+  photographed(entry = null, photo = null) {
     const c = this.aimed(EVIDENCE.photoReach);
     if (!c) return null;
+    const kind = c.type === 'footprint' || c.type === 'deerTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch') ? 'disturbance' : null;
+    if (!kind) return null;
+    let quality = null, rec = null;
+    if (photo && entry) {
+      const view = clueView(photo, c);
+      if (view.inFrame === 0 || view.unobstructed === 0) { this.notify('The clue wasn\'t really in the shot'); return null; }
+      const ctx = photo.evidenceContext?.() ?? {};
+      const light = lightAt(photo.scene, new THREE.Vector3(c.x, c.y + 0.03, c.z), { ambient: ctx.ambient ?? 0.05, nightVision: !!ctx.nightVision });
+      quality = clueQuality({ view, light, steadiness: entry.steadiness ?? 1, committed: ctx.committed !== false });
+      rec = photoRecord({ id: `${ctx.attemptId ?? 'A?'}-F${entry.frame}-clue${c.id}`, kind,
+        source: { kind: 'clue', id: c.id, actual: c.type === 'deerTrack' ? 'deer (ordinary animal)' : (CRYPTID_NAMES[c.cryptidId] ?? c.cryptidId) },
+        eventId: `clue:${c.id}`, attemptId: ctx.attemptId ?? null, time: ctx.time ?? this.time,
+        location: photo.camera.getWorldPosition(new THREE.Vector3()), frame: entry.frame, quality, thumb: entry.thumb });
+      photo.records.push(rec);
+      entry.clueEvidence = rec;
+    }
     if (c.type === 'deerTrack') return null;   // a clear photo of an ordinary animal's sign is no evidence (GDD 4.5)
-    const type = c.type === 'footprint' ? 'footprintPhoto' : (c.type === 'scratch' || c.type === 'branch') ? 'disturbancePhoto' : null;
-    if (!type || this.has(c.id, type)) return null;
+    const type = kind === 'footprint' ? 'footprintPhoto' : 'disturbancePhoto';
+    if (this.has(c.id, type)) return null;
     const item = this.add(type, c);
-    this.notify(`${item.name} saved as evidence`);
+    if (quality) { item.quality = quality; item.recordId = rec.id; }
+    this.notify(`${item.name} saved as evidence${quality?.problems.length ? `, but: ${quality.problems[0]}` : ''}`);
     return item;
   }
 
@@ -173,6 +197,24 @@ export class EvidenceKit {
     }
     if (this.prompt.textContent !== text) this.prompt.textContent = text;
   }
+}
+
+/**
+ * How a clue sits in the camera's frame: share of its points in frame, share of those not blocked,
+ * distance from the lens and how steeply you look down on it (radians below horizontal).
+ */
+export function clueView(photo, c) {
+  const cam = photo.toolCamera ?? photo.camera;
+  cam.updateMatrixWorld();
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+  const eye = cam.getWorldPosition(new THREE.Vector3());
+  const y = c.y + 0.03, r = 0.18;
+  const pts = [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]].map(([dx, dz]) => new THREE.Vector3(c.x + dx, y, c.z + dz));
+  const inFrame = pts.filter((p) => frustum.containsPoint(p));
+  const clear = inFrame.filter((p) => photo.clearLine(eye, p, c.object));
+  const centre = pts[0], distance = eye.distanceTo(centre);
+  return { inFrame: inFrame.length / pts.length, unobstructed: inFrame.length ? clear.length / inFrame.length : 0, distance,
+    downAngle: Math.asin(Math.max(-1, Math.min(1, (eye.y - centre.y) / Math.max(0.01, distance)))) };
 }
 
 /** Sale value of extracted evidence: base units × $ × novelty per type and cryptid (GDD 4.7). */

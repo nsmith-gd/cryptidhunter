@@ -220,7 +220,7 @@ export function buyerLine(camp) {
   return `Buyers: ${open.join(', ')}${next ? `  ·  next: ${next.name} (expedition ${next.level}${next.credibility ? `, credibility ${next.credibility}` : ''})` : ''}`;
 }
 
-export function showCampPanel(camp, root = document.querySelector('#overlay > div')) {
+export function showCampPanel(camp, root = document.querySelector('#overlay > div'), archive = null) {
   if (!root) return null;
   const el = document.createElement('div');
   el.id = 'camp-panel';
@@ -232,7 +232,8 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
     `Gear: ${gearList(s.gear)}`,
     `Credibility ${s.research?.credibility ?? 0} (career; earned once per research milestone, never spent)`,
     ...Object.values(s.research?.species ?? {}).map(dossierLine),
-    buyerLine(camp)].join('\n');
+    buyerLine(camp),
+    ...(archive?.records.length ? [`Evidence archive: ${archive.records.length} photo record${archive.records.length === 1 ? '' : 's'} brought home · best quality ${archive.best().quality.Q}/100 (${archive.best().typeName.toLowerCase()})`] : [])].join('\n');
   root.prepend(el);
   // The start screen is taller now: let it scroll instead of spilling off the top.
   const overlay = root.parentElement;
