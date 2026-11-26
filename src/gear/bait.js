@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { groundAt } from '../maps/ground.js';
 
 // Placeable bait (L0 greybox): press G to drop a bait cube on the ground in front of you.
 // Cryptids within its scent range stop roaming and walk over to investigate it, linger while
@@ -33,7 +34,7 @@ export class BaitManager {
     const x = p.position.x - Math.sin(p.yaw) * BAIT.placeDistance;
     const z = p.position.z - Math.cos(p.yaw) * BAIT.placeDistance;
     const mesh = new THREE.Mesh(this.geometry, this.material);
-    mesh.position.set(x, p.position.y + BAIT.size / 2, z);
+    mesh.position.set(x, (p.onTerrain === false ? p.position.y : groundAt(x, z)) + BAIT.size / 2, z);
     mesh.rotation.y = p.yaw;
     mesh.castShadow = mesh.receiveShadow = true;
     mesh.name = 'bait';

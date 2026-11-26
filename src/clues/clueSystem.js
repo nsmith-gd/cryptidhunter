@@ -1,4 +1,6 @@
 import { CLUE_TYPES, BUILDERS } from './clueTypes.js';
+import * as THREE from 'three';
+import { groundAt } from '../maps/ground.js';
 
 const MAX_FOOTPRINTS = 400; // oldest prints are culled first past this
 
@@ -23,13 +25,24 @@ export class ClueSystem {
   spawn(type, { cryptidId, position, rotationY = 0, origin, data = {} }) {
     const def = CLUE_TYPES[type];
     const object = BUILDERS[type](data);
-    object.position.set(position.x, position.y ?? 0, position.z);
+    // y 0 (or none) means "on the ground": stand on the terrain (sunken trail ruts) and lie flat
+    // against its slope, so a print on a rut's shoulder isn't half buried or floating.
+    const onGround = !position.y;
+    const y = onGround ? groundAt(position.x, position.z) : position.y;
+    object.position.set(position.x, y, position.z);
     object.rotation.y = rotationY;
+    if (onGround && y !== 0) {
+      const e = 0.15, gx = groundAt(position.x + e, position.z) - groundAt(position.x - e, position.z);
+      const gz = groundAt(position.x, position.z + e) - groundAt(position.x, position.z - e);
+      const n = new THREE.Vector3(-gx, 2 * e, -gz).normalize();
+      object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n)
+        .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotationY));
+    }
     object.name = `clue-${type}`;
     this.scene.add(object);
     const clue = {
       id: this.nextId++, type, cryptidId,
-      x: position.x, y: position.y ?? 0, z: position.z,
+      x: position.x, y, z: position.z,
       origin: origin ?? { x: position.x, z: position.z },
       age: 0, lifetime: def.lifetime, found: false, object, data,
     };
