@@ -137,14 +137,17 @@ export function createBigfootAnimator(root, bones, { worldScale = 1, poseFps = P
     const snort = bump(0.85, 0.04) * still;
 
     // Heavy foot plant: a sharp dip at each contact (sw = ±1 is a heel strike for one leg).
-    const plant = Math.pow(Math.abs(sw), 12) * mb;
-    const plantJolt = Math.pow(Math.abs(Math.sin(phase - 0.25)), 14) * mb;   // chest catches it a beat later
+    // When the procedural body (bigfootBody.js) is driving, it owns the vertical motion (a natural,
+    // landing-synced bob); the clip's own phase-timed plant dip and bob are switched off (#109).
+    const own = api.bodyOwnsBob ? 0 : 1;
+    const plant = Math.pow(Math.abs(sw), 12) * mb * own;
+    const plantJolt = Math.pow(Math.abs(Math.sin(phase - 0.25)), 14) * mb * own;   // chest catches it a beat later
 
     // ---- body ----
     const lean = 0.32 + 0.35 * rb + 0.15 * fleeW + 0.14 * invW + 0.3 * prowlW - 0.12 * stareW;
     bones.hips.position.y = rest.hipsY
       - L * (mb * (0.04 + 0.05 * rb) + 0.07 * invW + 0.2 * prowlW)
-      + L * Math.abs(cw) * mb * (0.05 + 0.08 * rb)
+      + L * Math.abs(cw) * mb * (0.05 + 0.08 * rb) * own
       - L * plant * (0.05 + 0.04 * rb)
       + (1 - mb) * breath * 0.01 * L;
     bones.hips.rotation.set(0, sw * 0.12 * mb, cw * 0.05 * mb * (1 - rb) + (1 - mb) * idleSway + weightShift);
