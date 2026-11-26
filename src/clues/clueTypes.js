@@ -7,6 +7,10 @@ export const CLUE_TYPES = Object.freeze({
   footprint: { label: 'Footprint', lifetime: 150, fadeFraction: 0.3 },
   hair: { label: 'Hair tuft', lifetime: 300, fadeFraction: 0.3 },
   scratch: { label: 'Scratch marks', lifetime: 420, fadeFraction: 0.3 },
+  // #84 (GDD 4.2): disturbance and biological traces, and an ordinary-animal false lead.
+  branch: { label: 'Snapped branch', lifetime: 600, fadeFraction: 0.2 },    // EV04 environmental disturbance
+  scat: { label: 'Droppings', lifetime: 900, fadeFraction: 0.2 },           // EV06 biological sample
+  deerTrack: { label: 'Deer tracks', lifetime: 1e9, fadeFraction: 0, falseLead: true },  // GDD 4.4: ordinary animal sign
 });
 
 // Shared geometry (one per kind); materials are per clue so each can fade on its own.
@@ -72,4 +76,61 @@ export function buildScratch(data) {
   return g;
 }
 
-export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch };
+const twig = new THREE.BoxGeometry(0.035, 0.035, 1);
+const lump = new THREE.DodecahedronGeometry(0.5, 0);
+
+/** A branch snapped high on a trunk: a broken limb hanging down, pale wood showing at the break.
+ *  Group faces along +Z (away from the trunk). data: { length } */
+export function buildBranch(data, rand = stream('clueArt')) {
+  const g = new THREE.Group();
+  const bark = mat(0x4a3a2a), core = mat(0xd9c39a, { emissive: 0x2a2010 });
+  const len = data.length ?? 0.7;
+  const limb = new THREE.Mesh(twig, bark);
+  limb.scale.set(1.2, 1.2, len);
+  limb.position.set(0, -len * 0.35, 0.12);
+  limb.rotation.x = 1.0 + rand() * 0.3;            // hangs down from the break
+  const stub = new THREE.Mesh(twig, core);          // the fresh pale break on the trunk
+  stub.scale.set(1.6, 1.6, 0.12);
+  stub.position.set(0, 0, 0.05);
+  g.add(limb, stub);
+  for (let i = 0; i < 4; i++) {                     // a few twigs still on the broken limb
+    const t = new THREE.Mesh(twig, bark);
+    t.scale.set(0.5, 0.5, 0.15 + rand() * 0.15);
+    t.position.set((rand() - 0.5) * 0.1, -len * (0.3 + rand() * 0.5), 0.15 + rand() * 0.1);
+    t.rotation.set(rand() * 2, rand() * 3, 0);
+    g.add(t);
+  }
+  return g;
+}
+
+/** A pile of dark droppings on the ground. data: { size } */
+export function buildScat(data, rand = stream('clueArt')) {
+  const g = new THREE.Group();
+  const m = mat(0x2a1d12, { emissive: 0x080503 });
+  const k = data.size ?? 1;
+  for (let i = 0; i < 5; i++) {
+    const p = new THREE.Mesh(lump, m);
+    const s = (0.05 + rand() * 0.04) * k;
+    p.scale.set(s * 1.4, s, s);
+    p.position.set((rand() - 0.5) * 0.18 * k, s * 0.5, (rand() - 0.5) * 0.18 * k);
+    p.rotation.y = rand() * 3;
+    g.add(p);
+  }
+  return g;
+}
+
+/** A deer's split-hoof print: two small teardrops, pointing the way it walked. */
+export function buildDeerTrack() {
+  const g = new THREE.Group();
+  const m = mat(0x241a10);
+  for (const side of [-1, 1]) {
+    const h = new THREE.Mesh(unitDisc, m);
+    h.rotation.x = -Math.PI / 2;
+    h.scale.set(0.028, 0.07, 1);
+    h.position.set(side * 0.018, 0.012, 0);
+    g.add(h);
+  }
+  return g;
+}
+
+export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack };
