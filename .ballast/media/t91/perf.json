@@ -1,0 +1,26 @@
+{
+  "after": {
+    "trailhead": {
+      "ms_per_frame": 2605,
+      "draw_calls": 865,
+      "triangles": 3040836
+    },
+    "hollow": {
+      "ms_per_frame": 2296.9,
+      "draw_calls": 176,
+      "triangles": 3034908
+    }
+  },
+  "before": {
+    "trailhead": {
+      "ms_per_frame": 2540,
+      "draw_calls": 1190,
+      "triangles": 3041863
+    },
+    "hollow": {
+      "ms_per_frame": 2340.7,
+      "draw_calls": 266,
+      "triangles": 3033567
+    }
+  }
+}
