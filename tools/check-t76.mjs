@@ -104,7 +104,9 @@ await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position
 await frames(5);
 await page.evaluate(() => { __pad.buttons[8].pressed = true; __pad.buttons[8].value = 1; });
 await frames(3);
-await press(0);
+await press(0);                                                    // #98: the extraction manifest opens
+await frames(3);
+await press(0);                                                    // ...and A again drives out
 await page.evaluate(() => { __pad.buttons[8].pressed = false; __pad.buttons[8].value = 0; });
 await frames(5);
 const end = await page.evaluate(() => ({ stage: __game.hunt.stage, outcome: __game.hunt.outcome, statusOpen: __game.statusScreen?.open ?? false }));
