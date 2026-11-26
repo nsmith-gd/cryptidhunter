@@ -106,11 +106,11 @@ export function buildBranch(data, rand = stream('clueArt')) {
 /** A pile of dark droppings on the ground. data: { size } */
 export function buildScat(data, rand = stream('clueArt')) {
   const g = new THREE.Group();
-  const m = mat(0x2a1d12, { emissive: 0x080503 });
+  const m = mat(0x1c130b, { emissive: 0x0c0703, roughness: 0.5 });   // dark and a little glossy: reads under the torch
   const k = data.size ?? 1;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 6; i++) {
     const p = new THREE.Mesh(lump, m);
-    const s = (0.05 + rand() * 0.04) * k;
+    const s = (0.07 + rand() * 0.05) * k;
     p.scale.set(s * 1.4, s, s);
     p.position.set((rand() - 0.5) * 0.18 * k, s * 0.5, (rand() - 0.5) * 0.18 * k);
     p.rotation.y = rand() * 3;
@@ -122,12 +122,12 @@ export function buildScat(data, rand = stream('clueArt')) {
 /** A deer's split-hoof print: two small teardrops, pointing the way it walked. */
 export function buildDeerTrack() {
   const g = new THREE.Group();
-  const m = mat(0x241a10);
+  const m = mat(0x120c06);
   for (const side of [-1, 1]) {
     const h = new THREE.Mesh(unitDisc, m);
     h.rotation.x = -Math.PI / 2;
-    h.scale.set(0.028, 0.07, 1);
-    h.position.set(side * 0.018, 0.012, 0);
+    h.scale.set(0.045, 0.1, 1);
+    h.position.set(side * 0.028, 0.012, 0);
     g.add(h);
   }
   return g;
