@@ -8,6 +8,7 @@
 
 import { PHOTO } from './photoCamera.js';
 import { FLASHLIGHT } from '../flashlight.js';
+import { cents, formatCAD } from '../economy/ledger.js';
 
 export const SHOP = Object.freeze({
   gear: {
@@ -34,8 +35,8 @@ export function zoomFactor(fov) { return +(Math.tan((BASE_FOV * Math.PI) / 360) 
 export function buyGear(camp, key) {
   const item = SHOP.gear[key];
   if (!item) return { ok: false, reason: 'unknown item' };
-  if (camp.state.money < item.price) return { ok: false, reason: `need $${item.price}` };
-  camp.state.money -= item.price;
+  const r = camp.ledger.purchase(camp.ledger.nextId(`buy:${key}`), cents(item.price), item.name);
+  if (!r.ok) return { ok: false, reason: `need $${item.price}` };
   camp.state.gear[key] = (camp.state.gear[key] ?? 0) + 1;
   camp.save();
   return { ok: true };
@@ -47,8 +48,9 @@ export function buyUpgrade(camp, key) {
   if (!u) return { ok: false, reason: 'unknown upgrade' };
   const lvl = upgradeLevel(camp, key);
   if (lvl >= u.prices.length) return { ok: false, reason: 'maxed out' };
-  if (camp.state.money < u.prices[lvl]) return { ok: false, reason: `need $${u.prices[lvl]}` };
-  camp.state.money -= u.prices[lvl];
+  // One charge per upgrade level, so the same level can never be paid for twice.
+  const r = camp.ledger.purchase(`upgrade:${key}:${lvl + 1}`, cents(u.prices[lvl]), `${u.name} level ${lvl + 1}`);
+  if (!r.ok || r.duplicate) return { ok: false, reason: r.duplicate ? 'already bought' : `need $${u.prices[lvl]}` };
   camp.state.upgrades = { ...(camp.state.upgrades ?? {}), [key]: lvl + 1 };
   camp.save();
   return { ok: true };
@@ -90,7 +92,7 @@ export function showShopPanel(camp, { onChange = () => {}, root = document.query
     }).join('');
     const gear = Object.entries(SHOP.gear).map(([key, g]) =>
       `<div>${btn('gear', key, `$${g.price}`, money < g.price || !canBuy())} ${g.name} <span style="color:#a89a7a">(own ${camp.state.gear[key] ?? 0}) ${g.note}</span></div>`).join('');
-    el.innerHTML = `<div>SHOP · $${money} to spend</div>
+    el.innerHTML = `<div>SHOP · ${formatCAD(camp.ledger.cash)} to spend</div>
       <div style="color:#c8a86a;margin-top:4px">UPGRADES (keep forever)</div>${ups}
       <div style="color:#c8a86a;margin-top:4px">GEAR</div>${gear}
       ${message ? `<div style="color:#ffd88a;margin-top:4px">${message}</div>` : ''}`;
