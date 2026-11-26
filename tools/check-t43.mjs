@@ -124,7 +124,9 @@ const knock = await page.evaluate(async () => {
   return { restArm: +restArm.toFixed(2), anticipationLow: +anticipation.toFixed(2), peakOverhead: +peak.toFixed(2), strikeLow: +overshoot.toFixed(2), settledAt: +(settle[0] ?? NaN).toFixed(2), finished: !anim.action };
 });
 check('knock anticipation: the arm drops and draws back before rearing up', knock.anticipationLow < knock.restArm - 0.05 || knock.anticipationLow < 0.4, knock);
-check('knock follow-through: the blow overshoots past the contact pose, then settles back', knock.strikeLow < knock.settledAt - 0.1 && knock.peakOverhead > 2.5, knock);
+// Reared clearly above the contact pose before each blow (#59 lowered the club to 2.1 rad so it no
+// longer folds over the skull on the #58 body; the old fixed 2.5 rad threshold predates that).
+check('knock follow-through: the blow overshoots past the contact pose, then settles back', knock.strikeLow < knock.settledAt - 0.1 && knock.peakOverhead > knock.settledAt + 0.6, knock);
 check('knock finishes by itself', knock.finished, knock);
 
 // ---- 5) Rig-parameterized: a bigger, longer-legged rig gets a longer stride --------------------
