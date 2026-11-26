@@ -7,7 +7,7 @@
 // produces them (the camera's score today; #50's scoring and #51's film roll/album later):
 //   { cryptid: 'bigfoot', score: 72 }   or the camera's   { subject: 'Bigfoot', score: 72 }
 
-/** Starter bounties (no GDD yet): offered in this order, ACTIVE_COUNT at a time. */
+/** Starter bounties (placeholder set; see GDD v1.1 section 7, docs/Cryptozoology_GDD_v1.1.md): offered in order, ACTIVE_COUNT at a time. */
 export const STARTER_BOUNTIES = Object.freeze([
   { id: 'bigfoot-clear', cryptid: 'bigfoot', minScore: 40, bonus: 150, title: 'Any clear shot of Bigfoot' },
   { id: 'bigfoot-70', cryptid: 'bigfoot', minScore: 70, bonus: 500, title: 'A good Bigfoot photo' },
