@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { lightAt, creatureQuality, photoRecord, PHOTO_EVIDENCE } from '../evidence/photoEvidence.js';
 
 // Handheld camera (L0 greybox). Hold right mouse to raise it: the view zooms into a
 // viewfinder. Left-click while raised snaps a photo. The shot is a HIT if a cryptid is inside
@@ -26,7 +27,10 @@ export class PhotoCamera {
    *   With base + height the subject is sampled as a standing column (feet to head);
    *   otherwise as a sphere around center.
    */
-  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, getAimOffset = null, canvas = null, film = PHOTO.filmRoll }) {
+  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, getAimOffset = null, canvas = null, film = PHOTO.filmRoll, evidenceContext = null }) {
+    // () => { attemptId, time, ambient, nightVision, committed }: what an evidence record needs (#85).
+    this.evidenceContext = evidenceContext;
+    this.records = [];          // evidence records on this roll (GDD 4.3), creature and clue photos
     this.camera = camera;
     this.canvas = canvas;       // the rendered view, for album thumbnails
     this.filmTotal = film;
@@ -106,6 +110,7 @@ export class PhotoCamera {
     const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, motion, ...photoScore(r, motion), at: performance.now() };
     entry.thumb = this.thumbnail();   // grabbed before the flash: what the lens saw
     entry.frame = this.filmTotal - this.film;
+    if (r.subject) entry.evidence = this.recordCreature(r, entry);
     this.log.push(entry);
     this.renderFilm();
     console.info(r.subject
@@ -159,10 +164,33 @@ export class PhotoCamera {
         const ends = s.base && s.height ? [s.base, s.base.clone().setY(s.base.y + s.height)] : pts; // feet to crown
         for (const p of ends) { const y = _v.copy(p).project(cam).y; lo = Math.min(lo, y); hi = Math.max(hi, y); }
         const screenSize = Math.min(1, Math.max(0, (Math.min(hi, 1) - Math.max(lo, -1)) / 2));
-        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2), screenSize };
+        // The head / top of the subject in frame and unobstructed: its features can be made out (#85).
+        const head = pts[3];
+        const headVisible = !!head && this.frustum.containsPoint(head) && this.clearLine(eye, head, s.object3d);
+        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2), screenSize, headVisible,
+          subjectId: s.id ?? s.name, subjectPoint: s.center.clone() };
       }
     }
     return best ? { ...best, reason: 'in frame' } : { subject: null, distance: 0, visible: 0, samples: 0, reason };
+  }
+
+  /**
+   * Quality snapshot + evidence record for a creature in the frame (#85, GDD 4.3-4.5). Light is
+   * measured on the subject from the game's light sources; steadiness from the camera motion.
+   */
+  recordCreature(r, entry) {
+    const ctx = this.evidenceContext?.() ?? {};
+    const light = lightAt(this.scene, r.subjectPoint, { ambient: ctx.ambient ?? 0.05, nightVision: !!ctx.nightVision });
+    const quality = creatureQuality({ shot: r, light, steadiness: entry.steadiness, committed: ctx.committed !== false });
+    const time = ctx.time ?? 0;
+    // One sighting is one event: frames of the same creature within a short gap document the same event.
+    const last = [...this.records].reverse().find((x) => x.kind === 'creature' && x.source.id === r.subjectId);
+    const eventId = last && time - last.time < PHOTO_EVIDENCE.sightingGap ? last.eventId : `sighting:${r.subjectId}:${Math.round(time)}`;
+    const eye = (this.toolCamera ?? this.camera).getWorldPosition(new THREE.Vector3());
+    const rec = photoRecord({ id: `${ctx.attemptId ?? 'A?'}-F${entry.frame}`, kind: 'creature', source: { kind: 'creature', id: r.subjectId, actual: r.subject },
+      eventId, attemptId: ctx.attemptId ?? null, time, location: eye, frame: entry.frame, quality, thumb: entry.thumb });
+    this.records.push(rec);
+    return rec;
   }
 
   /** Small JPEG of the current view for the album (null without a canvas). */
@@ -267,10 +295,19 @@ export class PhotoCamera {
       this.white.style.transition = 'opacity .35s';
       this.white.style.opacity = '0';
     }));
-    this.toast(entry.subject
-      ? `HIT — ${entry.subject} (${entry.distance.toFixed(0)} m) · SCORE ${entry.score}\n` +
-        `centred ${entry.parts.centring} · size ${entry.parts.size} · visible ${entry.parts.visibility} · steady ${entry.parts.steadiness}${entry.steadiness < 0.75 ? ' (blurry)' : ''}`
-      : `MISS — ${entry.reason}`, entry.subject ? 'hit' : 'miss');
+    // Field preview (GDD 4.3/4.4): film can't be judged until it's developed, so no species and no
+    // score here - only what the photographer would know went wrong (light, blur, framing).
+    this.toast(this.previewText(entry), entry.subject ? 'hit' : 'miss');
+  }
+
+  previewText(entry) {
+    const frame = `Frame ${entry.frame}/${this.filmTotal}`;
+    if (!entry.subject) {
+      const why = /blocked/.test(entry.reason) ? 'something in the way' : /too far/.test(entry.reason) ? 'whatever it was is too far off' : 'nothing much in the frame';
+      return `${frame} — ${why}`;
+    }
+    const probs = entry.evidence?.quality.problems ?? [];
+    return probs.length ? `${frame} — something in frame, but:\n${probs.join('\n')}` : `${frame} — something in frame. Light, focus and framing look good.`;
   }
 }
 

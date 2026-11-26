@@ -192,7 +192,7 @@ export function huntSummary(h) {
 }
 
 /** BASE CAMP panel on the start screen: money, what happened last hunt, gear you own. */
-export function showCampPanel(camp, root = document.querySelector('#overlay > div')) {
+export function showCampPanel(camp, root = document.querySelector('#overlay > div'), archive = null) {
   if (!root) return null;
   const el = document.createElement('div');
   el.id = 'camp-panel';
@@ -201,7 +201,8 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
   const s = camp.state, last = camp.lastHunt;
   el.textContent = [`BASE CAMP  ·  ${formatCAD(camp.ledger.cash)}`,
     last ? `Last hunt (#${last.n}): ${huntSummary(last)}` : 'First night out. No photos sold yet.',
-    `Gear: ${gearList(s.gear)}`].join('\n');
+    `Gear: ${gearList(s.gear)}`,
+    ...(archive?.records.length ? [`Evidence archive: ${archive.records.length} photo record${archive.records.length === 1 ? '' : 's'} brought home · best quality ${archive.best().quality.Q}/100 (${archive.best().typeName.toLowerCase()})`] : [])].join('\n');
   root.prepend(el);
   // The start screen is taller now: let it scroll instead of spilling off the top.
   const overlay = root.parentElement;

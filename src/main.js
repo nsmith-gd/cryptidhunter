@@ -65,6 +65,7 @@ import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { FieldMap } from './nav/fieldMap.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
 import { renderAlbum } from './hunt/album.js';
+import { EvidenceArchive, advance } from './evidence/photoEvidence.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
 import { CinematicLighting } from './maps/cinematicLighting.js';
@@ -131,6 +132,10 @@ else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.posit
 // count if you drive home from the van; getting caught loses them, gear comes home.
 addEventListener('pagehide', () => camp.save());   // save on quit (money is also saved whenever it changes)
 const packed = camp.packForHunt();
+// This hunt's attempt ID, reserved now so every evidence record shot tonight carries it (#85, GDD 4.3).
+const huntAttemptId = camp.newAttemptId();
+// Photo evidence you've brought home, kept across hunts for review (and HQ verification / sale).
+const evidenceArchive = new EvidenceArchive(camp.saveService);
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: huntTarget,
   onEnd: (outcome) => {
     const h = camp.settleHunt({
@@ -138,7 +143,12 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
       evidence: evidence.settle(outcome === 'complete' || outcome === 'abandoned'),
       gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
+      attemptId: huntAttemptId,
     });
+    // Photo evidence on the roll: home with you (extracted, archived for review) or lost with the camera.
+    const extracted = outcome === 'complete' || outcome === 'abandoned';
+    advance(photo.records, extracted ? 'extracted' : 'lost', hunt.elapsed);
+    if (extracted) evidenceArchive.add(photo.records);
     const summary = huntSummary(h);
     reputation.set(camp.state.reputation ?? 0);   // keep the live reputation in step with camp
     if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
@@ -150,7 +160,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
     for (const c of cryptids.cryptids) { c.leavingAtDawn = true; c.enterFlee?.(player.position, 'dawn: leaving'); }
     setTimeout(() => { for (const c of cryptids.cryptids) c.mesh.visible = false; cryptids.clear(); }, 20000);
   } });
-showCampPanel(camp);
+showCampPanel(camp, undefined, evidenceArchive);
 showBountyPanel(camp.bounties);   // #45: offers for specific photos, paid once when you sell a match
 // End-of-hunt photo album: every frame shot this hunt (lost if you were caught).
 hunt.album = (outcome) => renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: outcome === 'caught' || outcome === 'dawn', target: huntTarget });
@@ -289,13 +299,16 @@ const photo = new PhotoCamera({
   onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); },
   getShake: () => fear.swaySpeed,
   getAimOffset: () => fear.hiddenSway,      // evidence sees the full hand shake whatever the screen shows (#77)
+  // What each evidence record needs (#85): attempt, field clock, the map's ambient light, goggles on.
+  evidenceContext: () => ({ attemptId: huntAttemptId, time: hunt.elapsed, ambient: map.environment?.lightLevel ?? 0.05,
+    nightVision: !!nightVision?.on, committed: hunt.stage === 'search' || hunt.stage === 'extract' }),
 });
 // Physical evidence (#73): X bags a hair tuft or casts a footprint; a photo of a footprint or
 // scratch marks is kept as evidence too. Drive home to sell it at base camp; caught = lost.
 const evidence = new EvidenceKit({ camera, clues, input, notify: (m) => photo.toast(m) });
 {
   const snap = photo.snap.bind(photo);
-  photo.snap = () => { const shot = snap(); if (shot) evidence.photographed(); return shot; };
+  photo.snap = () => { const shot = snap(); if (shot) evidence.photographed(shot, photo); return shot; };
 }
 // T sets a trail camera facing where you look: it photographs any cryptid that walks into its
 // view, on its own (grainy shots, lower score).
@@ -547,4 +560,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, evidenceArchive, huntAttemptId, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
