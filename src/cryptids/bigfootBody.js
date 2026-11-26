@@ -103,7 +103,16 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
     const dWorld = tmp.copy(root.position).sub(lastPos);
     let dyaw = first ? 0 : Math.atan2(Math.sin(root.rotation.y - lastYaw), Math.cos(root.rotation.y - lastYaw));
     let dLocal;
+    // A teleport (spawned or placed somewhere new) or a snap turn isn't a step: put the feet back
+    // under him instead of leaving them planted at the old spot.
+    if (!first && (dWorld.length() > 2 || Math.abs(dyaw) > 1)) {
+      for (const L of legs) { L.foot.set(L.restX, ankleY, 0); L.swinging = false; L.settle = 0; L.lift = 0; }
+      vel.set(0, 0, 0); velPrev.set(0, 0, 0); acc.set(0, 0, 0); yawRate = 0; dyaw = 0;
+      dWorld.set(0, 0, 0);
+      api.stats.resets = (api.stats.resets ?? 0) + 1;
+    }
     if (first) dLocal = v3();
+    else if (dWorld.lengthSq() < 1e-10 && speed <= 0.05) dLocal = v3();
     else if (dWorld.lengthSq() > 1e-10) dLocal = dWorld.applyAxisAngle(THREE.Object3D.DEFAULT_UP, -lastYaw).divideScalar(S);   // in last frame's axes
     else dLocal = v3().set(0, 0, -(speed * dt) / S);                 // treadmill: walking in place
     first = false;
@@ -234,6 +243,7 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
       const hipRig = toRig(hip, tmp2);
       need = Math.max(need, hipRig.distanceTo(L.foot) - (l1 + l2) * 0.985);
     }
+    need = Math.min(need, 0.35);                                        // never fold to the ground (feet re-step instead)
     if (need > 0) { bones.hips.position.y -= need; body.updateMatrixWorld(true); }
     api.stats.reach = Math.max(0, need);
     for (const L of legs) solveLeg(L);

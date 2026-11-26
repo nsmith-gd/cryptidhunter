@@ -123,6 +123,22 @@ check('loom draws him up taller with arms hung wider than standing', moves.loom.
 check('stalk sinks him low', moves.stalk.headY < moves.shift.headY - 0.2, { stalk: moves.stalk.headY, shift: moves.shift.headY });
 check('lumbering: heavy hip roll over the stance foot and heel plants that drop through the body', moves.lumber.sway > 0.08 && moves.lumber.plants >= 4 && moves.lumber.hipMin < moves.shift.hipsY - 0.02, moves.lumber);
 
+// 5) Teleport (spawning / being placed somewhere new): feet come with him, he doesn't collapse.
+const tele = await page.evaluate(() => {
+  const bf = __viewer.bf, b = bf.userData.bones, body = bf.userData.body3;
+  bf.position.set(0, 0, 0); bf.rotation.y = 0; bf.userData.look = null;
+  for (let i = 0; i < 60; i++) bf.userData.animate(1 / 60, 0, 'roam');
+  const hips0 = b.hips.position.y;
+  bf.position.set(180, 0, -240); bf.rotation.y = 2.4;
+  let minHips = Infinity;
+  for (let i = 0; i < 60; i++) { bf.userData.animate(1 / 60, 0, 'observe'); minHips = Math.min(minHips, b.hips.position.y); }
+  const feet = body.feetWorld().map((f) => +Math.hypot(f.p.x - bf.position.x, f.p.z - bf.position.z).toFixed(2));
+  bf.position.set(0, 0, 0); bf.rotation.y = 0;
+  for (let i = 0; i < 30; i++) bf.userData.animate(1 / 60, 0, 'roam');
+  return { hips0: +hips0.toFixed(3), minHips: +minHips.toFixed(3), feetFromBody: feet, resets: body.stats.resets ?? 0 };
+});
+check('after a teleport his feet come with him and he stays standing (no collapse)', tele.minHips > tele.hips0 - 0.12 && tele.feetFromBody.every((d) => d < 1.2) && tele.resets >= 1, tele);
+
 // GIF: walking a curve, then stopping and turning his head to the camera.
 const dir = `${out}/_frames`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
 await page.evaluate(() => { const bf = __viewer.bf; bf.position.set(0, 0, 0); bf.rotation.y = Math.PI / 2; bf.userData.look = null; __viewer.setYaw(-0.4); });
