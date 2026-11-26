@@ -60,7 +60,8 @@
     "check:t67": "vite build && node tools/check-t67.mjs",
     "check:t72": "vite build && node tools/check-t72.mjs",
     "check:ruts": "vite build && node tools/check-mmwxp67tt.mjs",
-    "check:t73": "vite build && node tools/check-t73.mjs"
+    "check:t73": "vite build && node tools/check-t73.mjs",
+    "check:t83": "vite build && node tools/check-t83.mjs"
   },
   "repository": {
     "type": "git",
