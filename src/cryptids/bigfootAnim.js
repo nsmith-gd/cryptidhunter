@@ -177,7 +177,8 @@ export function createBigfootAnimator(root, bones, { worldScale = 1, poseFps = P
     }
 
     // ---- arms: swing trails the legs (lag), heavy hands ----
-    const armAmp = lerp(0.4, 0.9, rb) * mb * (1 + 0.25 * fleeW) * (1 - 0.5 * invW) * (1 - 0.6 * prowlW);
+    // Heavy, lumbering arms (#79): shorter swing at speed than a sprinter's.
+    const armAmp = lerp(0.4, 0.62, rb) * mb * (1 + 0.1 * fleeW) * (1 - 0.5 * invW) * (1 - 0.6 * prowlW);
     for (const [side, s] of [['L', 1], ['R', -1]]) {
       const a = -swLag * s;
       // Heavy arms: the swing target is followed on a spring, so they drag and overshoot.
