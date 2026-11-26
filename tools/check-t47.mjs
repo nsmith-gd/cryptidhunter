@@ -49,7 +49,7 @@ const huntOnce = async () => {
   const photos = await page.evaluate(() => __game.hunt.photos.map((p) => p.score));
   await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });
   await page.waitForTimeout(500);
-  await page.keyboard.press('KeyH');
+  await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
   await page.waitForFunction(() => __game.hunt.stage === 'ended', null, { timeout: 20000 });
   return { photos, rep: await page.evaluate(() => __game.camp.state.reputation) };
 };

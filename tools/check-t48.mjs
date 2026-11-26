@@ -113,7 +113,7 @@ await page.evaluate(() => __game.input.keys.add('KeyW'));
 await page.waitForFunction(() => __game.hunt.inZone, null, { timeout: 30000 }).catch(() => {});
 await page.evaluate(() => __game.input.keys.delete('KeyW'));
 await page.waitForTimeout(300);
-await page.keyboard.press('KeyH');   // you choose when to drive home
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out   // you choose when to drive home
 await page.waitForTimeout(400);
 const end = await page.evaluate(() => ({ outcome: __game.hunt.outcome, title: __game.hunt.endTitle.textContent }));
 check('at the van with the photo, H drives home: HUNT COMPLETE', end.outcome === 'complete' && end.title === 'HUNT COMPLETE', end);

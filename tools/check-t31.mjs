@@ -62,8 +62,8 @@ check('the screen prints those same numbers', h1.text.includes(`$${h1.r.money.ea
 const h2 = await play({ shots: [{ subject: 'Bigfoot', distance: 30, score: 40 }], clues: [], leaveAfterDawn: true, startMoney: 100 });
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/02-results-after-dawn.png` });
-check('after dawn: no bonus, earned = photo value, total = 100 + earned',
-  h2.r.money.bonus === 0 && h2.r.money.earned === h2.camp.earned && h2.r.money.total === 100 + h2.camp.earned, { shown: h2.r.money, camp: h2.camp.earned });
+check('after dawn: no bonus, earned = photo value, total = 100 - $25 trip + earned',
+  h2.r.money.bonus === 0 && h2.r.money.earned === h2.camp.earned && h2.r.money.total === 100 - 25 + h2.camp.earned, { shown: h2.r.money, camp: h2.camp.earned });
 check('no clues -> found 0', h2.r.clues === 0 && /Found\s+0/.test(h2.text), h2.r.clues);
 
 // ---- Hunt 3: no photos, leave empty-handed ----

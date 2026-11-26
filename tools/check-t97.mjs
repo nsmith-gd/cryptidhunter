@@ -51,7 +51,7 @@ await page.evaluate(() => {
   const e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0);
 });
 await steps(25 * 60);
-await page.keyboard.press('KeyH');
+await page.keyboard.press('KeyH'); await page.keyboard.press('KeyH');   // #98: manifest review, then drive out
 await steps(2);
 const v2 = await page.evaluate(() => {
   const g = __game, l = g.camp.ledger, h = g.camp.lastHunt;
@@ -59,8 +59,8 @@ const v2 = await page.evaluate(() => {
   return { outcome: g.hunt.outcome, attemptId: h.attemptId, earned: h.earned, settledCents: h.settledCents, cents: l.cash,
     replay: { duplicate: again.duplicate, changed: l.cash !== before }, payTx: l.tx.filter((t) => t.attemptId === h.attemptId).map((t) => `${t.id} ${t.cents}`), audit: l.audit().ok };
 });
-check('driving home settles the hunt once under its attempt ID, in cents matching what the screen says',
-  ['complete', 'abandoned'].includes(v2.outcome) && v2.earned > 0 && v2.settledCents === v2.earned * 100 && v2.cents === 23500 + v2.earned * 100 && v2.payTx.length > 0, v2);
+check('driving home settles the hunt once under its attempt ID (the $25 trip paid at commit, #98), in cents matching what the screen says',
+  ['complete', 'abandoned'].includes(v2.outcome) && v2.earned > 0 && v2.settledCents === v2.earned * 100 && v2.cents === 23500 - 2500 + v2.earned * 100 && v2.payTx.length > 0, v2);
 check('settling the same attempt again pays nothing', v2.replay.duplicate === true && v2.replay.changed === false && v2.audit, v2.replay);
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/02-results-settled.png` });
