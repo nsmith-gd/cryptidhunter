@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { capsule, ellipsoid, subtract, surfaceNets, facetUV } from '../art/sdfMesh.js';
 import { pixelMaterial, bigfootFur2Texture, bigfootFace2Texture, bigfootChestTexture, bigfootRibsTexture, skinTexture } from '../art/pixelTex.js';
 import { createBigfootAnimator } from './bigfootAnim.js';
+import { createBigfootBody } from './bigfootBody.js';
 
 // Bigfoot, rebuilt from scratch (#58): one sculpted, low-poly skinned body.
 //
@@ -92,46 +93,63 @@ function part(kind, args, k) {
     const [c, rr] = args;
     box = [c[0] - rr[0], c[1] - rr[1], c[2] - rr[2], c[0] + rr[0], c[1] + rr[1], c[2] + rr[2]];
   }
-  return { f, box, k };
+  return { f, box, k, bone: TAG };
 }
+// The bone each sculpted shape belongs to (set while sculpting): skinning classifies every surface
+// point by the shape it lies on, so a fingertip hanging by the thigh still belongs to the hand.
+let TAG = 'chest';
 
 function bodySDF() {
   const P = [];
   const E = (c, r, k = 0.09) => P.push(part('ell', [c, r], k));
   const C = (a, b, ra, rb, k = 0.07) => P.push(part('cap', [a, b, ra, rb], k));
   // Torso: pelvis, belly, barrel chest, the great trapezius hump, pecs.
-  E([0, 1.08, 0.02], [0.34, 0.22, 0.25]);
-  E([0, 1.36, -0.01], [0.33, 0.3, 0.29]);
+  TAG = 'hips'; E([0, 1.08, 0.02], [0.34, 0.22, 0.25]);
+  TAG = 'spine'; E([0, 1.36, -0.01], [0.33, 0.3, 0.29]);
+  TAG = 'chest';
   E([0, 1.74, 0.03], [0.4, 0.34, 0.34]);                               // barrel chest, kept clear of the arms so they swing free
   E([0, 2.0, 0.12], [0.44, 0.2, 0.3], 0.12);
   E([0, 1.86, 0.26], [0.34, 0.26, 0.16], 0.1);                         // back muscle mass
   for (const s of [-1, 1]) E([s * 0.2, 1.78, -0.25], [0.19, 0.14, 0.09], 0.06);
   // Neck sunk into the shoulders; the head juts forward.
-  C([0, 1.96, -0.02], [0, 2.16, -0.13], 0.17, 0.15, 0.1);
+  TAG = 'neck'; C([0, 1.96, -0.02], [0, 2.16, -0.13], 0.17, 0.15, 0.1);
+  TAG = 'head';
   E([0, 2.27, -0.2], [0.2, 0.22, 0.21], 0.06);                         // skull
-  E([0, 2.44, -0.15], [0.07, 0.09, 0.17], 0.06);                       // sagittal crest
-  C([-0.15, 2.36, -0.36], [0.15, 2.36, -0.36], 0.05, 0.05, 0.03);      // brow ridge
-  E([0, 2.18, -0.36], [0.13, 0.1, 0.09], 0.05);                        // muzzle
-  E([0, 2.08, -0.3], [0.14, 0.07, 0.11], 0.05);                        // heavy jaw
+  E([0, 2.47, -0.14], [0.065, 0.12, 0.19], 0.06);                      // tall sagittal crest (giant ape)
+  C([-0.14, 2.35, -0.37], [0.14, 2.35, -0.37], 0.06, 0.06, 0.03);      // heavy brow shelf
+  E([0, 2.19, -0.41], [0.12, 0.09, 0.1], 0.05);                        // muzzle pushed forward (gorilla profile)
+  E([0, 2.245, -0.49], [0.05, 0.035, 0.03], 0.03);                     // broad flat nose on the muzzle
+  E([0, 2.09, -0.35], [0.13, 0.075, 0.13], 0.05);                      // heavy undershot jaw
   for (const s of [-1, 1]) {
+    const S = s < 0 ? 'L' : 'R';
+    TAG = 'head';
     E([s * 0.15, 2.24, -0.34], [0.06, 0.06, 0.05], 0.03);              // cheekbones
     E([s * 0.215, 2.29, -0.17], [0.035, 0.065, 0.05], 0.02);           // ears, half hidden in the hair
     // Arms: delts, upper arm with a biceps swell, heavy forearm, big hands and fingers.
+    TAG = 'chest';                                                     // shoulder caps blend chest <-> arm
     E([s * 0.56, 1.98, 0.02], [0.21, 0.2, 0.21], 0.08);
+    TAG = `upperArm${S}`;
     C([s * 0.58, 2.02, 0], [s * 0.6, 1.44, 0], 0.17, 0.13);
     E([s * 0.6, 1.72, -0.07], [0.12, 0.17, 0.11], 0.05);
+    TAG = `forearm${S}`;
     C([s * 0.6, 1.44, 0], [s * 0.6, 0.9, -0.02], 0.135, 0.09);
     E([s * 0.6, 1.3, 0.0], [0.13, 0.17, 0.12], 0.05);                  // forearm muscle
+    TAG = `hand${S}`;
     E([s * 0.6, 0.78, -0.03], [0.085, 0.11, 0.055], 0.04);             // palm
     for (let f = 0; f < 4; f++) {
       const fx = s * 0.6 + (f - 1.5) * 0.045 * s;
+      TAG = `finger${S}${f}`;
       C([fx, 0.68, -0.04], [fx, 0.5, -0.07], 0.026, 0.02, 0.012);
     }
+    TAG = `thumb${S}`;
     C([s * 0.53, 0.8, -0.07], [s * 0.5, 0.68, -0.1], 0.025, 0.02, 0.015);   // thumb
     // Legs: thick thighs, calves, broad flat feet.
+    TAG = `thigh${S}`;
     C([s * 0.22, 1.02, 0], [s * 0.23, 0.5, 0], 0.165, 0.13, 0.05);
+    TAG = `shin${S}`;
     E([s * 0.23, 0.36, 0.05], [0.13, 0.16, 0.12], 0.05);
     C([s * 0.23, 0.5, 0], [s * 0.23, 0.1, 0.02], 0.12, 0.09);
+    TAG = `foot${S}`;
     E([s * 0.23, 0.05, -0.1], [0.11, 0.055, 0.25], 0.05);
     for (let t = 0; t < 4; t++) C([s * (0.18 + t * 0.03), 0.04, -0.3], [s * (0.18 + t * 0.03), 0.03, -0.36], 0.024, 0.02, 0.012);
   }
@@ -143,16 +161,21 @@ function bodySDF() {
     const ox = x * out * 0.12, oz = z * out * 0.12;          // hang close: hair falls, it doesn't fan out
     P.push(part('cap', [[x, y, z], [x + ox, y - len, z + oz], r0, 0.012], 0.035));
   };
+  TAG = 'neck';
   for (let i = 0; i < 10; i++) {                                         // mane: crown down the back
     const a = -1.2 + (i / 9) * 2.4;
     lock(Math.sin(a) * 0.2, 2.42, -0.17 + Math.cos(a) * 0.18, 0.5, 0.42 + rnd() * 0.2, 0.06);
   }
   for (const s of [-1, 1]) {
+    TAG = `forearm${s < 0 ? 'L' : 'R'}`;
     for (let i = 0; i < 4; i++) lock(s * 0.68, 1.3 - i * 0.06, 0.06 + i * 0.01, 0.3, 0.14 + rnd() * 0.06, 0.04);            // forearm fringe
+    TAG = `shin${s < 0 ? 'L' : 'R'}`;
     lock(s * 0.3, 0.32, 0.06, 0.5, 0.18, 0.05);                                                                              // ankles
   }
+  TAG = 'chest';
   for (let i = 0; i < 5; i++) lock(-0.24 + i * 0.12, 1.98, 0.36, 0.4, 0.42 + rnd() * 0.12, 0.06);                          // back
-  for (let i = 0; i < 3; i++) lock(-0.07 + i * 0.07, 2.05, -0.33, 0.2, 0.2 + rnd() * 0.06, 0.04);                          // beard
+  TAG = 'head';
+  for (let i = 0; i < 3; i++) lock(-0.07 + i * 0.07, 2.05, -0.36, 0.2, 0.1 + rnd() * 0.04, 0.04);   // short chin beard (stays off the chest)                          // beard
   const base = (x, y, z) => {
     let d = Infinity;
     for (const p of P) {
@@ -171,7 +194,7 @@ function bodySDF() {
   const carved = subtract(base, socket, 0.012);
   // Shaggy coat: a stretched noise (tight across, long down) pushes the fur surface out in hanging
   // ridges, so the coat reads as sculpted clumps. Face, hands and feet stay smooth.
-  return (x, y, z) => {
+  const sdf = (x, y, z) => {
     const d = carved(x, y, z);
     if (d > 0.06 || d < -0.06) return d;
     const face = y > 2.0 && z < -0.26 && Math.abs(x) < 0.2;
@@ -180,6 +203,8 @@ function bodySDF() {
     const n = vnoise(x / 0.065, y / 0.24, z / 0.065) * 0.7 + vnoise(x / 0.13, y / 0.5, z / 0.13) * 0.3;
     return d - 0.036 * n;
   };
+  sdf.parts = P;
+  return sdf;
 }
 
 // Smooth value noise (0..1) for the coat.
@@ -200,7 +225,7 @@ function vnoise(x, y, z) {
 // ---- texturing regions ------------------------------------------------------------------------
 const REGION = { FUR: 0, FUR_DARK: 1, SKIN: 2, FACE: 3, CHEST: 4, RIBS: 5 };
 function regionOf(c, n) {
-  if (c.y > 2.06 && c.y < 2.44 && Math.abs(c.x) < 0.17 && c.z < -0.3 && n.z < -0.3) return REGION.FACE;
+  if (c.y > 2.08 && c.y < 2.4 && Math.abs(c.x) < 0.13 && c.z < -0.33 && n.z < -0.35) return REGION.FACE;   // smaller bare face (director: giant ape)
   if ((c.y < 0.88 && Math.abs(c.x) > 0.45 && Math.abs(c.x) < 0.75) || c.y < 0.085) return REGION.SKIN;   // hands, feet
   if (c.y > 1.5 && c.y < 1.98 && Math.abs(c.x) < 0.38 && c.z < -0.12 && n.z < -0.45) return REGION.CHEST;  // claw-scarred chest
   if (c.y > 1.3 && c.y < 1.7 && c.x < -0.26 && Math.abs(c.z) < 0.24 && n.x < -0.5) return REGION.RIBS;   // torn coat, left flank
@@ -223,7 +248,7 @@ function bodyUV(g) {
       for (let i = t; i < t + 3; i++) {
         const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
         switch (grp.materialIndex) {
-          case REGION.FACE: uv.setXY(i, (x + 0.2) / 0.4, (y - 2.04) / 0.42); break;
+          case REGION.FACE: uv.setXY(i, (x + 0.16) / 0.32, (y - 2.06) / 0.36); break;
           case REGION.CHEST: uv.setXY(i, (x + 0.4) / 0.8, (y - 1.5) / 0.5); break;
           case REGION.RIBS: uv.setXY(i, (z + 0.26) / 0.52, (y - 1.28) / 0.44); break;
           case REGION.SKIN: break;
@@ -242,32 +267,115 @@ function buildGeometry() {
   const raw = surfaceNets(sdf, [-1.0, -0.02, -0.62], [1.0, 2.68, 0.62], CELL, { smooth: 1 });
   const g = facetUV(raw, 3, regionOf);             // skin: ~2 cm texels at size
   bodyUV(g);                                       // fur: ~2.6 cm texels; face, chest, ribs projected once
-  skin(g);
+  skin(g, sdf.parts);
   cachedGeometry = g;
   return g.clone();
 }
 
-// Skin weights: each vertex follows its nearest bone segments (top 3, inverse-distance falloff).
-function skin(g) {
+// Skin weights (#78 rework). The old nearest-segment weights let an arm drag the flank and one
+// thigh drag the other, which showed as stretched webs. Now:
+//  1. Each vertex belongs to the bone of the sculpted shape it lies on, and may only be moved by
+//     that bone and the bones joined to it (parent and children).
+//  2. Raw weights fall off smoothly with distance to each allowed bone segment.
+//  3. Weights are then smoothed across the surface (neighbouring vertices average), so every
+//     joint bends as a soft, organic fold instead of a crease, and re-masked to the part's bones.
+// How thick the body is around each bone (rig units): distances are compared relative to this, so
+// a flank point (near the arm's line but inside the torso's bulk) belongs to the torso.
+const BONE_RADIUS = { hips: 0.32, spine: 0.38, chest: 0.45, neck: 0.18, head: 0.24, upperArm: 0.16, forearm: 0.12, hand: 0.09,
+  finger: 0.03, thumb: 0.03, thigh: 0.18, shin: 0.12, foot: 0.1 };
+const radiusOf = (name) => BONE_RADIUS[name.replace(/[LR]\d?$/, '')] ?? 0.15;
+function skin(g, parts = null) {
   const J = jointPositions(), segs = boneSegments(J);
   const names = RIG.map((r) => r[0]);
-  const list = Object.entries(segs).map(([name, [a, b]]) => ({ i: names.indexOf(name), a: new THREE.Vector3(...a), b: new THREE.Vector3(...b) }));
+  const nb = names.length;
+  const list = Object.entries(segs).map(([name, [a, b]]) => ({ name, i: names.indexOf(name), r: radiusOf(name), a: new THREE.Vector3(...a), b: new THREE.Vector3(...b) }));
   const pos = g.attributes.position, n = pos.count;
-  const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+  // Unique surface points (the mesh is non-indexed: corners repeat per triangle).
+  const keyOf = (i) => `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
+  const uid = new Int32Array(n), ids = new Map();
+  for (let i = 0; i < n; i++) { const k = keyOf(i); if (!ids.has(k)) ids.set(k, ids.size); uid[i] = ids.get(k); }
+  const m = ids.size;
+  const nbrs = Array.from({ length: m }, () => new Set());
+  for (let t = 0; t < n; t += 3) for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (a !== b) nbrs[uid[t + a]].add(uid[t + b]);
+  const first = new Int32Array(m).fill(-1);
+  for (let i = 0; i < n; i++) if (first[uid[i]] < 0) first[uid[i]] = i;
+  // 1-2: part and raw weights per unique point.
+  const W = new Float32Array(m * nb), part = new Array(m);
   const p = new THREE.Vector3(), ab = new THREE.Vector3(), ap = new THREE.Vector3();
-  for (let v = 0; v < n; v++) {
-    p.fromBufferAttribute(pos, v);
-    const scored = list.map((s) => {
-      ab.subVectors(s.b, s.a); ap.subVectors(p, s.a);
+  // Each point may follow the bone of the shape it lies on plus the bones joined to it (parent and
+  // children), like a hand-weighted rig: a fingertip never picks up chest weight.
+  const segNames = new Set(list.map((sg) => sg.name));
+  const parentOf = Object.fromEntries(RIG.map(([n, par]) => [n, par]));
+  const skinParent = (n) => { let q = parentOf[n]; while (q && !segNames.has(q)) q = parentOf[q]; return q; };
+  const near = {};
+  for (const n of segNames) {
+    const set = new Set([n]);
+    const par = skinParent(n); if (par) set.add(par);
+    for (const c of segNames) if (skinParent(c) === n) set.add(c);
+    near[n] = new Set([...set].map((b) => names.indexOf(b)));
+  }
+  for (let u = 0; u < m; u++) {
+    p.fromBufferAttribute(pos, first[u]);
+    let best = null, bestD = Infinity;
+    const dist = list.map((sg) => {
+      ab.subVectors(sg.b, sg.a); ap.subVectors(p, sg.a);
       const t = Math.max(0, Math.min(1, ap.dot(ab) / Math.max(ab.lengthSq(), 1e-9)));
-      const d = ap.sub(ab.multiplyScalar(t)).length();
-      return { i: s.i, w: 1 / Math.pow(d + 0.02, 6) };   // sharp falloff: limbs don't drag the body
-    }).sort((x, y) => y.w - x.w).slice(0, 3);
-    const tot = scored.reduce((a, s) => a + s.w, 0);
-    scored.forEach((s, k) => { si[v * 4 + k] = s.i; sw[v * 4 + k] = s.w / tot; });
+      const d = ap.sub(ab.multiplyScalar(t)).length() / sg.r;       // in body-thicknesses
+      if (d < bestD) { bestD = d; best = sg; }
+      return d;
+    });
+    // Owner: the sculpted shape this point lies on (fallback: the nearest bone).
+    let owner = best.name;
+    if (parts) { let md = Infinity; for (const sh of parts) { const v = sh.f(p.x, p.y, p.z); if (v < md) { md = v; owner = sh.bone; } } }
+    part[u] = owner;
+    const allow = near[owner] ?? near[best.name];
+    list.forEach((sg, k) => { if (allow.has(sg.i)) W[u * nb + sg.i] = 1 / Math.pow(dist[k] + 0.1, 6); });
+    let tot = 0; for (let j = 0; j < nb; j++) tot += W[u * nb + j];
+    for (let j = 0; j < nb; j++) W[u * nb + j] /= tot || 1;
+  }
+  // 3: smooth across the surface, re-masking to each point's part.
+  const T = new Float32Array(m * nb);
+  for (let it = 0; it < 6; it++) {
+    for (let u = 0; u < m; u++) {
+      const ns = nbrs[u], k = 1 / (ns.size + 1);
+      for (let j = 0; j < nb; j++) {
+        let acc = W[u * nb + j];
+        for (const v of ns) acc += W[v * nb + j];
+        T[u * nb + j] = acc * k;
+      }
+    }
+    for (let u = 0; u < m; u++) {
+      const allow = near[part[u]] ?? near[list[0].name];
+      let tot = 0;
+      for (let j = 0; j < nb; j++) { const w = allow.has(j) ? T[u * nb + j] : 0; W[u * nb + j] = w; tot += w; }
+      for (let j = 0; j < nb; j++) W[u * nb + j] /= tot || 1;
+    }
+  }
+  // Top 4 influences per corner.
+  const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const u = uid[i];
+    const top = [];
+    for (let j = 0; j < nb; j++) { const w = W[u * nb + j]; if (w > 1e-4) top.push([j, w]); }
+    top.sort((x, y) => y[1] - x[1]);
+    const use = top.slice(0, 4), tot = use.reduce((a, x) => a + x[1], 0);
+    use.forEach(([j, w], k) => { si[i * 4 + k] = j; sw[i * 4 + k] = w / tot; });
   }
   g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
   g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  // Organic shading (#78): smooth normals (area-weighted per surface point) instead of hard facets.
+  const N = new Float32Array(m * 3), a3 = new THREE.Vector3(), b3 = new THREE.Vector3(), c3 = new THREE.Vector3(), f3 = new THREE.Vector3();
+  for (let t = 0; t < n; t += 3) {
+    a3.fromBufferAttribute(pos, t); b3.fromBufferAttribute(pos, t + 1); c3.fromBufferAttribute(pos, t + 2);
+    f3.crossVectors(b3.sub(a3), c3.sub(a3));                       // length = 2 x area: area-weighted
+    for (let k = 0; k < 3; k++) { const u = uid[t + k]; N[u * 3] += f3.x; N[u * 3 + 1] += f3.y; N[u * 3 + 2] += f3.z; }
+  }
+  const nrm = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const u = uid[i]; f3.set(N[u * 3], N[u * 3 + 1], N[u * 3 + 2]).normalize();
+    nrm[i * 3] = f3.x; nrm[i * 3 + 1] = f3.y; nrm[i * 3 + 2] = f3.z;
+  }
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
 }
 
 export function buildBigfootModel(profile) {
@@ -291,14 +399,14 @@ export function buildBigfootModel(profile) {
   }
 
   // Skinned, flat-shaded, pixel-textured body.
-  const fur = pixelMaterial(bigfootFur2Texture(0), { flatShading: true, roughness: 0.95 });
-  const furDark = pixelMaterial(bigfootFur2Texture(1), { flatShading: true, roughness: 0.95 });
-  const skinMat = pixelMaterial(skinTexture(), { flatShading: true, roughness: 0.8 });
+  const fur = pixelMaterial(bigfootFur2Texture(0), { flatShading: false, roughness: 0.95 });
+  const furDark = pixelMaterial(bigfootFur2Texture(1), { flatShading: false, roughness: 0.95 });
+  const skinMat = pixelMaterial(skinTexture(), { flatShading: false, roughness: 0.8 });
   const faceTex = bigfootFace2Texture().clone();
   faceTex.wrapS = faceTex.wrapT = THREE.ClampToEdgeWrapping; faceTex.needsUpdate = true;
-  const face = new THREE.MeshStandardMaterial({ map: faceTex, flatShading: true, roughness: 0.85 });
-  const chest = pixelMaterial(bigfootChestTexture(), { flatShading: true, roughness: 0.95 });
-  const ribs = pixelMaterial(bigfootRibsTexture(), { flatShading: true, roughness: 0.85 });
+  const face = new THREE.MeshStandardMaterial({ map: faceTex, flatShading: false, roughness: 0.85 });
+  const chest = pixelMaterial(bigfootChestTexture(), { flatShading: false, roughness: 0.95 });
+  const ribs = pixelMaterial(bigfootRibsTexture(), { flatShading: false, roughness: 0.85 });
   const mesh = new THREE.SkinnedMesh(buildGeometry(), [fur, furDark, skinMat, face, chest, ribs]);
   mesh.name = 'bigfoot-skin';
   mesh.castShadow = mesh.receiveShadow = true;
@@ -322,7 +430,7 @@ export function buildBigfootModel(profile) {
   const tooth = new THREE.MeshStandardMaterial({ color: 0xb8a77a, roughness: 0.5, flatShading: true });
   for (const [x, len] of [[-0.048, 0.06], [0.048, 0.022]]) {
     const f = new THREE.Mesh(new THREE.ConeGeometry(0.011, len, 4), tooth);
-    f.position.set(x, 2.15 - len / 2 + 0.01 - headJ[1], -0.425 - headJ[2]); f.rotation.x = Math.PI;
+    f.position.set(x, 2.15 - len / 2 + 0.01 - headJ[1], -0.475 - headJ[2]); f.rotation.x = Math.PI;
     bones.head.add(f);
   }
   // Claws: curved dark horn on every finger and toe.
@@ -348,7 +456,11 @@ export function buildBigfootModel(profile) {
   // ---- Procedural animation (#43): see bigfootAnim.js -----------------------------------
   const animator = createBigfootAnimator(root, bones, { worldScale: BIGFOOT_SCALE });
   root.userData.animator = animator;
-  root.userData.animate = (dt, speed = 0, state = 'roam') => animator.animate(dt, speed, state);
+  // Procedural body on top of the clips (#78): planted feet + leg IK, weight transfer, inertia,
+  // and targeting spread down the spine (see bigfootBody.js). root.userData.look = { target, weight }.
+  const proc = createBigfootBody(root, body, bones, animator, { worldScale: BIGFOOT_SCALE });
+  root.userData.body3 = proc;
+  root.userData.animate = (dt, speed = 0, state = 'roam') => { animator.animate(dt, speed, state); proc.update(dt, speed, state); };
   root.userData.play = (name, opts) => animator.play(name, opts);
   root.userData.knockTiming = animator.knockTiming;
   Object.defineProperty(root.userData, 'action', { get: () => animator.action });
