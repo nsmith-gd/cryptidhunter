@@ -57,7 +57,7 @@ export function freshness(age) {
   return 'Old';
 }
 
-const NOUN = { footprint: 'footprint', hair: 'hair', scratch: 'scratch marks' };
+const NOUN = { footprint: 'footprint', hair: 'hair', scratch: 'scratch marks', branch: 'snapped branch', scat: 'droppings', deerTrack: 'deer tracks' };
 
 /**
  * Hint for a clue: "Fresh footprint, heading north-east."

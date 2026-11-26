@@ -2,6 +2,8 @@
 
 **Design source of truth:** [`docs/Cryptozoology_GDD_v1.1.md`](docs/Cryptozoology_GDD_v1.1.md). Appendix A lists where it disagrees with what's built and the open questions.
 
+**What to build next:** [`docs/gap-list.md`](docs/gap-list.md) gives each GDD section its status (built / partial / missing) and the next concrete piece to pick up.
+
 First-person cryptid-hunting game. Three.js + Vite (web), rendered at low internal resolution for a 3D pixel-art look.
 
 ## Run
@@ -15,6 +17,14 @@ Controls: WASD move · mouse look · Shift sprint · Ctrl or C crouch (hold) · 
 
 ## Maps
 Add `?map=swamp` to the URL for Blackwater Swamp (greybox): boardwalks, wading water that slows you, and the old bridge.
+
+## Smoke test (core hunt loop)
+```
+npm ci
+npm run smoke
+```
+Builds the game, serves the build and plays one night in Pine Hollow headlessly in Chromium, using the real controls. It clicks to start the night (the hunt starts and the clock runs) and holds W to walk. It walks up to a clue, aims at it and presses E (logged in the journal). It raises the camera with right mouse and clicks to photograph Bigfoot (a HIT; the hunt switches to "get out"). Finally it presses H at the van, and the hunt ends complete with the results screen. Each step prints PASS or FAIL, and the command exits non-zero on any failure or page error. It takes about 3 minutes with software rendering. Screenshots go to `.ballast/media/t82/` (or pass a folder: `node tools/smoke-hunt.mjs <dir>` after a build).
+Needs Playwright with Chromium: if `require('playwright')` isn't available, run `npm i -D playwright && npx playwright install chromium` once.
 
 ## Checks
 `npm run check:t11` drops bait (G) and checks Bigfoot walks to it and eats it; screenshots to `.ballast/media/t11/`.

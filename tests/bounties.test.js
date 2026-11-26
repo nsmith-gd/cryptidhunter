@@ -53,19 +53,20 @@ test('selling through base camp pays score value + bounty, and the money and cla
   const scoreValue = Math.round(72 * CAMP.ratePerPoint * CAMP.targetBonus);
   assert.equal(sale.base, scoreValue);
   assert.equal(sale.bountyBonus, 500);
-  assert.equal(camp.state.money, scoreValue + 500);
+  const START = 250;   // a new career's savings (#97)
+  assert.equal(camp.state.money, START + scoreValue + 500);
   // Restart: money and the claimed bounty come back from the save file.
   const saved = JSON.parse(backend.read());
-  assert.equal(saved.money, scoreValue + 500);
+  assert.equal(saved.money, START + scoreValue + 500);
   assert.deepEqual(saved.bountiesDone, ['bigfoot-70']);
   const again = memCamp(backend);
-  assert.equal(again.state.money, scoreValue + 500);
+  assert.equal(again.state.money, START + scoreValue + 500);
   assert.equal(again.bounties.isComplete('bigfoot-70'), true);
   // Selling another qualifying photo after the restart: score value only, no second bonus.
   again.bounties = new BountyBoard({ bounties: BIGFOOT_70, completed: again.bounties.completedIds });
   const second = again.sellPhotos([{ subject: 'Bigfoot', score: 90 }], 'Bigfoot');
   assert.equal(second.bountyBonus, 0);
-  assert.equal(JSON.parse(backend.read()).money, scoreValue + 500 + second.base);
+  assert.equal(JSON.parse(backend.read()).money, START + scoreValue + 500 + second.base);
 });
 
 test('a settled hunt includes bounties in its earnings; caught hunts sell nothing', () => {

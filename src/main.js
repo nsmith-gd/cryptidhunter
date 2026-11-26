@@ -53,12 +53,14 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
 import { EvidenceKit } from './evidence/evidence.js';
+import { spawnDeerTracks } from './clues/deerTracks.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
 import { XRControls } from './xr/xrControls.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
+import { formatCAD } from './economy/ledger.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { FieldMap } from './nav/fieldMap.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
@@ -262,6 +264,10 @@ hunt.journal = journal;
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
 if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+// Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
+if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
+  blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
+  avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] });
 // Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
 if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
 levelFlow.setDebug(clueTrails.debug);
@@ -330,7 +336,7 @@ const shop = showShopPanel(camp, {
       picker?.refresh?.();
     } else applyUpgrades(camp, { photo, flashlight });
     const cp = document.getElementById('camp-panel');
-    if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\$\d+/, `BASE CAMP  ·  $${camp.state.money}`);
+    if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\$[\d.]+/, `BASE CAMP  ·  ${formatCAD(camp.ledger.cash)}`);
   },
 });
 // First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
@@ -387,7 +393,7 @@ reputation.onChange((v) => { camp.state.reputation = v; camp.save(); }); // base
 const cardsOn = new URLSearchParams(location.search).has('cards');
 const story = new StoryCards({ show: (id) => (cardsOn ? textCard.show(id) : null) });
 reputation.onChange((v, max) => story.reputationChanged(v, max));
-story.start(camp.state.hunts.length === 0 && camp.state.money === 0);
+story.start(camp.state.hunts.length === 0);   // first night (a new career starts with $250 now, #97)
 story.reputationChanged(reputation.value, reputation.max);
 addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); reputation.set(reputation.max); } });
 

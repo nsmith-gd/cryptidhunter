@@ -81,6 +81,8 @@ export const BIGFOOT = makeProfile({
     footprint: Object.freeze({ length: 0.7, width: 0.31, stride: 2.3 }), // metres; human boot ~0.3
     hair: Object.freeze({ every: [8, 16], color: 0x5a3a22 }),           // metres walked between tufts
     scratch: Object.freeze({ every: [12, 22], reach: 2.5, height: [2.2, 2.95], length: 0.8 }), // high on the trunk: well above a person's reach
+    branch: Object.freeze({ every: [16, 30], reach: 2.2, height: [2.3, 2.9], length: 0.8 }),  // limbs snapped at its shoulder height
+    scat: Object.freeze({ every: [55, 90], size: 1.6 }),                                       // big droppings, now and then
     woodKnock: Object.freeze({ intervalSeconds: [20, 60] }),
   }),
 });

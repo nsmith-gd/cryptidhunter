@@ -2,7 +2,10 @@
 // Photos are "unsaved evidence" until you make it back to the van: get caught (or let dawn
 // catch you) and this hunt's photos are lost and earn nothing, but you keep your gear.
 // Stored in localStorage (one key); falls back to memory if storage is unavailable.
-// Money lives in the save file (save/saveService.js): loaded on start, saved whenever it changes.
+// Money lives in the career ledger (economy/ledger.js, #97): integer cents CAD, one transaction per
+// purchase or entitlement, each hunt settled once by attempt ID. camp.state.money is a read-through
+// view of the ledger in dollars (setting it posts an adjustment, for tests and debugging only).
+// The ledger is stored in the save file (save/saveService.js) and saved whenever it changes.
 
 export const CAMP = {
   storageKey: 'cryptidhunter.camp.v1',
@@ -19,6 +22,7 @@ const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', s
 import { SaveService } from '../save/saveService.js';
 import { BountyBoard } from './bounties.js';
 import { valueEvidence } from '../evidence/evidence.js';
+import { Ledger, ECONOMY, cents, formatCAD } from '../economy/ledger.js';
 
 let memory = null;
 
@@ -26,15 +30,37 @@ export class Camp {
   constructor(storage = safeStorage(), saveService = new SaveService()) {
     this.storage = storage;
     this.saveService = saveService;
-    this.state = this.load();
-    // The save file is the source of truth for money and for which bounties are already paid.
+    // The save file is the source of truth for money (the ledger) and for paid bounties.
     const saved = this.saveService.load();
-    this.state.money = saved.money;
+    this.ledger = Ledger.fromJSON(saved.ledger) ?? Camp.openLedger(saved.money);
+    this.state = this.attachMoney(this.load());
     this.bounties = new BountyBoard({ completed: saved.bountiesDone ?? [] });
   }
 
+  /** A new career: $250 savings; an older save's money (pre-ledger) above that carries over. */
+  static openLedger(oldMoney = 0) {
+    const l = new Ledger();
+    if (oldMoney * 100 > ECONOMY.startCents) l.post('open:carryover', 'adjust', Math.round(oldMoney * 100) - ECONOMY.startCents, { memo: 'Savings from an older save' });
+    return l;
+  }
+
+  /** state.money reads the ledger (dollars); it isn't stored in the camp state itself. */
+  attachMoney(state) {
+    delete state.money;
+    Object.defineProperty(state, 'money', { enumerable: false, configurable: true,
+      get: () => this.ledger.cash / 100,
+      set: (v) => { this.ledger.setCash(cents(Number(v) || 0)); } });
+    return state;
+  }
+
+  /** A fresh attempt ID (#98 commits one at departure; until then each settled hunt gets one). */
+  newAttemptId() {
+    this.state.attemptSeq = (this.state.attemptSeq ?? 0) + 1;
+    return `A${this.state.attemptSeq}`;
+  }
+
   static fresh() {
-    return { money: 0, gear: { ...CAMP.starter }, hunts: [], reputation: 0, map: null };
+    return { gear: { ...CAMP.starter }, hunts: [], reputation: 0, map: null };
   }
 
   load() {
@@ -50,13 +76,13 @@ export class Camp {
 
   save() {
     // Keep the rest of the save (e.g. settings, #76) and update what camp owns.
-    this.saveService.save({ ...this.saveService.load(), money: this.state.money, bountiesDone: this.bounties?.completedIds ?? [] });
+    this.saveService.save({ ...this.saveService.load(), money: Math.floor(this.ledger.cash / 100), ledger: this.ledger.toJSON(), bountiesDone: this.bounties?.completedIds ?? [] });
     const raw = JSON.stringify(this.state);
     memory = raw;
     try { this.storage?.setItem(CAMP.storageKey, raw); } catch { /* private mode etc. */ }
   }
 
-  reset() { this.state = Camp.fresh(); this.bounties = new BountyBoard(); this.save(); }
+  reset() { this.ledger = new Ledger(); this.state = this.attachMoney(Camp.fresh()); this.bounties = new BountyBoard(); this.save(); }
 
   /**
    * Sell evidence (#45): normal score-based value (best photo per cryptid), an optional extra
@@ -64,14 +90,19 @@ export class Camp {
    * it meets pay their bonus once. Adds the money and saves.
    * photos: [{ subject|cryptid, score }] (the camera's records today; #51's album later).
    */
-  sellPhotos(photos, target, { extraRate = 0 } = {}) {
+  sellPhotos(photos, target, { extraRate = 0, attemptId = null, settle = true } = {}) {
+    const aid = attemptId ?? this.newAttemptId();
     const { total: base, sold } = Camp.valuePhotos(photos, target);
     const extra = Math.round(base * extraRate);
     const { bonus: bountyBonus, paid: bounties } = this.bounties.applySale(sold);
     const total = base + extra + bountyBonus;
-    this.state.money += total;
-    this.save();
-    return { base, extra, sold, bountyBonus, bounties, total };
+    // One entitlement per photo subject this attempt, the dawn bonus, and each bounty (paid once ever).
+    const records = sold.map((p) => ({ id: `photo:${aid}:${p.subject}`, cents: cents(p.value), memo: `${p.subject} photo` }));
+    const bonuses = [...(extra ? [{ id: `bonus:${aid}:dawn`, cents: cents(extra), memo: 'Home before dawn' }] : []),
+      ...bounties.map((b) => ({ id: `bounty:${b.id}`, cents: cents(b.bonus), memo: `Bounty: ${b.title}` }))];
+    const sale = { base, extra, sold, bountyBonus, bounties, total, records, bonuses };
+    if (settle) { this.ledger.settleAttempt(aid, { records, bonuses }); this.save(); }
+    return sale;
   }
 
   get lastHunt() { return this.state.hunts[this.state.hunts.length - 1] ?? null; }
@@ -103,16 +134,19 @@ export class Camp {
    * photos: every HIT taken this hunt ({ subject, score }). gearLeft: what you still carry.
    * Only a hunt you drove home from (complete / abandoned) keeps its photos.
    */
-  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [] }) {
+  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null }) {
+    const aid = attemptId ?? this.newAttemptId();
     const keptPhotos = outcome === 'complete' || outcome === 'abandoned';
     // Physical evidence (#73): what you drove home with sells at base value × novelty; otherwise it's lost.
     const evidenceSold = keptPhotos ? valueEvidence(evidence) : [];
     const evidenceValue = evidenceSold.reduce((a, e) => a + e.value, 0);
     for (const e of evidence) e.stage = keptPhotos ? 'sold' : 'lost';
-    this.state.money += evidenceValue;
     // Sell what you brought home: score value, the home-before-dawn bonus, then bounties (#45).
-    const sale = keptPhotos ? this.sellPhotos(photos, target, { extraRate: dawnBonus })
-      : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0 };
+    const sale = keptPhotos ? this.sellPhotos(photos, target, { extraRate: dawnBonus, attemptId: aid, settle: false })
+      : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0, records: [], bonuses: [] };
+    // One settlement per attempt in the ledger: nothing is paid for records you didn't drive home.
+    const evRecords = evidenceSold.map((e) => ({ id: `ev:${aid}:${e.id}`, cents: cents(e.value), memo: e.name }));
+    const settlement = this.ledger.settleAttempt(aid, { records: [...evRecords, ...sale.records], bonuses: sale.bonuses, extracted: keptPhotos });
     const { sold, bounties, bountyBonus } = sale;
     const bonus = sale.extra;
     const total = sale.total + evidenceValue;
@@ -123,7 +157,7 @@ export class Camp {
     const repGain = outcome === 'complete' && best > 0 ? (best >= CAMP.greatPhoto ? 2 : 1) : 0;
     this.state.reputation = (this.state.reputation ?? 0) + repGain;
     const entry = {
-      n: this.state.hunts.length + 1, outcome, target,
+      n: this.state.hunts.length + 1, outcome, target, attemptId: aid, settledCents: settlement.closing - settlement.opening,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
       evidenceSold: evidenceSold.map((e) => ({ name: e.name, cryptid: e.cryptid, value: e.value, novelty: e.novelty })),
       evidenceLost: keptPhotos ? 0 : evidence.length,
@@ -165,7 +199,7 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
   Object.assign(el.style, { margin: '0 auto 16px', padding: '10px 14px', border: '1px solid #7a6440', background: '#2b2116cc',
     color: '#f1e6c8', textAlign: 'left', whiteSpace: 'pre-wrap', font: '13px/1.5 monospace' });
   const s = camp.state, last = camp.lastHunt;
-  el.textContent = [`BASE CAMP  ·  $${s.money}`,
+  el.textContent = [`BASE CAMP  ·  ${formatCAD(camp.ledger.cash)}`,
     last ? `Last hunt (#${last.n}): ${huntSummary(last)}` : 'First night out. No photos sold yet.',
     `Gear: ${gearList(s.gear)}`].join('\n');
   root.prepend(el);
