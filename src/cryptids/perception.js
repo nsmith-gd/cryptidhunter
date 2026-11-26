@@ -6,6 +6,14 @@ import * as THREE from 'three';
 // The behaviour layer reads `detected`, `awareness`, `heard`, `seen` and the last-known spots.
 //
 // Tuning lives on the cryptid's profile (see profiles.js `senses`).
+//
+// GDD 5.3 (#86): every sensed cue is also kept as a STIMULUS RECORD in a short memory:
+//   { channel: 'acoustic'|'visual'|'light'|'scent'|'call', source, x, z, uncertainty (m),
+//     intensity, t, expiry, confidence }
+// Confidence fades to zero at expiry; sounds carry direction uncertainty that grows with distance.
+// On top of the awareness meter sits the AWARENESS STAGE ladder:
+//   unaware -> suspicious -> investigating -> identified -> engaged -> lost -> reset -> unaware
+// (updateStage, called after the brain has acted, since 'investigating'/'engaged' are what it's doing).
 export const DEFAULT_SENSES = Object.freeze({
   hearing: 1.0,            // multiplies how far the player's noise carries to this cryptid
   hearThreshold: 0.05,     // quieter than this is ignored
@@ -22,6 +30,16 @@ export const DEFAULT_SENSES = Object.freeze({
   decay: 0.25,             // per second when nothing is sensed
   detectAt: 1.0,           // awareness at which it has detected the player
 });
+
+export const STAGES = Object.freeze(['unaware', 'suspicious', 'investigating', 'identified', 'engaged', 'lost', 'reset']);
+export const MEMORY = Object.freeze({
+  size: 16,                       // records kept (oldest/weakest dropped)
+  merge: 3,                       // metres: a new cue this close to a record of the same channel+source refreshes it
+  ttl: { acoustic: 20, visual: 30, light: 15, scent: 60, call: 25 },   // seconds a record lasts
+  lostFor: 3,                     // seconds without the player before 'lost' (after identified/engaged)
+  resetFor: 2,                    // seconds spent in 'reset' before 'unaware'
+});
+const ENGAGED_STATES = new Set(['aggress', 'warn', 'flee', 'shadow']);
 
 const _ray = new THREE.Ray();
 const _hit = new THREE.Vector3();
@@ -49,6 +67,85 @@ export class Perception {
     this.lastHeard = null;   // {x, z, t}
     this.lastSeen = null;
     this.time = 0;
+    this.memory = [];        // stimulus records (see MEMORY)
+    this.stage = 'unaware';
+    this.stageSince = 0;
+    this.stageLog = [];      // [{ t, from, to }] newest last
+    this.lastPlayerCue = -99;
+  }
+
+  // ---- stimulus memory ----------------------------------------------------------------------
+  /** Remember a cue. Refreshes a nearby record of the same channel and source instead of piling up. */
+  remember(channel, source, x, z, intensity, uncertainty = 1) {
+    const ttl = MEMORY.ttl[channel] ?? 20;
+    const r = this.memory.find((m) => m.channel === channel && m.source === source && Math.hypot(m.x - x, m.z - z) < MEMORY.merge + m.uncertainty);
+    if (r) {
+      // Blend toward the new estimate, weighted by how sure each one is.
+      const w = intensity / (intensity + r.intensity * r.confidence + 1e-6);
+      r.x += (x - r.x) * w; r.z += (z - r.z) * w;
+      r.uncertainty = Math.min(r.uncertainty, uncertainty) * 0.7 + uncertainty * 0.3;
+      r.intensity = Math.max(intensity, r.intensity * 0.8);
+      r.t = this.time; r.expiry = this.time + ttl; r.confidence = 1; r.count = (r.count ?? 1) + 1;
+      return r;
+    }
+    const rec = { channel, source, x, z, uncertainty, intensity, t: this.time, expiry: this.time + ttl, confidence: 1, count: 1 };
+    this.memory.push(rec);
+    if (this.memory.length > MEMORY.size) {
+      this.memory.sort((a, b) => b.confidence * b.intensity - a.confidence * a.intensity);
+      this.memory.length = MEMORY.size;
+    }
+    return rec;
+  }
+
+  forgetExpired() {
+    for (const m of this.memory) m.confidence = Math.max(0, (m.expiry - this.time) / (m.expiry - m.t || 1));
+    this.memory = this.memory.filter((m) => m.confidence > 0);
+  }
+
+  /** Strongest remembered cue (optionally of one source / channel): confidence × intensity. */
+  recall({ source = null, channel = null } = {}) {
+    let best = null, bestS = 0;
+    for (const m of this.memory) {
+      if ((source && m.source !== source) || (channel && m.channel !== channel)) continue;
+      const s = m.confidence * (0.4 + m.intensity);
+      if (s > bestS) { best = m; bestS = s; }
+    }
+    return best;
+  }
+
+  /** Last-known position of the player: what it actually sensed, with its uncertainty. */
+  lastKnown() { return this.recall({ source: 'player' }); }
+
+  // ---- awareness stages ---------------------------------------------------------------------
+  setStage(stage) {
+    if (stage === this.stage) return;
+    this.stageLog.push({ t: +this.time.toFixed(2), from: this.stage, to: stage });
+    if (this.stageLog.length > 12) this.stageLog.shift();
+    this.stage = stage;
+    this.stageSince = this.time;
+  }
+
+  /** Advance the stage ladder given what the cryptid is doing now (its behaviour state). */
+  updateStage(state) {
+    const sensing = this.time - this.lastPlayerCue < 0.5;
+    const memo = this.lastKnown();
+    const was = this.stage, inStage = this.time - this.stageSince;
+    if (this.detected) return this.setStage(ENGAGED_STATES.has(state) ? 'engaged' : 'identified');
+    if (was === 'identified' || was === 'engaged') {
+      if (ENGAGED_STATES.has(state) && sensing) return;                         // still on you
+      if (this.time - this.lastPlayerCue >= MEMORY.lostFor || !ENGAGED_STATES.has(state)) return this.setStage('lost');
+      return;
+    }
+    if (was === 'lost') {
+      if (sensing && this.awareness > 0.3) return this.setStage('identified');
+      if (state === 'investigate') return;                                       // checking the last-known spot
+      if (!memo || memo.confidence < 0.15 || inStage > 20) return this.setStage('reset');
+      return;
+    }
+    if (was === 'reset') { if (inStage >= MEMORY.resetFor) this.setStage('unaware'); return; }
+    if (state === 'investigate' && (memo || this.lastHeard)) return this.setStage('investigating');
+    if (this.awareness > 0.05 || sensing) return this.setStage('suspicious');
+    if (was === 'investigating' || was === 'suspicious') return this.setStage(memo && memo.confidence > 0.3 ? 'suspicious' : 'unaware');
   }
 
   /** How visible the player is right now, as a multiplier on sightRange. */
@@ -70,7 +167,12 @@ export class Perception {
     const noise = this.player.noise ?? 0, radius = (this.player.noiseRadius ?? 0) * c.hearing;
     this.hearLevel = radius > 0 ? Math.max(0, noise * (1 - dist / radius)) : 0;
     this.heard = this.hearLevel > c.hearThreshold;
-    if (this.heard) this.lastHeard = { x: p.x, z: p.z, t: this.time };
+    if (this.heard) {
+      this.lastHeard = { x: p.x, z: p.z, t: this.time };
+      // Sounds give a rough direction: the further and fainter, the less sure where.
+      this.remember('acoustic', 'player', p.x, p.z, this.hearLevel, 1 + dist * 0.25 * (1 - this.hearLevel));
+      this.lastPlayerCue = this.time;
+    }
 
     // Sight: inside the view cone (or very close), within visibility-scaled range, clear line.
     const range = c.sightRange * this.playerVisibility();
@@ -93,7 +195,12 @@ export class Perception {
       }
     }
     this.seen = this.sightLevel > 0 || this.beamLevel > 0;
-    if (this.seen) this.lastSeen = { x: p.x, z: p.z, t: this.time };
+    if (this.seen) {
+      this.lastSeen = { x: p.x, z: p.z, t: this.time };
+      this.remember(this.sightLevel > 0 ? 'visual' : 'light', 'player', p.x, p.z, Math.max(this.sightLevel, this.beamLevel), 0.5);
+      this.lastPlayerCue = this.time;
+    }
+    this.forgetExpired();
 
     const stimulus = Math.max(this.hearLevel, this.sightLevel, this.beamLevel);
     if (stimulus > 0) this.awareness = Math.min(1, this.awareness + stimulus * c.gain * dt);
@@ -118,5 +225,8 @@ export class Perception {
   }
 
   /** Forget the player (e.g. after losing them). */
-  reset() { this.awareness = 0; this.detected = false; }
+  reset() {
+    this.awareness = 0; this.detected = false;
+    this.memory = this.memory.filter((m) => m.source !== 'player');   // gave up on you: nothing left to check
+  }
 }

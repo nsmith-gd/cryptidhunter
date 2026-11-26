@@ -1,5 +1,6 @@
 // Map / target selection check. Run: npm run check:t47 [outDir]
-// Fresh camp: the swamp is locked (reputation 2 needed). Pick the forest, bring home Bigfoot
+// Fresh camp: the swamp is locked (since #101: a successful Pine Hollow extraction + Bigfoot
+// Documented + the trip's cost; before that it was reputation 2). Pick the forest, bring home Bigfoot
 // photos until reputation reaches 2, and the swamp unlocks; picking it loads the swamp with
 // Mothman as the target. Real clicks on the start screen; real camera buttons for the photos.
 import { createRequire } from 'node:module';
@@ -59,7 +60,7 @@ await page.evaluate(() => localStorage.clear());
 await page.goto(BASE); await ready();
 const fresh = await picker();
 await shot('01-start-swamp-locked');
-check('fresh camp: forest open, swamp locked behind reputation 2', fresh.rep === 0 && fresh.swampLocked === true && /needs reputation 2/.test(fresh.text), fresh);
+check('fresh camp: forest open, swamp locked until Bigfoot is Documented after a successful extraction (#101)', fresh.rep === 0 && fresh.swampLocked === true && /needs .*Documented/.test(fresh.text), fresh);
 await page.click('#map-picker button[data-id="swamp"]', { force: true });
 await page.waitForTimeout(800);
 const stillHere = await picker();

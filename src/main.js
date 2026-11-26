@@ -30,6 +30,7 @@ import { Rocks } from './cryptids/rocks.js';
 import { WoodKnocks } from './cryptids/woodKnock.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
+import { getSpecies } from './cryptids/species.js';
 import { Journal } from './journal/journal.js';
 import { ClueFinder } from './journal/clueFinder.js';
 import { JournalUI } from './journal/journalUI.js';
@@ -63,7 +64,9 @@ import { applyUpgrades, showShopPanel } from './hunt/shop.js';
 import { formatCAD } from './economy/ledger.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { FieldMap } from './nav/fieldMap.js';
-import { resolveMap, showMapPicker, TARGET_BY_MAP, MAP_CHOICES } from './hunt/mapSelect.js';
+import { resolveMap, showMapPicker, TARGET_BY_MAP, MAP_CHOICES, unlockContext } from './hunt/mapSelect.js';
+import { fieldRecords, SPECIES } from './research/fieldRecords.js';
+import { MILESTONE_NAMES } from './research/dossier.js';
 import { Expedition, EXPEDITION, OUTCOMES, manifestText } from './hunt/expedition.js';
 import { renderAlbum } from './hunt/album.js';
 import { Supplier, showSupplierPanel } from './hunt/supplier.js';
@@ -159,6 +162,9 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       charges: outcome === 'emergency' ? [{ id: 'evac', cents: EXPEDITION.emergencyCents, memo: 'Emergency evacuation' }] : [],
       outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      // Research (#101): this attempt's field notes for the target's dossier (kept only if extracted).
+      mapId, research: fieldRecords({ target: huntTarget, journalEntries: journal.entries, photos: hunt.photos,
+        evidence: evidence.items.filter((i) => i.stage !== 'lost'), knocks: knocks.log, events: cryptidEvents }),
       evidence: evidence.settle(outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency'),
       gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
     });
@@ -185,7 +191,7 @@ showBountyPanel(camp.bounties);   // #45: offers for specific photos, paid once 
 // End-of-hunt photo album: every frame shot this hunt (lost if you were caught).
 hunt.album = (outcome) => renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: outcome === 'caught' || outcome === 'dawn', target: huntTarget });
 hunt.screen.style.overflowY = 'auto';
-showMapPicker({ current: mapId, reputation: camp.state.reputation ?? 0, onPick: (id) => {
+showMapPicker({ current: mapId, ctx: unlockContext(camp), onPick: (id) => {
   camp.state.map = id; camp.save();
   location.href = location.pathname;            // reload into the chosen map (drops any ?map=)
 } });
@@ -287,6 +293,21 @@ const trailReader = new TrailReader({ clues, clueTrails, journal, player });
 // van: the way back is read from the map, the compass, the landmarks and the trail signs.
 const fieldMap = new FieldMap({ map, player, input, home: 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : 'PINE HOLLOW' });
 const journalUI = new JournalUI(journal, clueFinder);
+// Species dossier in the field journal (#101): milestones banked from earlier extracted trips,
+// career credibility, and what the next milestone needs. Tonight's notes count once you get out.
+journalUI.dossier = () => {
+  const id = SPECIES[huntTarget] ?? 'bigfoot', sp = camp.state.research?.species?.[id];
+  const ms = ['lead', 'located', 'documented', 'characterized', 'confirmed'];
+  const have = (m) => (m === 'lead' ? true : !!sp?.milestones?.[m]);
+  const next = ms.find((m) => !have(m));
+  const need = { located: 'a clearly identifying sign (e.g. a huge footprint), or two weaker signs on different trips',
+    documented: 'a grade 2+ record of the target (a photo scoring 40+, or bagged physical evidence)',
+    characterized: 'two different behaviours observed (a knock exchange, a warning, a charge...)',
+    confirmed: 'strong evidence from two trips and two kinds of evidence' }[next];
+  return `<b>DOSSIER · ${huntTarget}</b> · credibility ${camp.state.research?.credibility ?? 0}<br>` +
+    ms.map((m) => `${have(m) ? '✓' : '·'} ${MILESTONE_NAMES[m]}`).join(' &nbsp; ') +
+    (next ? `<br><i>Next: ${MILESTONE_NAMES[next]} needs ${need}. Tonight's notes count once you get back to the van and drive out.</i>` : '');
+};
 hunt.journal = journal;
 
 // Level flow: spawn this hunt's Bigfoot. On maps with spawn zones (the forest) it picks where it
@@ -294,6 +315,13 @@ hunt.journal = journal;
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
 if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+// #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
+for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
+  const sp = getSpecies(id);
+  if (!sp || id === 'bigfoot') continue;
+  const s = map.spawns?.[id] ?? { x: player.position.x + 12, z: player.position.z - 30 };
+  cryptids.spawn(sp, s.x, s.z);
+}
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
 if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
   blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),

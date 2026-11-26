@@ -57,6 +57,12 @@ export class AIDebug {
       lines.push('', `${c.profile.name}  [${c.state.toUpperCase()}] ${c.stateTime.toFixed(1)}s`);
       if (pc) {
         lines.push(`  hear ${pc.hearLevel.toFixed(2)}  see ${Math.max(pc.sightLevel, pc.beamLevel).toFixed(2)}  aware ${pc.awareness.toFixed(2)}${pc.detected ? ' DETECTED' : ''}`);
+        // #86: awareness stage and the strongest remembered cue (channel, where, how sure).
+        const m = pc.lastKnown?.();
+        lines.push(`  stage ${pc.stage?.toUpperCase() ?? '-'}${m ? `  · remembers ${m.channel} cue ±${m.uncertainty.toFixed(1)} m, ${Math.round(m.confidence * 100)}%` : ''}`);
+      }
+      if (c.brain?.scores && Object.keys(c.brain.scores).length) {
+        lines.push(`  scores ${Object.entries(c.brain.scores).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' · ')}`);
       }
       lines.push(`  ${c.playerDistance.toFixed(1)} m from you · level ${c.level} · agitation ${c.agitation.toFixed(2)}`);
       if (c.brain) lines.push(`  tree: ${c.brain.pathText}`);

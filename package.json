@@ -70,6 +70,7 @@
     "smoke": "vite build && node tools/smoke-hunt.mjs",
     "check:t102": "vite build && node tools/check-t102.mjs",
     "check:t85": "vite build && node tools/check-t85.mjs",
+    "check:t86": "vite build && node tools/check-t86.mjs",
     "check:t88": "vite build && node tools/check-t88.mjs"
   },
   "repository": {
