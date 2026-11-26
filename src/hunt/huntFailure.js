@@ -10,8 +10,9 @@ import { PLAYER } from '../player.js';
 // (e.g. a charge that connects), or caught(name) to end the hunt outright.
 const HIT_GRACE = 1.5; // seconds after a survivable hit before the same cryptid can count again
 export class HuntFailure {
-  constructor({ player, getThreats = () => [], onRestart = () => location.reload() }) {
+  constructor({ player, getThreats = () => [], onRestart = () => location.reload(), health = null }) {
     this.player = player;
+    this.health = health;        // S08 (#72): when set, a contact is an injury event, and only health 0 ends the hunt
     this.getThreats = getThreats;
     this.onRestart = onRestart;
     this.enabled = true;
@@ -40,6 +41,7 @@ export class HuntFailure {
   /** A cryptid made contact. Ends the hunt once it has touched you `catchHits` times. */
   touched(name = 'Something', catchHits = 1) {
     if (!this.enabled || this.isCaught) return;
+    if (this.health) return this.injured(name, contactInjury(catchHits));
     const now = this.time ?? 0;              // simulation seconds (#66: no wall clock in the sim)
     if (now < (this.graceUntil.get(name) ?? 0)) return;
     const n = (this.hits.get(name) ?? 0) + 1;
@@ -50,11 +52,22 @@ export class HuntFailure {
     this.showHit(`${name} got hold of you! You shook it off.\n${left} more and you're caught.`);
   }
 
+  /** A contact through the health system: wound you, and end the hunt only if health hits 0. */
+  injured(name, injury) {
+    const ev = this.health.injure({ cause: name, ...injury });
+    if (!ev || this.health.dead) return ev;   // absorbed by the grace window, or it killed you (onDeath -> caught)
+    const wound = ev.wound === 'bleeding' ? `${ev.severity === 'heavy' ? 'Heavy bleeding' : 'Bleeding wound'}: bandage it (B)` : 'Bruised';
+    this.showHit(`${name} struck you! −${ev.damage} health\n${wound}`);
+    return ev;
+  }
+
   caught(name = 'Something') {
     if (!this.enabled || this.isCaught) return;
     this.isCaught = true;
     this.caughtBy = name;
-    this.reason.textContent = `${name} got you. The hunt is over, and any unsaved evidence is lost.`;
+    this.reason.textContent = this.health
+      ? `${name === 'Your wounds' ? 'You bled out' : `${name} got you`}. The hunt is over, and any unsaved evidence is lost.`
+      : `${name} got you. The hunt is over, and any unsaved evidence is lost.`;
     this.screen.style.display = 'flex';
     document.exitPointerLock?.();
     // Short delay so a held key or the click that was in flight doesn't skip the screen.
@@ -100,4 +113,15 @@ export class HuntFailure {
     s.addEventListener('click', () => this.restart());
     addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'Enter') this.restart(); });
   }
+}
+
+/**
+ * The injury a cryptid's contact deals, from how tough it is (its catchHits): something that
+ * used to take you in one grab now leaves you badly hurt and bleeding heavily; smaller ones wound
+ * lightly. Two big hits, or untreated bleeding, still end the hunt.
+ */
+export function contactInjury(catchHits = 1) {
+  if (catchHits <= 1) return { damage: 60, wound: 'bleeding', severity: 'heavy' };
+  if (catchHits === 2) return { damage: 40, wound: 'bleeding', severity: 'light' };
+  return { damage: 30, wound: 'bleeding', severity: 'light' };
 }

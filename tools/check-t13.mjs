@@ -1,4 +1,5 @@
-// Caught state: a cryptid touching the player ends the hunt; restart gives a fresh hunt.
+// Caught state: a cryptid's touch wounds you (#72: health is the only damage path); the hunt ends
+// when health reaches 0; restart gives a fresh hunt.
 // Run: npm run check:t13
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
@@ -35,20 +36,20 @@ await page.evaluate(() => {
 });
 const t0 = Date.now();
 let s;
-const hits = () => page.evaluate(() => __game.huntFailure.hits.get('The Chupacabra') ?? 0);
+const hits = () => page.evaluate(() => __game.survival.health.log.filter((e) => e.cause === 'The Chupacabra').length);
 // It's small: the first landed charge is survivable (you shake it off).
 while (Date.now() - t0 < 8000) { if (await hits() >= 1) break; await page.waitForTimeout(50); }
 await page.waitForTimeout(60);
 await page.screenshot({ path: `${out}/00-chupacabra-first-hit-survived.png` });
 const first = { ...(await st()), hits: await hits() };
-check('a first Chupacabra hit is survivable (it takes 3)', first.hits === 1 && !first.caught, first);
+check('a first Chupacabra hit is survivable: it wounds you', first.hits === 1 && !first.caught && (await page.evaluate(() => __game.survival.health.value)) < 100, first);
 // Keep standing there with your back to it: the third hit ends the hunt.
 while (Date.now() - t0 < 60000) {
   s = await st(); if (s.caught) break;
   await page.evaluate(() => { const p = __game.player; p.yaw = Math.atan2(-(p.position.x - __game.chupacabra.position.x), -(p.position.z - __game.chupacabra.position.z)); }); // look directly away from it
   await page.waitForTimeout(100);
 }
-check('letting the Chupacabra reach you three times ends the hunt', s.caught && s.by === 'The Chupacabra' && s.screen === 'flex' && (await hits()) === 3, { ...s, hits: await hits() });
+check('letting the Chupacabra keep reaching you runs health to 0 and ends the hunt', s.caught && s.by === 'The Chupacabra' && s.screen === 'flex' && (await page.evaluate(() => __game.survival.health.value)) === 0, { ...s, hits: await hits() });
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${out}/01-caught-by-chupacabra.png` });
 
@@ -76,8 +77,9 @@ await page.evaluate(() => {
 });
 await page.evaluate(() => __game.input.keys.add('KeyW'));
 const t1 = Date.now();
-while (Date.now() - t1 < 4000) { s = await st(); if (s.caught) break; await page.waitForTimeout(100); }
-check('touching Bigfoot ends the hunt on the first touch', s.caught && s.by === 'Bigfoot', s);
+while (Date.now() - t1 < 4000) { s = await st(); if (s.caught || await page.evaluate(() => __game.survival.health.log.length)) break; await page.waitForTimeout(100); }
+const bh = await page.evaluate(() => ({ health: Math.round(__game.survival.health.value), wounds: __game.survival.health.conditions.map((c) => `${c.kind}/${c.severity}`) }));
+check('touching Bigfoot badly wounds you (heavy bleeding) but one touch no longer ends the hunt', !s.caught && bh.health <= 40 && bh.wounds.includes('bleeding/heavy'), { ...s, ...bh });
 await page.screenshot({ path: `${out}/02-caught-by-bigfoot.png` });
 
 // 5. A flyer overhead doesn't count.
