@@ -21,6 +21,8 @@ export class ClueTrail {
     this.leftFoot = true;
     this.hairIn = this.nextGap(this.spec.hair);
     this.scratchIn = this.nextGap(this.spec.scratch);
+    this.branchIn = this.nextGap(this.spec.branch);
+    this.scatIn = this.nextGap(this.spec.scat);
     this.path = [{ x: p.x, z: p.z }];
     this.sincePathPoint = 0;
     this.line = null;
@@ -64,6 +66,15 @@ export class ClueTrail {
       this.scratchIn -= moved;
       if (this.scratchIn <= 0 && this.dropScratch(p)) this.scratchIn = this.nextGap(this.spec.scratch);
     }
+    // #84: limbs snapped high as it pushes through, and droppings now and then.
+    if (this.spec.branch) {
+      this.branchIn -= moved;
+      if (this.branchIn <= 0 && this.dropScratch(p, 'branch')) this.branchIn = this.nextGap(this.spec.branch);
+    }
+    if (this.spec.scat) {
+      this.scatIn -= moved;
+      if (this.scatIn <= 0) { this.scatIn = this.nextGap(this.spec.scat); this.dropScat(p); }
+    }
   }
 
   dropFootprint(p, heading, fp) {
@@ -85,9 +96,18 @@ export class ClueTrail {
     });
   }
 
-  /** Mark the nearest tall surface within reach. Returns false if there's nothing to scratch. */
-  dropScratch(p) {
-    const spec = this.spec.scratch;
+  dropScat(p) {
+    this.clues.spawn('scat', {
+      cryptidId: this.cryptid.profile.id,
+      position: { x: p.x + (this.rand() - 0.5) * 0.6, y: 0, z: p.z + (this.rand() - 0.5) * 0.6 },
+      rotationY: this.rand() * Math.PI * 2, origin: { x: p.x, z: p.z }, data: this.spec.scat,
+    });
+  }
+
+  /** Mark the nearest tall surface within reach (claw scratches, or a snapped branch).
+   *  Returns false if there's nothing tall enough in reach. */
+  dropScratch(p, type = 'scratch') {
+    const spec = this.spec[type];
     const reach = spec.reach ?? 2.5;
     const [hLo, hHi] = spec.height ?? [1.4, 2.2];
     let best = null;
@@ -102,7 +122,7 @@ export class ClueTrail {
     // Face normal points from the surface toward the cryptid (axis-aligned box faces).
     const nx = p.x - best.cx, nz = p.z - best.cz;
     const normalAngle = Math.abs(nx) > Math.abs(nz) ? (nx > 0 ? Math.PI / 2 : -Math.PI / 2) : (nz > 0 ? 0 : Math.PI);
-    this.clues.spawn('scratch', {
+    this.clues.spawn(type, {
       cryptidId: this.cryptid.profile.id,
       position: { x: best.cx, y: hLo + this.rand() * (hHi - hLo), z: best.cz },
       rotationY: normalAngle, origin: { x: p.x, z: p.z }, data: spec,

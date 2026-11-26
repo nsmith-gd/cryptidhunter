@@ -6,6 +6,8 @@ import * as THREE from 'three';
 //   EV04 Disturbance photo      photograph scratch marks
 //   EV02 Physical trace         aim at a hair tuft, X: bag it in a sample pouch (5 per hunt)
 //   EV05 Footprint cast         aim at a footprint, X: pour a cast (casting kit, 3 per hunt; takes a few s)
+//   EV06 Biological sample      aim at droppings, X: take a sample in a vial (3 per hunt)
+//   EV04 also covers a snapped branch (photograph it). Deer tracks are ordinary-animal false leads: no value.
 // Lifecycle per item: observed (you've seen the clue) -> collected (in your pack) -> extracted
 // (you drove home) -> sold at base camp; or lost if the hunt ends any other way (GDD 4.3, 4.10).
 // One item per clue per evidence type: the same footprint can't be photographed twice for money.
@@ -15,11 +17,12 @@ export const EVIDENCE = {
   photoReach: 7,                                // metres for a usable clue photo
   aimCone: THREE.MathUtils.degToRad(10),
   castTime: 4,                                  // seconds for a cast to set
-  pouches: 5, castingKits: 3,
+  pouches: 5, castingKits: 3, sampleVials: 3,   // F02 pouches, F06 casting kit, F04 vial kit
   types: {
     footprintPhoto: { id: 'EV01', name: 'Footprint photo', base: 10, from: 'footprint', how: 'photo' },
     disturbancePhoto: { id: 'EV04', name: 'Disturbance photo', base: 8, from: 'scratch', how: 'photo' },
     hairSample: { id: 'EV02', name: 'Hair sample', base: 15, from: 'hair', how: 'pouch' },
+    biologicalSample: { id: 'EV06', name: 'Droppings sample', base: 30, from: 'scat', how: 'vial' },
     footprintCast: { id: 'EV05', name: 'Footprint cast', base: 20, from: 'footprint', how: 'cast' },
   },
   dollarsPerUnit: 3,                            // $ per base unit (photos pay ~$2 per score point)
@@ -35,6 +38,7 @@ export class EvidenceKit {
     this.notify = notify;
     this.pouches = EVIDENCE.pouches;
     this.castingKits = EVIDENCE.castingKits;
+    this.sampleVials = EVIDENCE.sampleVials;
     this.items = [];                  // { id, type, name, clueId, cryptid, stage, at }
     this.observed = new Set();        // clue ids you've had in view up close
     this.casting = null;              // { clue, left }
@@ -88,6 +92,15 @@ export class EvidenceKit {
       this.notify(`Hair sample bagged (${this.pouches} pouches left)`);
       return item;
     }
+    if (c.type === 'scat') {
+      if (this.has(c.id, 'biologicalSample')) { this.notify('Already sampled'); return null; }
+      if (this.sampleVials <= 0) { this.notify('No sample vials left'); return null; }
+      this.sampleVials--;
+      const item = this.add('biologicalSample', c);
+      this.notify(`Droppings sample in a vial (${this.sampleVials} vials left)`);
+      return item;
+    }
+    if (c.type === 'deerTrack') { this.notify('Just a deer: no buyer wants that'); return null; }
     if (c.type === 'footprint') {
       if (this.has(c.id, 'footprintCast')) { this.notify('Already cast'); return null; }
       if (this.castingKits <= 0) { this.notify('No casting kits left: photograph it instead'); return null; }
@@ -104,7 +117,8 @@ export class EvidenceKit {
   photographed() {
     const c = this.aimed(EVIDENCE.photoReach);
     if (!c) return null;
-    const type = c.type === 'footprint' ? 'footprintPhoto' : c.type === 'scratch' ? 'disturbancePhoto' : null;
+    if (c.type === 'deerTrack') return null;   // a clear photo of an ordinary animal's sign is no evidence (GDD 4.5)
+    const type = c.type === 'footprint' ? 'footprintPhoto' : (c.type === 'scratch' || c.type === 'branch') ? 'disturbancePhoto' : null;
     if (!type || this.has(c.id, type)) return null;
     const item = this.add(type, c);
     this.notify(`${item.name} saved as evidence`);
@@ -153,7 +167,9 @@ export class EvidenceKit {
         if (!this.has(c.id, 'footprintCast')) parts.push(`[X] Cast it (${this.castingKits} kits)`);
         if (!this.has(c.id, 'footprintPhoto')) parts.push('photograph it for evidence');
         text = parts.join(' · ');
-      } else if (c?.type === 'scratch' && !this.has(c.id, 'disturbancePhoto')) text = 'Photograph the scratch marks for evidence';
+      } else if ((c?.type === 'scratch' || c?.type === 'branch') && !this.has(c.id, 'disturbancePhoto')) text = `Photograph the ${c.type === 'branch' ? 'snapped branch' : 'scratch marks'} for evidence`;
+      else if (c?.type === 'scat' && !this.has(c.id, 'biologicalSample')) text = `[X] Take a sample (${this.sampleVials} vials)`;
+      else if (c?.type === 'deerTrack') text = 'Deer tracks: just a deer';
     }
     if (this.prompt.textContent !== text) this.prompt.textContent = text;
   }

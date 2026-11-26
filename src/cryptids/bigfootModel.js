@@ -107,10 +107,10 @@ function bodySDF() {
   TAG = 'hips'; E([0, 1.08, 0.02], [0.34, 0.22, 0.25]);
   TAG = 'spine'; E([0, 1.36, -0.01], [0.33, 0.3, 0.29]);
   TAG = 'chest';
-  E([0, 1.74, 0.03], [0.4, 0.34, 0.34]);                               // barrel chest, kept clear of the arms so they swing free
-  E([0, 2.0, 0.12], [0.44, 0.2, 0.3], 0.12);
-  E([0, 1.86, 0.26], [0.34, 0.26, 0.16], 0.1);                         // back muscle mass
-  for (const s of [-1, 1]) E([s * 0.2, 1.78, -0.25], [0.19, 0.14, 0.09], 0.06);
+  E([0, 1.74, 0.05], [0.36, 0.36, 0.4]);                              // deep barrel chest; narrow enough to keep the armpits open                               // barrel chest, kept clear of the arms so they swing free
+  E([0, 2.02, 0.12], [0.48, 0.24, 0.32], 0.12);                      // massive trapezius (muscular, #79)
+  E([0, 1.86, 0.27], [0.36, 0.3, 0.2], 0.1);                           // back muscle mass / neck hump
+  for (const s of [-1, 1]) E([s * 0.2, 1.79, -0.27], [0.21, 0.16, 0.12], 0.05);   // heavy pecs
   // Neck sunk into the shoulders; the head juts forward.
   TAG = 'neck'; C([0, 1.96, -0.02], [0, 2.16, -0.13], 0.17, 0.15, 0.1);
   TAG = 'head';
@@ -126,14 +126,14 @@ function bodySDF() {
     E([s * 0.15, 2.24, -0.34], [0.06, 0.06, 0.05], 0.03);              // cheekbones
     E([s * 0.215, 2.29, -0.17], [0.035, 0.065, 0.05], 0.02);           // ears, half hidden in the hair
     // Arms: delts, upper arm with a biceps swell, heavy forearm, big hands and fingers.
-    TAG = 'chest';                                                     // shoulder caps blend chest <-> arm
-    E([s * 0.56, 1.98, 0.02], [0.21, 0.2, 0.21], 0.08);
-    TAG = `upperArm${S}`;
-    C([s * 0.58, 2.02, 0], [s * 0.6, 1.44, 0], 0.17, 0.13);
-    E([s * 0.6, 1.72, -0.07], [0.12, 0.17, 0.11], 0.05);
+    TAG = `upperArm${S}`;                                             // shoulder caps ride the arm (parent chest fades in near the joint)
+    E([s * 0.57, 1.98, 0.02], [0.24, 0.22, 0.23], 0.07);                // big deltoids
+    C([s * 0.6, 2.0, 0], [s * 0.6, 1.44, 0], 0.155, 0.14, 0.03);        // upper arm: tight blend keeps the armpit open
+    E([s * 0.62, 1.72, -0.08], [0.13, 0.19, 0.13], 0.03);              // biceps
+    E([s * 0.64, 1.75, 0.08], [0.11, 0.2, 0.11], 0.03);                // triceps
     TAG = `forearm${S}`;
-    C([s * 0.6, 1.44, 0], [s * 0.6, 0.9, -0.02], 0.135, 0.09);
-    E([s * 0.6, 1.3, 0.0], [0.13, 0.17, 0.12], 0.05);                  // forearm muscle
+    C([s * 0.6, 1.44, 0], [s * 0.6, 0.9, -0.02], 0.145, 0.1);
+    E([s * 0.62, 1.3, 0.0], [0.15, 0.19, 0.14], 0.04);                 // heavy forearm muscle
     TAG = `hand${S}`;
     E([s * 0.6, 0.78, -0.03], [0.085, 0.11, 0.055], 0.04);             // palm
     for (let f = 0; f < 4; f++) {
@@ -145,9 +145,10 @@ function bodySDF() {
     C([s * 0.53, 0.8, -0.07], [s * 0.5, 0.68, -0.1], 0.025, 0.02, 0.015);   // thumb
     // Legs: thick thighs, calves, broad flat feet.
     TAG = `thigh${S}`;
-    C([s * 0.22, 1.02, 0], [s * 0.23, 0.5, 0], 0.165, 0.13, 0.05);
+    C([s * 0.22, 1.02, 0], [s * 0.23, 0.5, 0], 0.17, 0.135, 0.05);
+    E([s * 0.27, 0.8, -0.07], [0.13, 0.21, 0.12], 0.04);               // quads bulge front/outside
     TAG = `shin${S}`;
-    E([s * 0.23, 0.36, 0.05], [0.13, 0.16, 0.12], 0.05);
+    E([s * 0.24, 0.37, 0.06], [0.14, 0.18, 0.14], 0.04);               // heavy calf
     C([s * 0.23, 0.5, 0], [s * 0.23, 0.1, 0.02], 0.12, 0.09);
     TAG = `foot${S}`;
     E([s * 0.23, 0.05, -0.1], [0.11, 0.055, 0.25], 0.05);
@@ -175,7 +176,8 @@ function bodySDF() {
   TAG = 'chest';
   for (let i = 0; i < 5; i++) lock(-0.24 + i * 0.12, 1.98, 0.36, 0.4, 0.42 + rnd() * 0.12, 0.06);                          // back
   TAG = 'head';
-  for (let i = 0; i < 3; i++) lock(-0.07 + i * 0.07, 2.05, -0.36, 0.2, 0.1 + rnd() * 0.04, 0.04);   // short chin beard (stays off the chest)                          // beard
+  // (No sculpted chin beard: it rested on the chest and tore when he turned his head; the face texture paints it.)
+  for (let i = 0; i < 3; i++) rnd();                                     // keep the hair layout's random sequence                          // beard
   const base = (x, y, z) => {
     let d = Infinity;
     for (const p of P) {
@@ -307,13 +309,24 @@ function skin(g, parts = null) {
   const segNames = new Set(list.map((sg) => sg.name));
   const parentOf = Object.fromEntries(RIG.map(([n, par]) => [n, par]));
   const skinParent = (n) => { let q = parentOf[n]; while (q && !segNames.has(q)) q = parentOf[q]; return q; };
-  const near = {};
+  // Parent weight only in the half of the bone next to the parent joint, children's only in the
+  // half next to them: chest influence stops at mid upper arm, so the elbow has no chest seam (#79).
+  const segByName = Object.fromEntries(list.map((sg) => [sg.name, sg]));
+  const parentIdx = {}, childIdx = {};
   for (const n of segNames) {
-    const set = new Set([n]);
-    const par = skinParent(n); if (par) set.add(par);
-    for (const c of segNames) if (skinParent(c) === n) set.add(c);
-    near[n] = new Set([...set].map((b) => names.indexOf(b)));
+    const par = skinParent(n);
+    parentIdx[n] = par ? [names.indexOf(par)] : [];
+    childIdx[n] = [...segNames].filter((c) => skinParent(c) === n).map((c) => names.indexOf(c));
   }
+  const allowOf = new Array(m);
+  // Allowed bones with a fade: the parent fades out along the bone (full at its joint, none at the
+  // far end, where the next bone's points start), children fade in toward their joint.
+  const allowFor = (owner, t) => {
+    const fade = new Map([[names.indexOf(owner), 1]]);
+    for (const i of parentIdx[owner]) fade.set(i, (1 - t) * (1 - t));
+    for (const i of childIdx[owner]) fade.set(i, t * t);
+    return fade;
+  };
   for (let u = 0; u < m; u++) {
     p.fromBufferAttribute(pos, first[u]);
     let best = null, bestD = Infinity;
@@ -327,15 +340,20 @@ function skin(g, parts = null) {
     // Owner: the sculpted shape this point lies on (fallback: the nearest bone).
     let owner = best.name;
     if (parts) { let md = Infinity; for (const sh of parts) { const v = sh.f(p.x, p.y, p.z); if (v < md) { md = v; owner = sh.bone; } } }
+    if (!segByName[owner]) owner = best.name;
     part[u] = owner;
-    const allow = near[owner] ?? near[best.name];
-    list.forEach((sg, k) => { if (allow.has(sg.i)) W[u * nb + sg.i] = 1 / Math.pow(dist[k] + 0.1, 6); });
+    // Where along its own bone the point sits (0 at the parent joint, 1 at the far end).
+    const os = segByName[owner];
+    ab.subVectors(os.b, os.a); ap.subVectors(p, os.a);
+    const tOwn = Math.max(0, Math.min(1, ap.dot(ab) / Math.max(ab.lengthSq(), 1e-9)));
+    const allow = allowOf[u] = allowFor(owner, tOwn);
+    list.forEach((sg, k) => { if (allow.has(sg.i)) W[u * nb + sg.i] = allow.get(sg.i) / Math.pow(dist[k] + 0.1, 6); });
     let tot = 0; for (let j = 0; j < nb; j++) tot += W[u * nb + j];
     for (let j = 0; j < nb; j++) W[u * nb + j] /= tot || 1;
   }
   // 3: smooth across the surface, re-masking to each point's part.
   const T = new Float32Array(m * nb);
-  for (let it = 0; it < 6; it++) {
+  for (let it = 0; it < 14; it++) {
     for (let u = 0; u < m; u++) {
       const ns = nbrs[u], k = 1 / (ns.size + 1);
       for (let j = 0; j < nb; j++) {
@@ -345,9 +363,9 @@ function skin(g, parts = null) {
       }
     }
     for (let u = 0; u < m; u++) {
-      const allow = near[part[u]] ?? near[list[0].name];
+      const allow = allowOf[u];
       let tot = 0;
-      for (let j = 0; j < nb; j++) { const w = allow.has(j) ? T[u * nb + j] : 0; W[u * nb + j] = w; tot += w; }
+      for (let j = 0; j < nb; j++) { const w = allow.has(j) ? T[u * nb + j] * Math.min(1, allow.get(j) * 4) : 0; W[u * nb + j] = w; tot += w; }
       for (let j = 0; j < nb; j++) W[u * nb + j] /= tot || 1;
     }
   }
