@@ -23,7 +23,7 @@ const PORT = 4382;
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 2500));
 const launchArgs = ['--use-gl=angle', '--use-angle=swiftshader'];
-const browser = await chromium.launch({ args: launchArgs, ...(existsSync('/opt/pw-browsers/chromium') ? {} : {}) });
+const browser = await chromium.launch({ args: launchArgs });
 const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
