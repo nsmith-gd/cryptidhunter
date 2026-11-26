@@ -60,6 +60,7 @@ import { XRControls } from './xr/xrControls.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
+import { formatCAD } from './economy/ledger.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { FieldMap } from './nav/fieldMap.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
@@ -335,7 +336,7 @@ const shop = showShopPanel(camp, {
       picker?.refresh?.();
     } else applyUpgrades(camp, { photo, flashlight });
     const cp = document.getElementById('camp-panel');
-    if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\$\d+/, `BASE CAMP  ·  $${camp.state.money}`);
+    if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\$[\d.]+/, `BASE CAMP  ·  ${formatCAD(camp.ledger.cash)}`);
   },
 });
 // First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
@@ -392,7 +393,7 @@ reputation.onChange((v) => { camp.state.reputation = v; camp.save(); }); // base
 const cardsOn = new URLSearchParams(location.search).has('cards');
 const story = new StoryCards({ show: (id) => (cardsOn ? textCard.show(id) : null) });
 reputation.onChange((v, max) => story.reputationChanged(v, max));
-story.start(camp.state.hunts.length === 0 && camp.state.money === 0);
+story.start(camp.state.hunts.length === 0);   // first night (a new career starts with $250 now, #97)
 story.reputationChanged(reputation.value, reputation.max);
 addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); reputation.set(reputation.max); } });
 

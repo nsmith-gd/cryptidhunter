@@ -65,6 +65,7 @@
     "check:t83": "vite build && node tools/check-t83.mjs",
     "check:t84": "vite build && node tools/check-t84.mjs",
     "check:t59": "vite build && node tools/check-t59.mjs",
+    "check:t97": "vite build && node tools/check-t97.mjs",
     "smoke": "vite build && node tools/smoke-hunt.mjs"
   },
   "repository": {

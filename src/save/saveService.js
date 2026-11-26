@@ -26,6 +26,8 @@ export function normalizeSave(raw) {
     const ids = raw.bountiesDone.filter((x) => typeof x === 'string');
     if (ids.length) d.bountiesDone = [...new Set(ids)];
   }
+  // Optional (#97): the career ledger (integer cents, validated by economy/ledger.js when read).
+  if (raw.ledger && typeof raw.ledger === 'object' && Array.isArray(raw.ledger.tx)) d.ledger = JSON.parse(JSON.stringify(raw.ledger));
   // Optional (#76): player settings (validated by settings/settings.js when read).
   if (raw.settings && typeof raw.settings === 'object' && !Array.isArray(raw.settings)) d.settings = JSON.parse(JSON.stringify(raw.settings));
   return d;
