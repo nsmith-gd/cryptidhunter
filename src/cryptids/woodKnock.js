@@ -82,7 +82,9 @@ export class WoodKnocks {
     c.mesh.userData.play?.('knock', { count });
     if (c.mesh.userData.play) c.agent.stop();
     if (d > KNOCK.hearRange) return;
-    const lead = c.mesh.userData.knockTiming?.windup ?? 0;
+    // The first knock sounds on the strike animation's contact frame; the rest follow every gap.
+    const kt = c.mesh.userData.knockTiming;
+    const lead = kt ? kt.windup + (kt.contact ?? 0) * kt.gap : 0;
     this.audio.knock({ count, distance: d, pan: this.panTo(c.agent.x, c.agent.z), heavy: true, delay: lead });
     this.fear?.scare(KNOCK.scare * (1 - d / KNOCK.hearRange), 'wood knock');
     this.showCaption(`${kind === 'reply' ? 'Knocks answer you' : 'A wood knock'}: ${'KNOCK '.repeat(count).trim()} (${this.describe(c.agent.x, c.agent.z, d)})`);

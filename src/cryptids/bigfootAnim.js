@@ -34,8 +34,13 @@ export const STATE_CLIPS = Object.freeze({
   observe: 'stare', warn: 'stare', aggress: 'stare',
 });
 export const CLIPS = Object.freeze(['idle', 'walk', 'run', 'flee', 'investigate', 'prowl', 'stare', 'knock']);
-export const KNOCK = Object.freeze({ windup: 0.38, gap: 0.62, recover: 0.45 });
+// windup: anticipation before the first blow; gap: time between blows; contact: how far into each
+// blow (fraction of gap) the fist meets the trunk - the strike frame the knock sound lands on.
+export const KNOCK = Object.freeze({ windup: 0.38, gap: 0.62, recover: 0.45, contact: 0.1 });
+/** Seconds from the start of the knock clip to blow i's contact frame (the audio syncs to this). */
+export const knockStrikeTime = (i) => KNOCK.windup + i * KNOCK.gap + KNOCK.contact * KNOCK.gap;
 
+const KNOCK_UP = 2.1;                    // shoulder angle of the reared-up club before each blow (rad)
 const ease = (x) => x * x * (3 - 2 * x);
 const lerp = THREE.MathUtils.lerp;
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -205,21 +210,24 @@ export function createBigfootAnimator(root, bones, { worldScale = 1, poseFps = P
     } else if (first) {
       // 0-30%: anticipation, sink and pull the arm down/back; 30-100%: rear up overhead.
       if (local < 0.3) { const u = ease(local / 0.3); arm = lerp(0.6, 0.2, u); twist = 0.18 * u; crouch = 0.12 * u; }
-      else { const u = ease((local - 0.3) / 0.7); arm = lerp(0.2, 2.85, u); twist = lerp(0.18, -0.34, u); crouch = lerp(0.12, -0.04, u); }
-    } else if (local < 0.1) {
-      // Strike: snap down past the contact pose (overshoot) ...
-      const u = local / 0.1; arm = lerp(2.85, 1.05, u); twist = lerp(-0.34, 0.24, u); crouch = lerp(-0.04, 0.1, u);
+      else { const u = ease((local - 0.3) / 0.7); arm = lerp(0.2, KNOCK_UP, u); twist = lerp(0.18, -0.34, u); crouch = lerp(0.12, -0.04, u); }
+    } else if (local < KNOCK.contact) {
+      // Strike: snap down to the contact pose (the knock sound lands here) and past it ...
+      const u = local / KNOCK.contact; arm = lerp(KNOCK_UP, 1.05, u); twist = lerp(-0.34, 0.24, u); crouch = lerp(-0.04, 0.1, u);
     } else if (local < 0.28) {
       // ... follow-through and settle back to the contact pose.
-      const u = ease((local - 0.1) / 0.18); arm = lerp(1.05, 1.3, u); twist = lerp(0.24, 0.16, u); crouch = lerp(0.1, 0.06, u);
+      const u = ease((local - KNOCK.contact) / (0.28 - KNOCK.contact)); arm = lerp(1.05, 1.3, u); twist = lerp(0.24, 0.16, u); crouch = lerp(0.1, 0.06, u);
     } else {
       // Rear up again for the next strike (or hold, then recover at the end).
-      const u = ease((local - 0.28) / 0.72); arm = lerp(1.3, 2.85, u); twist = lerp(0.16, -0.34, u); crouch = lerp(0.06, -0.04, u);
+      const u = ease((local - 0.28) / 0.72); arm = lerp(1.3, KNOCK_UP, u); twist = lerp(0.16, -0.34, u); crouch = lerp(0.06, -0.04, u);
     }
     const R = bones.upperArmR, F = bones.forearmR;
     R.rotation.x = lerp(R.rotation.x, arm, w);
-    R.rotation.z = lerp(R.rotation.z, 0.25, w);
-    F.rotation.x = lerp(F.rotation.x, lerp(0.35, 1.3, clamp01((arm - 1) / 1.85)), w);
+    // Raised arm (#59): swung out from the head and only half-bent, so on the big new body it reads
+    // as a clubbing forearm over the shoulder, not a limb folded back over the skull.
+    const up = clamp01((arm - 1) / (KNOCK_UP - 1));
+    R.rotation.z = lerp(R.rotation.z, lerp(0.25, 0.5, up), w);
+    F.rotation.x = lerp(F.rotation.x, lerp(0.35, 1.05, up), w);
     for (let f = 0; f < 4; f++) if (bones[`fingerR${f}`]) bones[`fingerR${f}`].rotation.x = lerp(bones[`fingerR${f}`].rotation.x, fist, w);
     bones.chest.rotation.y = lerp(bones.chest.rotation.y, twist, w);            // twist into the blow
     bones.spine.rotation.x -= crouch * w;                                         // body sinks / follows through
