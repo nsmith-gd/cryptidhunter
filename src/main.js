@@ -40,6 +40,8 @@ import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
+import { StatusModel } from './ui/statusModel.js';
+import { StatusScreen } from './ui/statusScreen.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
@@ -267,14 +269,22 @@ const nightVision = new NightVision({ renderer, scene, camera, flashlight, hemi,
 // left-click with the camera down) to use. Only slotted gear is carried.
 // ?loadout=nightVision,knockStick,... packs those items instead (testing / quick setups).
 const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',').filter(Boolean);
-const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input,
+// Pack (#69): unslotted gear can ride in the pack, with food and water; load slows you and makes
+// running cost more stamina. ?pack=bait,... and ?water=N set it for testing.
+const qs = new URLSearchParams(location.search);
+const urlPack = qs.get('pack')?.split(',').filter(Boolean);
+const getFood = () => survival.nutrition.food;
+const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
+  pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
   gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight } });
 photo.onLoweredClick = () => loadout.use();
-const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, onChange: (slots) => {
-  if (hunt.stage !== 'briefing') return;         // packing happens before you set off
-  camp.state.loadout = slots; camp.save();
-  loadout.setSlots(slots);
-} });
+const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
+  onChange: ({ slots, pack, water }) => {
+    if (hunt.stage !== 'briefing') return;         // packing happens before you set off
+    camp.state.loadout = slots; camp.state.pack = pack; camp.state.water = water; camp.save();
+    loadout.water = water;
+    loadout.setSlots(slots, pack);
+  } });
 // Shop (#46): buy gear and permanent upgrades at base camp, before you set off. Upgrades are
 // saved with camp and applied to the camera and torch at the start of every hunt.
 applyUpgrades(camp, { photo, flashlight });
@@ -390,6 +400,7 @@ function present(dt) {
   nightVision.update(dt);
   viewmodel.update(dt);
   loadout.render();
+  loadout.update(dt);
   survival.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
@@ -415,6 +426,13 @@ const sim = new FixedStepLoop({ simulate, present,
   tracked: () => [camera, ...cryptids.cryptids.map((c) => c.mesh)] });
 sim.paused = new URLSearchParams(location.search).has('simpaused');   // tests drive the sim themselves
 const clock = new THREE.Clock();
+// Status screen (#71, GDD 2.11 / 13.1): Tab. One consolidated model names each condition's root
+// cause, effect and recovery, and warns (SOON) before any penalty applies (NOW). It also feeds the
+// HUD warning list, so there's one list, not one per system. The hunt pauses while it's open.
+const status = new StatusModel({ player, survival, fear, flashlight });
+const statusScreen = new StatusScreen({ model: status, input });
+survival.setWarningSource(() => status.hudWarnings());
+
 // WebXR (#74): Enter VR appears only when immersive VR is supported. Leaving VR, the headset going
 // hidden, tracking loss or a hidden tab pauses the simulation safely (no time passes).
 const pauseState = new PauseState();
@@ -430,9 +448,9 @@ renderer.setAnimationLoop((time, xrFrame) => {
   const dt = clock.getDelta();
   vr.onFrame(xrFrame, dt);
   // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
-  if (sim.paused || pauseState.paused) drawFrame();
+  if (sim.paused || pauseState.paused || statusScreen.open) drawFrame();
   else sim.frame(dt);
 });
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, vr, pauseState, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, vr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
