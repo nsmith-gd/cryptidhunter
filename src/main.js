@@ -39,6 +39,8 @@ import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
+import { StatusModel } from './ui/statusModel.js';
+import { StatusScreen } from './ui/statusScreen.js';
 import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
@@ -402,12 +404,19 @@ const sim = new FixedStepLoop({ simulate, present,
   tracked: () => [camera, ...cryptids.cryptids.map((c) => c.mesh)] });
 sim.paused = new URLSearchParams(location.search).has('simpaused');   // tests drive the sim themselves
 const clock = new THREE.Clock();
+// Status screen (#71, GDD 2.11 / 13.1): Tab. One consolidated model names each condition's root
+// cause, effect and recovery, and warns (SOON) before any penalty applies (NOW). It also feeds the
+// HUD warning list, so there's one list, not one per system. The hunt pauses while it's open.
+const status = new StatusModel({ player, survival, fear, flashlight });
+const statusScreen = new StatusScreen({ model: status, input });
+survival.setWarningSource(() => status.hudWarnings());
+
 function frame() {
   // sim.paused: tests drive the simulation directly with sim.step() / sim.frame(dt).
-  if (!sim.paused) sim.frame(clock.getDelta()); else { clock.getDelta(); drawFrame(); }
+  if (!sim.paused && !statusScreen.open) sim.frame(clock.getDelta()); else { clock.getDelta(); drawFrame(); }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
