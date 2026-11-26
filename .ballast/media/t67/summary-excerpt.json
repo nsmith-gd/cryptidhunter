@@ -1,0 +1,65 @@
+{
+  "metrics": {
+    "frame_interval_ms": {
+      "status": "measured",
+      "count": 4172,
+      "p50": 28.3,
+      "p95": 40.4,
+      "p99": 49.6,
+      "max": 760.8
+    },
+    "cpu_app_ms": {
+      "status": "measured",
+      "count": 4172,
+      "p50": 1.2,
+      "p95": 3,
+      "p99": 4.5,
+      "max": 92.4
+    },
+    "gpu_ms": {
+      "status": "unsupported",
+      "p95": null,
+      "reason": "timer query not instrumented"
+    },
+    "stalls_over_100ms": {
+      "status": "measured",
+      "count": 4,
+      "max_interval_ms": 760.8
+    },
+    "estimated_missed_cadence_pct": {
+      "status": "estimated",
+      "value": 3.12,
+      "method": "intervals_over_1.5x_median"
+    },
+    "compositor_dropped_frames": {
+      "status": "unsupported",
+      "value": null
+    }
+  },
+  "capture": {
+    "preset": "summary",
+    "duration_ms": 124581,
+    "complete": true,
+    "dropped_events": 0,
+    "frames_recorded": 4172,
+    "frames_kept": 4172,
+    "frames_truncated": 0,
+    "recording_gaps": 0,
+    "stall_threshold_ms": 100
+  },
+  "totals": {
+    "evidence": {
+      "photos_taken": 17,
+      "photos_hit": 9,
+      "best_photo_score": 74,
+      "clues_logged": 1
+    },
+    "economy": {
+      "sales": 1,
+      "revenue": 1055,
+      "bounties_paid": 1,
+      "purchases": 0,
+      "spent": 0
+    }
+  }
+}

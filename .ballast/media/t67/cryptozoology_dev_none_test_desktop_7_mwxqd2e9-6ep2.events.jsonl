@@ -1,0 +1,27 @@
+{"event_id":"e1","t_ms":0.2,"tick":0,"system_id":"P01","type":"recording_started","correlation_id":null,"data":{"preset":"summary"}}
+{"event_id":"e2","t_ms":797.3,"tick":8,"system_id":"P02","type":"stall","correlation_id":null,"data":{"interval_ms":760.8}}
+{"event_id":"e3","t_ms":896.5,"tick":15,"system_id":"P02","type":"stall","correlation_id":null,"data":{"interval_ms":118.3}}
+{"event_id":"e4","t_ms":1068.4,"tick":23,"system_id":"X08","type":"hunt_started","correlation_id":"hunt-1","data":{"target":"Bigfoot"}}
+{"event_id":"e5","t_ms":3741.3,"tick":183,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":40,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e6","t_ms":11574.8,"tick":654,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":64,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e7","t_ms":19338.5,"tick":1119,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":48,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e8","t_ms":19505.3,"tick":1131,"system_id":"P02","type":"stall","correlation_id":null,"data":{"interval_ms":108.6}}
+{"event_id":"e9","t_ms":27097.1,"tick":1585,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":72,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e10","t_ms":34905.8,"tick":2053,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":56,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e11","t_ms":42630.9,"tick":2517,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":40,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e12","t_ms":50436.8,"tick":2985,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":64,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e13","t_ms":58263,"tick":3455,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":48,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e14","t_ms":66058.2,"tick":3923,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":72,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e15","t_ms":73821.5,"tick":4389,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":56,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e16","t_ms":81663.3,"tick":4858,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":40,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e17","t_ms":89443.1,"tick":5326,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":64,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e18","t_ms":97191.7,"tick":5791,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":48,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e19","t_ms":104968.5,"tick":6257,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":72,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e20","t_ms":112758.4,"tick":6725,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":null,"score":56,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e21","t_ms":120501.7,"tick":7189,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":40,"distance_m":20,"source":"handheld camera"}}
+{"event_id":"e22","t_ms":120975.3,"tick":7209,"system_id":"P02","type":"stall","correlation_id":null,"data":{"interval_ms":309}}
+{"event_id":"e23","t_ms":123109.6,"tick":7336,"system_id":"P07","type":"photo_taken","correlation_id":"hunt-1","data":{"subject":"Bigfoot","score":74,"distance_m":18,"source":"handheld camera"}}
+{"event_id":"e24","t_ms":123110.3,"tick":7336,"system_id":"P07","type":"clue_logged","correlation_id":"hunt-1","data":{"type":"footprint","clue_id":1}}
+{"event_id":"e25","t_ms":123111,"tick":7336,"system_id":"P08","type":"evidence_sold","correlation_id":"hunt-1","data":{"outcome":"complete","earned":1055,"photos_sold":1,"photos_lost":0,"money_after":1055}}
+{"event_id":"e26","t_ms":123111,"tick":7336,"system_id":"P08","type":"bounty_paid","correlation_id":"hunt-1","data":{"id":"bigfoot-70","bonus":500,"score":74}}
+{"event_id":"e27","t_ms":123112,"tick":7336,"system_id":"X08","type":"hunt_ended","correlation_id":"hunt-1","data":{"outcome":"complete"}}
