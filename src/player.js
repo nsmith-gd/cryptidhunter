@@ -54,6 +54,9 @@ export class Player {
     this.recoveryScale = 1;    // stamina recovery multiplier, set by the survival systems (GDD 2.8)
     this.loadSpeed = 1;        // carried-load speed multiplier, floor 0.45 (set by the pack, #69)
     this.loadFactor = 1;       // carried-load exertion multiplier on stamina cost
+    this.injuryPenalty = 0;    // 0..1 from wounds (set by S08 via survival, #83)
+    this.thermalPenalty = 0;   // 0..1 from cold (set by S02 via survival, #83)
+    this.terrainFactor = 1;    // exertion multiplier for the ground underfoot (water costs more)
     this.lookScale = 1;        // look sensitivity multiplier (settings)
     this.invertY = false;      // invert vertical look (settings)
     this.readingMap = false;   // map and compass raised (#70): walk slowly, no sprint
@@ -91,12 +94,16 @@ export class Player {
 
     // Ground under the feet can slow you (water); you can't sprint while slowed.
     this.speedFactor = this.speedAt ? this.speedAt(this.position.x, this.position.z, this.position.y) : 1;
+    // exertion_cost = action * load * terrain (GDD 2.8): wading is hard work.
+    this.terrainFactor = this.speedFactor >= 1 ? 1 : 1 + (1 - this.speedFactor) * 1.5;
     // Sprint only while moving forward, not crouched and not slowed.
     // Stamina gates sprinting; emptying it locks sprint until it partly refills.
     this.sprinting = !this.readingMap && !this.crouching && f > 0 && this.speedFactor >= 1 && inp.down('ShiftLeft', 'ShiftRight') && !this.exhausted;
     this.updateStamina(dt, wish.lengthSq() > 0);
     // Carried load (#69, GDD 2.8): movement_speed = action_speed * max(0.45, 1 - load_penalty).
-    const speed = this.speedFactor * this.loadSpeed * (this.readingMap ? 0.5 : 1) *   // reading the map: slow walk (#70)
+    // GDD 2.8: movement_speed = speed * max(0.45, 1 - load - injury - thermal) (one combined floor).
+    this.capability = Math.max(0.45, this.loadSpeed - this.injuryPenalty - this.thermalPenalty);
+    const speed = this.speedFactor * this.capability * (this.readingMap ? 0.5 : 1) *   // reading the map: slow walk (#70)
       (this.crouching ? PLAYER.crouchSpeed : this.sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed);
 
     const k = 1 - Math.exp(-PLAYER.accel * dt);
@@ -143,17 +150,21 @@ export class Player {
     return Math.max(0, this.noise * (1 - d / this.noiseRadius));
   }
 
+  /** GDD 2.8: stamina_capacity = base * max(0.50, 1 - fatigue - injury) (no fatigue system yet). */
+  get staminaCap() { return Math.max(0.5, 1 - this.injuryPenalty); }
+
   updateStamina(dt, moving) {
+    if (this.stamina > this.staminaCap) this.stamina = this.staminaCap;
     if (this.sprinting) {
       this.sinceSprint = 0;
-      this.stamina = Math.max(0, this.stamina - PLAYER.staminaDrain * this.loadFactor * dt);   // exertion_cost = cost * load_factor
+      this.stamina = Math.max(0, this.stamina - PLAYER.staminaDrain * this.loadFactor * this.terrainFactor * dt);   // exertion_cost = cost * load * terrain
       if (this.stamina === 0) { this.exhausted = true; this.sprinting = false; }
     } else {
       this.sinceSprint += dt;
       if (this.sinceSprint >= PLAYER.staminaRegenDelay) {
         // Hunger/cold slow recovery (survival); hauling a load while walking is exertion too.
-        const rate = (moving ? PLAYER.staminaRegenMove / this.loadFactor : PLAYER.staminaRegenRest) * this.recoveryScale;
-        this.stamina = Math.min(1, this.stamina + rate * dt);
+        const rate = (moving ? PLAYER.staminaRegenMove / (this.loadFactor * this.terrainFactor) : PLAYER.staminaRegenRest) * this.recoveryScale;
+        this.stamina = Math.min(this.staminaCap, this.stamina + rate * dt);
       }
       if (this.exhausted && this.stamina >= PLAYER.staminaRecover) this.exhausted = false;
     }

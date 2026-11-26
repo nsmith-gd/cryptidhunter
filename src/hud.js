@@ -41,7 +41,14 @@ export class Hud {
     const p = this.player, f = this.flashlight;
     this.stamina.fill.style.width = `${(p.stamina * 100).toFixed(1)}%`;
     this.stamina.fill.style.background = p.exhausted ? '#c0504d' : this.stamina.color;
-    this.stamina.note.textContent = p.exhausted ? 'winded' : '';
+    this.stamina.note.textContent = p.exhausted ? 'winded' : p.staminaCap < 1 ? `max ${Math.round(p.staminaCap * 100)}% (hurt)` : '';
+    // Contextual HUD (GDD 2.11): stamina shows while you exert or recover, then fades out.
+    const full = p.stamina >= (p.staminaCap ?? 1) - 1e-3 && !p.sprinting;
+    const now = performance.now();
+    if (!full || this.staminaShownAt == null) this.staminaShownAt = full ? (this.staminaShownAt ?? -1e9) : now;
+    this.staminaVisible = !full || now - this.staminaShownAt < 2000;
+    this.stamina.row.style.opacity = this.staminaVisible ? '1' : '0';
+    this.stamina.row.style.transition = 'opacity .6s';
     this.battery.fill.style.width = `${(f.battery * 100).toFixed(1)}%`;
     this.battery.fill.style.background = f.battery < 0.15 ? '#c0504d' : this.battery.color;
     this.noise.row.style.display = this.showNoise ? 'flex' : 'none';
