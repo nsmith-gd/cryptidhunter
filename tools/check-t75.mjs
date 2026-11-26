@@ -111,7 +111,7 @@ const layoutCheck = async (layout, hand = 'right') => page.evaluate(([layout, ha
   }
   reached.look = true;                    // head tracking: always available in a headset
   // Pause: a control that always opens the (pausing) status screen, also on tracking loss.
-  xr.pause(); reached.pause = g.statusScreen.open; g.statusScreen.toggle(false);
+  xr.pause(); reached.pause = g.pauseState.paused || g.statusScreen.open; g.pauseState.resume('headset'); g.statusScreen.toggle(false);
   // Confirm on the end screens: the same trigger confirms once the hunt has ended.
   const stage = g.hunt.stage; g.hunt.stage = 'ended'; did('confirm', ['Enter'], () => xr.fire('snapOrUse', 'test')); g.hunt.stage = stage;
   return reached;

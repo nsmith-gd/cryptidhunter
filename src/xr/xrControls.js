@@ -108,7 +108,7 @@ export class XRControls {
 
   pause() {
     // #74's PauseState owns the safe pause when present (no penalty, resumes on return); else the status screen.
-    if (this.g.pauseState) this.g.pauseState.pause('tracking', 'Paused — tracking lost. Put the headset back on to resume.', true);
+    if (this.g.pauseState) this.g.pauseState.pause('headset', 'Paused: headset off or system menu open.');
     else if (this.g.statusScreen && !this.g.statusScreen.open) this.g.statusScreen.toggle(true);
     this.log.push({ action: 'pause', via: 'tracking lost' });
   }
