@@ -52,7 +52,8 @@
     "check:t51": "vite build && node tools/check-t51.mjs",
     "check:t46": "vite build && node tools/check-t46.mjs",
     "check:t61": "vite build && node tools/check-t61.mjs",
-    "check:t66": "vite build && node tools/check-t66.mjs"
+    "check:t66": "vite build && node tools/check-t66.mjs",
+    "check:t68": "vite build && node tools/check-t68.mjs"
   },
   "repository": {
     "type": "git",

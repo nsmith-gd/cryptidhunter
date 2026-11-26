@@ -50,6 +50,7 @@ export class Player {
     this.speedAt = null;
     this.speedFactor = 1;
     this.stamina = 1;
+    this.recoveryScale = 1;    // stamina recovery multiplier, set by the survival systems (GDD 2.8)
     this.exhausted = false;   // hit 0 and hasn't recovered enough to sprint again
     this.sinceSprint = 99;
     this.noise = 0;           // 0 silent .. 1 sprinting
@@ -134,7 +135,7 @@ export class Player {
     } else {
       this.sinceSprint += dt;
       if (this.sinceSprint >= PLAYER.staminaRegenDelay) {
-        const rate = moving ? PLAYER.staminaRegenMove : PLAYER.staminaRegenRest;
+        const rate = (moving ? PLAYER.staminaRegenMove : PLAYER.staminaRegenRest) * this.recoveryScale; // hunger/cold slow it (survival)
         this.stamina = Math.min(1, this.stamina + rate * dt);
       }
       if (this.exhausted && this.stamina >= PLAYER.staminaRecover) this.exhausted = false;
