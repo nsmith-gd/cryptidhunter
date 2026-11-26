@@ -45,6 +45,7 @@ import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
+import { FieldMap } from './nav/fieldMap.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP } from './hunt/mapSelect.js';
 import { renderAlbum } from './hunt/album.js';
 import { BaitManager, BAIT } from './gear/bait.js';
@@ -228,6 +229,9 @@ const journal = new Journal();
 const clueFinder = new ClueFinder(camera, clues, journal, input);
 // Examining a clue also says how fresh it is and which way the cryptid went (compass at top).
 const trailReader = new TrailReader({ clues, clueTrails, journal, player });
+// Paper map and compass (#70): M raises them. No position marker, no beacon, no distance to the
+// van: the way back is read from the map, the compass, the landmarks and the trail signs.
+const fieldMap = new FieldMap({ map, player, input, home: 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : 'PINE HOLLOW' });
 const journalUI = new JournalUI(journal, clueFinder);
 hunt.journal = journal;
 
@@ -388,6 +392,7 @@ function present(dt) {
   viewmodel.update(dt);
   loadout.render();
   loadout.update(dt);
+  fieldMap.update(dt);
   survival.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
@@ -428,4 +433,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Test/debug hook (used by automated captures).
-window.__game = { THREE, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { THREE, fieldMap, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
