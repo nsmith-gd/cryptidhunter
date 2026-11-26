@@ -7,7 +7,7 @@
   <style>
     html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
     canvas { display: block; image-rendering: pixelated; }   /* size/position set by the pixel pipeline */
-    #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    #overlay { position: fixed; inset: 0; display: flex; align-items: safe center; justify-content: center; overflow-y: auto;
       color: #ddd; background: rgba(0,0,0,.6); cursor: pointer; text-align: center; line-height: 1.6; }
     #overlay.hidden { display: none; }
     #crosshair { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #fff8; }
