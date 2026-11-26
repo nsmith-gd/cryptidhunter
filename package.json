@@ -57,12 +57,14 @@
     "check:t71": "vite build && node tools/check-t71.mjs",
     "check:t75": "vite build && node tools/check-t75.mjs",
     "check:t74": "vite build && node tools/check-t74.mjs",
+    "check:t91": "vite build && node tools/check-t91.mjs",
     "check:t67": "vite build && node tools/check-t67.mjs",
     "check:t72": "vite build && node tools/check-t72.mjs",
     "check:ruts": "vite build && node tools/check-mmwxp67tt.mjs",
     "check:t73": "vite build && node tools/check-t73.mjs",
     "check:t83": "vite build && node tools/check-t83.mjs",
     "check:t84": "vite build && node tools/check-t84.mjs",
+    "check:t59": "vite build && node tools/check-t59.mjs",
     "check:t97": "vite build && node tools/check-t97.mjs"
   },
   "repository": {
