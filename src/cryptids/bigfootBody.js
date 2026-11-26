@@ -24,6 +24,39 @@ const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
 const lerp = THREE.MathUtils.lerp;
 const TAU = Math.PI * 2;
 
+// ---- Move behaviours (#79): the set of ways this character moves -------------------------------
+// Each behaviour state maps to a move; a move is a set of body parameters the procedural layer
+// blends between on springs, so changes of mood flow from one way of moving into the next.
+//   lumber  walking about: wide heavy stance, hips roll over the weight-bearing foot, shoulders
+//           roll against them, a heavy heel plant you can see go through the body
+//   shift   standing: slow rock from foot to foot, deep heaving breaths, shuffle-turns in place
+//   loom    watching / warning you: draws up to full height, back straight, chest swollen, arms
+//           hung wide with claws out, head lowered to stare from under the brow, slow sway
+//   stalk   following you: crouched low, high deliberate knee lifts, quiet light plants
+//   search  investigating a noise: stooped, head down and forward, careful steps
+//   charge  running at you / running: pounding plants, arms wide, low head
+//   bolt    fleeing: long fast strides, light, upright head to glance back
+// width: stance x rest width · sway: hip shift over the stance foot · roll: shoulder counter-roll
+// dip: heel-plant drop · lift: foot lift x · mass: 0 light .. 1 heavy (slower body springs)
+// rise: back straightened (+) / hips lowered (-) · spread: arms out · headDrop: head lowered · heave: breathing
+export const MOVES = Object.freeze({
+  lumber: { width: 1.2, sway: 0.6, roll: 0.16, dip: 0.07, lift: 1.0, mass: 0.85, rise: 0, spread: 0.1, headDrop: 0.08, heave: 0.5 },
+  shift: { width: 1.25, sway: 0.55, roll: 0.08, dip: 0.04, lift: 0.7, mass: 0.85, rise: 0, spread: 0.08, headDrop: 0.06, heave: 1 },
+  loom: { width: 1.35, sway: 0.35, roll: 0.06, dip: 0.04, lift: 0.7, mass: 0.9, rise: 0.22, spread: 0.38, headDrop: 0.2, heave: 1.4 },
+  stalk: { width: 1.3, sway: 0.4, roll: 0.08, dip: 0.015, lift: 1.9, mass: 0.7, rise: -0.12, spread: 0.2, headDrop: 0.12, heave: 0.3 },
+  search: { width: 1.15, sway: 0.35, roll: 0.06, dip: 0.03, lift: 1.25, mass: 0.75, rise: -0.06, spread: 0.12, headDrop: 0.24, heave: 0.5 },
+  charge: { width: 1.1, sway: 0.3, roll: 0.14, dip: 0.11, lift: 1.6, mass: 0.7, rise: 0, spread: 0.26, headDrop: 0.06, heave: 0.2 },
+  bolt: { width: 1.0, sway: 0.2, roll: 0.1, dip: 0.06, lift: 1.5, mass: 0.5, rise: 0, spread: 0.08, headDrop: -0.04, heave: 0.1 },
+});
+/** Which move a behaviour state and speed plays. */
+export function moveFor(state, speed) {
+  if (state === 'flee') return 'bolt';
+  if (state === 'shadow') return 'stalk';
+  if (state === 'investigate') return speed < 0.25 ? 'shift' : 'search';
+  if (state === 'observe' || state === 'warn' || state === 'aggress') return speed > 2.6 ? 'charge' : 'loom';
+  return speed < 0.25 ? 'shift' : speed < 2.6 ? 'lumber' : 'charge';
+}
+
 export function createBigfootBody(root, body, bones, animator, { worldScale = 1 } = {}) {
   const S = worldScale;                                          // rig units -> metres
   const l1 = Math.abs(bones.shinL.position.y), l2 = Math.abs(bones.footL.position.y);
@@ -51,7 +84,9 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
   const vel = v3(), velPrev = v3(), acc = v3();
   let yawRate = 0, lastPhase = animator.phase, settleClock = 0;
   const tmp = v3(), tmp2 = v3(), world = v3();
-  const api = { enabled: true, legs, look: null, stats: { reach: 0 } };
+  const api = { enabled: true, legs, look: null, move: 'shift', stats: { reach: 0, plants: 0 } };
+  const mv = { ...MOVES.shift };                                 // blended move parameters
+  let clock = 0;
 
   /** World point -> rig space (the scaled body group's local frame). */
   const toRig = (p, out) => body.worldToLocal(out.copy(p));
@@ -59,6 +94,11 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
   api.update = (dt, speed, state) => {
     if (!api.enabled || dt <= 0) return;
     root.updateMatrixWorld(true);
+    clock += dt;
+    api.move = moveFor(state, speed);
+    const want = MOVES[api.move];
+    for (const k of Object.keys(mv)) mv[k] = spring(`mv.${k}`, want[k], 2.2, dt);   // moods flow into each other
+    const massK = lerp(1.15, 0.55, mv.mass);                     // heavier = slower, laggier body springs
     // ---- how the body moved this frame (in the root's frame), or the treadmill in the viewer ----
     const dWorld = tmp.copy(root.position).sub(lastPos);
     let dyaw = first ? 0 : Math.atan2(Math.sin(root.rotation.y - lastYaw), Math.cos(root.rotation.y - lastYaw));
@@ -94,7 +134,7 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
       toBody(L.foot);
       if (L.swinging || L.settle) toBody(L.from);
       // Where the foot should land: ahead of the hip by half a stance's travel, turned with the body.
-      const home = tmp2.set(L.restX, ankleY, 0);
+      const home = tmp2.set(L.restX * mv.width, ankleY, 0);
       if (moving && isFinite(cycle)) home.addScaledVector(vel, stanceTime * 0.5);      // lands ahead, leaves behind
       if (Math.abs(yawRate) > 0.05) { const a = yawRate * 0.18, c = Math.cos(a), s = Math.sin(a); const x = home.x * c + home.z * s, z = -home.x * s + home.z * c; home.x = x; home.z = z; }
       // The leg's own gait position: 0..1, swinging during [0.04, 0.04 + swingFrac).
@@ -105,11 +145,16 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
         const u = clamp((legPhase - 0.04) / swingFrac, 0, 1);
         const e = u * u * (3 - 2 * u);
         L.foot.lerpVectors(L.from, home, e);
-        L.lift = Math.sin(Math.PI * u) * (0.06 + 0.06 * clamp(speed / 5, 0, 1)) / (S / 1.55);
+        L.lift = Math.sin(Math.PI * u) * (0.06 + 0.06 * clamp(speed / 5, 0, 1)) * mv.lift / (S / 1.55);
         L.foot.y = ankleY + L.lift;
         L.swing = u;
       } else {
-        if (L.swinging) { L.swinging = false; L.foot.y = ankleY; L.lift = 0; }
+        if (L.swinging) {
+          L.swinging = false; L.foot.y = ankleY; L.lift = 0;
+          // Heel plant: the weight lands and drops through the body (a kick on the plant spring).
+          const sp = springs.get('plant'); if (sp) sp.v -= mv.dip * (6 + speed * 1.2);
+          api.stats.plants++;
+        }
         // Standing still: a foot well out of place takes a small settling step (one at a time).
         if (!moving) {
           const off = Math.hypot(L.foot.x - home.x, L.foot.z - home.z);
@@ -119,7 +164,7 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
             L.foot.x = lerp(L.from.x, home.x, e); L.foot.z = lerp(L.from.z, home.z, e);
             L.foot.y = ankleY + Math.sin(Math.PI * L.settle) * 0.05;
             if (L.settle >= 1) { L.settle = 0; L.foot.y = ankleY; settleClock = 0.25; }
-          } else if (off > 0.12 && settleClock <= 0 && !legs.some((o) => o.settle > 0)) {
+          } else if (off > (Math.abs(yawRate) > 0.3 ? 0.05 : 0.12) && settleClock <= 0 && !legs.some((o) => o.settle > 0)) {   // shuffle-turn
             L.settle = 1e-4; L.from.copy(L.foot);
           }
         } else L.settle = 0;
@@ -129,20 +174,38 @@ export function createBigfootBody(root, body, bones, animator, { worldScale = 1 
 
     // ---- weight transfer: hips drift over the foot bearing weight ----
     const support = legs.filter((L) => !L.swinging && !L.settle);
-    const overX = support.length === 1 ? support[0].foot.x * 0.22 : 0;
-    bones.hips.position.x = spring('hipsX', overX, 9, dt);
+    const restX = legs[1].restX;
+    let overX = support.length === 1 ? support[0].foot.x * mv.sway : 0;
+    if (speed < 0.25 && !legs.some((L) => L.settle)) overX = Math.sin(clock * TAU / 5.5) * restX * mv.sway * 0.8;   // slow rock, foot to foot
+    const hipsX = spring('hipsX', overX, 6 * massK, dt);
+    bones.hips.position.x = hipsX;
+    const rollK = hipsX / Math.max(1e-3, restX);                          // -1..1: which foot he's over
+    bones.hips.rotation.z += rollK * mv.roll * 0.5;                        // pelvis drops over the free leg
+    bones.spine.rotation.z -= rollK * mv.roll * 0.6;                       // shoulders roll against the hips
+    bones.chest.rotation.z -= rollK * mv.roll * 0.5;
+    const plant = spring('plant', 0, 7, dt);                               // heel-plant drop (kicked on landing)
+    bones.hips.position.y += plant * 0.5;
+    bones.chest.rotation.x += plant * 0.6;                                 // the chest jolts forward and down
+    bones.neck.rotation.x -= plant * 0.4;
+    // Posture for the move: rise up / sink low, arms hung wide, head lowered, slow heaving breaths.
+    const breath = Math.sin(clock * TAU / 4.2);
+    if (mv.rise > 0) { bones.spine.rotation.x += mv.rise; bones.chest.rotation.x += mv.rise * 0.4; bones.neck.rotation.x -= mv.rise * 0.6; }
+    else bones.hips.position.y += mv.rise;
+    bones.chest.rotation.x -= breath * 0.03 * mv.heave;
+    bones.neck.rotation.x += mv.headDrop + breath * 0.01 * mv.heave;
 
     // ---- inertia and turning (springs) ----
     const accZ = clamp(acc.z, -12, 12), accX = clamp(acc.x, -12, 12);
-    const leanBack = spring('leanBack', accZ * 0.012, 6, dt);          // speeding up (acc.z < 0 = forward) -> lags back
-    const bank = spring('bank', -yawRate * 0.06 + accX * 0.01, 5, dt);
+    const leanBack = spring('leanBack', accZ * 0.014, 6 * massK, dt);          // speeding up (acc.z < 0 = forward) -> lags back
+    const bank = spring('bank', -yawRate * 0.07 + accX * 0.01, 5 * massK, dt);
     bones.spine.rotation.x += leanBack * 0.6;
     bones.chest.rotation.x += leanBack * 0.5;
     bones.spine.rotation.z += bank * 0.5;
     bones.chest.rotation.z += bank * 0.4;
     for (const L of legs) {
       const arm = bones[`upperArm${L.side}`];
-      arm.rotation.x += spring(`armLag${L.side}`, -accZ * 0.02, 7, dt);  // arms drag behind a surge
+      arm.rotation.x += spring(`armLag${L.side}`, -accZ * 0.025, 7 * massK, dt);  // heavy arms drag behind a surge
+      arm.rotation.z += L.s * (mv.spread + breath * 0.02 * mv.heave);       // hung wide (loom, charge)
       arm.rotation.z += spring(`armOut${L.side}`, L.s * Math.max(0, -yawRate * L.s) * 0.05, 6, dt);
     }
 
