@@ -23,7 +23,7 @@ export const G05 = {
   half: 40,
   lake: { x: 0, z: -6, rx: 26, rz: 20 },       // ellipse; the outer 4 m are shallow
   shallowBand: 4,
-  dock: { x: 0, z: 16.5 }, station: { x: 6, z: 22 }, generator: { x: 10, z: 21 }, hut: { x: -14, z: 21 },
+  dock: { x: 0, z: 15 }, mooring: { x: 0, z: 11 }, station: { x: 6, z: 22 }, generator: { x: 10, z: 21 }, hut: { x: -14, z: 21 },
   buoy: { x: -8, z: -14 }, exit: { x: 34, z: 30 }, start: { x: -2, z: 28 },
   boat: { speed: 4.2, paddle: 0.8, turn: 1.1, fuelPerSec: 0.012, stormFuel: 1.5, stormDrift: 0.9, radius: 1.6 },
   power: { capacity: 100, sonarPing: 6, gpsPerSec: 0.4, chargePerSec: 4, genFuelPerSec: 0.01 },
@@ -62,7 +62,7 @@ export function buildGymG05(scene) {
   // Shore station: a shed with the charging bench, the generator beside it, a dock out over the shallows.
   box(G05.station.x, G05.station.z, 5, 4, 2.8, 0x6a6a5a, { name: 'g05-station' });
   box(G05.generator.x, G05.generator.z, 1.4, 1, 1.1, 0xb08a2a, { name: 'g05-generator' });
-  box(G05.dock.x, G05.dock.z + 1.2, 2.2, 5, 0.3, 0x7a5a3a, { collide: false, name: 'g05-dock' });
+  box(G05.dock.x, G05.dock.z - 1, 2.2, 6, 0.3, 0x7a5a3a, { collide: false, name: 'g05-dock' });   // out over the shallows to the mooring
   // Cold-water recovery hut (heated) and the dry exit along the east shore path.
   box(G05.hut.x, G05.hut.z, 3.5, 3, 2.4, 0x7a4a3a, { name: 'g05-recovery-hut' });
   const hutGlow = new THREE.PointLight(0xffa060, 3, 8, 1.4); hutGlow.position.set(G05.hut.x, 1.8, G05.hut.z - 1.7); scene.add(hutGlow);
@@ -102,7 +102,7 @@ export class G05World {
     const motor = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
     motor.position.set(0, 0.6, 1.9); hull.add(motor);
     game.scene.add(hull);
-    this.boat = { mesh: hull, x: G05.dock.x, z: G05.dock.z - 2.6, heading: 0, speed: 0, throttle: 0, fuel: 1, aboard: false, engine: false, lurch: 0 };
+    this.boat = { mesh: hull, x: G05.mooring.x, z: G05.mooring.z, heading: 0, speed: 0, throttle: 0, fuel: 1, aboard: false, engine: false, lurch: 0 };
     this.placeBoat();
     // Power, generator, breath, buoy, proxy.
     this.power = { charge: G05.power.capacity, gps: true, sonar: true, flat: false };
@@ -142,7 +142,7 @@ export class G05World {
   leave() {
     const b = this.boat, P = this.g.player;
     b.aboard = false; b.engine = false; b.throttle = 0;
-    const atDock = Math.hypot(b.x - G05.dock.x, b.z - (G05.dock.z - 2.6)) < 4;
+    const atDock = Math.hypot(b.x - G05.mooring.x, b.z - G05.mooring.z) < 4;
     const off = atDock ? { x: G05.dock.x, z: G05.dock.z + 1 } : { x: b.x + 2.2, z: b.z };
     P.position.set(off.x, 0, off.z); P.velocity.set(0, 0, 0);
     this.trace('boat', atDock ? 'stepped onto the dock' : 'went over the side', { at: [+off.x.toFixed(1), +off.z.toFixed(1)] });

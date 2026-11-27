@@ -2,6 +2,7 @@ import { setKit } from '../gear/pack.js';
 import { verify } from '../evidence/quality.js';
 import { G04 } from '../maps/gymScenes.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
+import { G05 as G05_CFG } from './g05.js';
 
 // Scripted runs for gyms G02–G04 (#108). Each drives the real game simulation step by step with
 // player inputs (held keys, aim) and a few fixture placements, then judges the gym's GDD 15.2 pass
@@ -214,4 +215,93 @@ export function runG04(g, h) {
   return T.finish();
 }
 
-export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04 };
+// ---- G05 ---------------------------------------------------------------------------------------
+export function runG05(g, h) {
+  const T = tools(g, h), w = h.world, P = g.player, s = g.survival;
+  const C = G05_CFG;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  // 1. The dry exit works on foot, with no boat at all.
+  T.place(C.start.x, C.start.z);
+  const walked = T.walkTo(C.exit.x, C.exit.z, { r: 2, max: 60 * 60 });
+  T.add('dry-exit', 'The shore exit works without the boat (walk there on dry land)', walked && w.map.surfaceAt(P.position.x, P.position.z) === 'dry', { reached: walked });
+
+  // 2. Board at the dock, engine on, drive to the buoy: the engine burns fuel once, by throttle and time.
+  T.place(C.dock.x, C.dock.z - 1);
+  const boarded = w.board(); w.setEngine(true);
+  const fuel0 = w.boat.fuel, pr0 = Math.hypot(w.proxy.x - w.boat.x, w.proxy.z - w.boat.z);
+  const steerTo = (x, z) => { w.boat.heading = Math.atan2(-(x - w.boat.x), -(z - w.boat.z)); };
+  T.hold(['KeyW']);
+  for (let i = 0; i < 600; i++) { steerTo(C.buoy.x, C.buoy.z); g.sim.step(); }
+  const burned = fuel0 - w.boat.fuel, expected = G05_CFG.boat.fuelPerSec * 10 * (w.storm ? G05_CFG.boat.stormFuel : 1);
+  const proxyNear = Math.hypot(w.proxy.x - w.boat.x, w.proxy.z - w.boat.z);
+  T.add('fuel-once', 'Fuel goes down once: exactly the engine\'s burn for 10 s at full throttle', boarded && Math.abs(burned - expected) < expected * 0.02, { burned: +burned.toFixed(5), expected: +expected.toFixed(5) });
+  const heardIt = h.events.some((e) => e.system === 'proxy' && e.type === 'investigating');
+  // Reach the buoy and stop.
+  for (let i = 0; i < 1800 && Math.hypot(w.boat.x - C.buoy.x, w.boat.z - C.buoy.z) > 3; i++) { steerTo(C.buoy.x, C.buoy.z); g.sim.step(); }
+  T.hold([]);
+  // 3. Sonar: each ping draws from the battery once; the buoy logs it; copy the data.
+  const draws = [];
+  for (let i = 0; i < 3; i++) { const c0 = w.power.charge; w.ping(); draws.push(+(c0 - w.power.charge).toFixed(3)); T.steps(30); }
+  const copied = w.copyBuoy();
+  w.ping(); T.steps(30); w.ping(); T.steps(30);                     // two more, not copied
+  T.add('charge-once', 'Battery charge goes down once per sonar ping (and the buoy logs it)', draws.every((d) => d === G05_CFG.power.sonarPing) && w.buoy.readings.length === 5,
+    { perPing: draws, readings: w.buoy.readings.length });
+  // 4. Engine off: the thing under the water loses interest.
+  w.setEngine(false); T.steps(10 * 60);
+  const lostInterest = w.proxy.state === 'idle';
+  T.add('vibration', 'The creature under the water homes in on engine vibration, and loses interest when the engine stops', heardIt && proxyNear < pr0 && lostInterest,
+    { startDistance: +pr0.toFixed(1), after10sDriving: +proxyNear.toFixed(1), engineOffState: w.proxy.state, bumps: w.proxy.bumps });
+  // 5. Run the battery flat: only what runs off it stops.
+  w.power.charge = 1; T.steps(4 * 60);
+  const dev = w.deviceStatus(), pingWhenFlat = w.ping();
+  T.add('dependent-only', 'A flat battery switches off only what it powers (sonar, GPS); torch, paper map and engine still work',
+    w.power.flat && !dev.sonar && !dev.gps && dev.torch && dev['paper map'] && dev.engine && pingWhenFlat === null, dev);
+  // 6. Back to the dock and charge it at the generator.
+  w.setEngine(true); T.hold(['KeyW']);
+  for (let i = 0; i < 2400 && Math.hypot(w.boat.x - C.mooring.x, w.boat.z - C.mooring.z) > 2.5; i++) { steerTo(C.mooring.x, C.mooring.z); g.sim.step(); }
+  T.hold([]);
+  const backAt = { x: +w.boat.x.toFixed(1), z: +w.boat.z.toFixed(1) };
+  w.leave();
+  T.walkTo(C.generator.x - 1.5, C.generator.z, { r: 1, max: 1200 });
+  const genOn = w.runGenerator(true); T.steps(10 * 60); w.runGenerator(false);
+  T.add('recharge', 'The generator recharges the battery and the sonar works again', genOn && !w.power.flat && w.power.charge > 30 && w.deviceStatus().sonar, { charge: +w.power.charge.toFixed(1), generatorFuel: +w.generator.fuel.toFixed(3), boatBackAt: backAt });
+  // 7. Run the boat out of fuel: a visible fault with a way back.
+  w.boat.x = C.mooring.x; w.boat.z = C.mooring.z; w.boat.heading = 0;   // tied up at the mooring again
+  T.place(C.dock.x, C.dock.z - 1); const reboarded = w.board(); w.setEngine(true); w.boat.fuel = 0.0005; T.hold(['KeyW']);
+  for (let i = 0; i < 240; i++) { steerTo(C.buoy.x, C.buoy.z); g.sim.step(); }
+  const paddling = { reboarded, engine: w.boat.engine, speed: +w.boat.speed.toFixed(2) };
+  T.hold([]);
+  // 8. Over the side in deep water: breath, cold and wetness, each owned by its system.
+  // (the boat drifts out over the deep water; you go over the side there)
+  w.boat.x = -4; w.boat.z = -6; T.steps(2);
+  w.boat.fuel = 0.5;
+  const health0 = s.health.value, log0 = s.health.log.length, core0 = s.thermo.core;
+  w.leave();
+  const inWater = w.map.surfaceAt(P.position.x, P.position.z) === 'deep';
+  T.steps(8 * 60);
+  const after8 = { breath: +w.breath.value.toFixed(2), wet: +s.thermo.wetness.toFixed(1), core: +s.thermo.core.toFixed(2), health: s.health.value };
+  T.steps(30 * 60);                                         // keep treading water past your breath
+  const drowned = s.health.log.slice(log0).map((e) => e.cause);
+  const healthAfter = s.health.value;
+  T.add('owned-states', 'In deep water breath runs down, you soak and chill, and harm comes only through health (drowning, cold)',
+    inWater && after8.breath < G05_CFG.breath.max && after8.wet > 50 && after8.core < core0 && healthAfter < health0 && drowned.every((c) => c === 'Drowning' || c === 'Hypothermia') && drowned.includes('Drowning'),
+    { after8, healthAfter: +healthAfter.toFixed(1), causes: [...new Set(drowned)] });
+  // Out to the hut (recovery point): warm up.
+  s.health.value = Math.max(s.health.value, 60); w.breath.value = G05_CFG.breath.max;   // surface, catch your breath, swim for it
+  const outOk = T.walkTo(C.hut.x + 2.5, C.hut.z - 2.5, { r: 1.5, max: 120 * 60 });
+  const coreArrive = s.thermo.core; T.steps(30 * 60);
+  T.add('recovery-route', 'Every scripted fault has a visible cause and a way to recover (and the hut warms you)',
+    outOk && !s.health.dead && s.thermo.core > coreArrive && ['battery-flat', 'out-of-fuel', 'in-the-water'].every((f) => w.faults.some((x) => x.fault === f && x.cause && x.recovery)),
+    { faults: w.faults.map((f) => `${f.fault}: ${f.cause} / ${f.recovery}`), paddlingWhenDry: paddling, aliveAtHut: !s.health.dead, health: +s.health.value.toFixed(1), core: [+coreArrive.toFixed(2), +s.thermo.core.toFixed(2)] });
+  // 9. Leaving: only the copied data survives.
+  const ex = w.extract();
+  T.add('data-copy', 'Data survives only as a valid copy (copied readings come home; uncopied ones are lost)', copied && ex.kept === 3 && ex.lost === 2, ex);
+  // 10. Storm variant.
+  T.add('storm', 'Storm variant: more fuel per second and the boat is pushed downwind', w.storm ? burned > G05_CFG.boat.fuelPerSec * 10 * 1.4 : null,
+    w.storm ? { burned: +burned.toFixed(4) } : { reason: 'run with &storm to evaluate (the check does both)' });
+  T.add('testers', 'Testers can say what failed and how they recovered (power budget, time to warmth, extraction viability recorded)', null, { reason: 'needs human playtests (GDD 15.3)' });
+  return T.finish();
+}
+
+export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05 };
