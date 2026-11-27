@@ -1,0 +1,79 @@
+{
+  "offer": {
+    "cash": 0,
+    "offered": true,
+    "panel": true,
+    "freeTrip": false,
+    "commitButton": false,
+    "gearBefore": {
+      "camera": 1,
+      "flashlight": 1,
+      "bait": 3,
+      "spareBatteries": 1,
+      "trailCamera": 2,
+      "audioLure": 1,
+      "nightVision": 1,
+      "knockStick": 1,
+      "dryClothes": 1,
+      "whistle": 1
+    }
+  },
+  "taken": {
+    "active": true,
+    "id": "survey-1",
+    "sites": [
+      "Footbridge creek bank",
+      "Old cabin clearing"
+    ],
+    "offered": false,
+    "owned": {
+      "camera": 1,
+      "flashlight": 1,
+      "spareBatteries": 1
+    },
+    "stakes": [
+      true,
+      true
+    ]
+  },
+  "started": {
+    "attempt": "A2",
+    "cash": 0,
+    "stage": "search"
+  },
+  "after": {
+    "cash": 10000,
+    "sponsor": {
+      "paid": true,
+      "cents": 10000,
+      "reason": "Survey delivered: $100 from the Pine Hollow Field Naturalists"
+    },
+    "active": null,
+    "offered": false,
+    "gear": {
+      "camera": 1,
+      "flashlight": 1,
+      "bait": 3,
+      "spareBatteries": 1,
+      "trailCamera": 2,
+      "audioLure": 1,
+      "nightVision": 1,
+      "knockStick": 1,
+      "dryClothes": 1,
+      "whistle": 1
+    },
+    "history": [
+      {
+        "id": "survey-1",
+        "attemptId": "A2",
+        "sites": [
+          "footbridge✓",
+          "cabin✓"
+        ],
+        "ok": true,
+        "why": "delivered"
+      }
+    ],
+    "payouts": 1
+  }
+}

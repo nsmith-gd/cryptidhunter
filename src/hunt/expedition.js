@@ -94,6 +94,8 @@ export class Expedition {
     if (this.committed) return { ok: true, duplicate: true, attemptId: this.attemptId };
     const id = this.camp.newAttemptId();
     const waive = this.camp.ledger.cash < this.tripCents;
+    // #105: when a sponsor survey is on offer, a broke player takes that instead of a free trip.
+    if (waive && this.requireSponsor?.()) return { ok: false, reason: 'You can\'t afford this trip: take the sponsor\'s survey' };
     const r = this.camp.ledger.commitAttempt(id, this.tripCents, { waive });
     if (!r.ok) return r;
     this.attemptId = id;
@@ -159,12 +161,13 @@ export class Expedition {
         ${row('Owned stock at camp', p.stock || 'nothing')}
         <div style="color:#c8a86a;margin-top:4px">Required to go</div>${caps(true)}
         <div style="color:#c8a86a">Recommended</div>${caps(false)}
-        ${btn('commit', `COMMIT · pay ${p.affordable ? formatCAD(p.tripCents) : '$0'} and drive to the trailhead`)}
+        ${!p.affordable && this.requireSponsor?.() ? '<div style="color:#ffb070;margin-top:8px">Not enough cash for this trip. Take the sponsor\'s survey above to earn some.</div>'
+          : btn('commit', `COMMIT · pay ${p.affordable ? formatCAD(p.tripCents) : '$0'} and drive to the trailhead`)}
         <div style="color:#8f8468;font-size:12px">Nothing is charged until you commit. Pack and shop below first.</div>
         ${this.hint ? `<div style="color:#ffd88a">${this.hint}</div>` : ''}`;
     } else if (this.state === 'committed') {
       this.el.innerHTML = `<div style="font-weight:bold;letter-spacing:1px">EXPEDITION UNDER WAY · ${this.mapName} · attempt ${this.attemptId}</div>
-        ${row('Trip cost paid', this.waived ? '$0 (waived by the recovery sponsor)' : formatCAD(this.tripCents))}
+        ${row('Trip cost paid', this.waived ? '$0 (waived: sponsor survey)' : formatCAD(this.tripCents))}
         ${row('Cash', formatCAD(p.cash))}
         <div style="color:#8f8468">To leave normally, walk back to the van and press H there.</div>
         ${btn('resume', 'BACK TO THE FIELD')}
