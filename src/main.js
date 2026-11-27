@@ -6,7 +6,7 @@ import { ProfilingRecorder } from './profiling/recorder.js';
 import { attachProbes } from './profiling/gameProbe.js';
 import { ProfilerPanel } from './profiling/profilerPanel.js';
 import { Input } from './input.js';
-import { SaveService } from './save/saveService.js';
+import { SaveService, memoryBackend } from './save/saveService.js';
 import { Settings } from './settings/settings.js';
 import { KeyRemap } from './settings/keyRemap.js';
 import { GamepadControls } from './settings/gamepad.js';
@@ -15,6 +15,9 @@ import { showSettingsPanel } from './settings/settingsPanel.js';
 import { Player } from './player.js';
 import { buildTestMap } from './testMap.js';
 import { buildGymMap } from './maps/gymG00.js';
+import { buildGymG02, buildGymG03, buildGymG04, GYM_SEEDS } from './maps/gymScenes.js';
+import { GymHarness } from './gym/gymKit.js';
+import { GYM_RUNS } from './gym/gymRuns.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildForestMap } from './maps/forest.js';
@@ -90,7 +93,9 @@ const keyRemap = new KeyRemap();
 
 
 // One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
-setSeed(Number(new URLSearchParams(location.search).get('seed')) || randomSeed());
+// Gyms (#108) have a fixed default seed, so the fixture is the same every time.
+const gymRun = ['g02', 'g03', 'g04'].includes(new URLSearchParams(location.search).get('map'));
+setSeed(Number(new URLSearchParams(location.search).get('seed')) || GYM_SEEDS[new URLSearchParams(location.search).get('map')] || randomSeed());
 console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
 
 // Render at a low internal resolution (~360 rows) and upscale by an exact integer with
@@ -116,12 +121,14 @@ moon.position.set(15, 25, 10);
 scene.add(moon);
 
 // Base camp (money, gear, reputation, chosen map) is loaded first: it decides where you hunt.
-const camp = new Camp();
+// Gyms G02–G04 (#108) never touch your career: a fresh in-memory camp (the fixture) on every load.
+const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Camp();
 // Equipment condition (#106, S11): the starter camera, torch and shoes are persistent instances whose
 // condition (held in the ledger's asset record) drops with use, water and impact.
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
-const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap };   // gym: G00 bench (#77)
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap,   // gym: G00 bench (#77)
+  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04 };                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
@@ -385,7 +392,7 @@ hunt.journal = journal;
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
-if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+if (mapId !== 'swamp' && !map.noBigfoot) levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
 // #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
 for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   const sp = getSpecies(id);
@@ -632,7 +639,10 @@ addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); 
 
 const overlay = document.getElementById('overlay');
 // Clicking the start screen only enters the field once the expedition is committed (#98).
-overlay.addEventListener('click', () => { if (expedition && !expedition.committed) expedition.nudge(); else input.requestLock(); });
+overlay.addEventListener('click', () => {
+  if (gymRun && expedition && !expedition.committed) expedition.commit();   // a gym just starts (in-memory career)
+  if (expedition && !expedition.committed) expedition.nudge(); else input.requestLock();
+});
 function setInGame(on) {
   overlay.classList.toggle('hidden', on);
   if (!on) refreshMoney();
@@ -682,6 +692,7 @@ function simulate(dt) {
     if (!fieldCamp?.sleeping) break;     // woke up: back to normal time at once
   }
 }
+let gymHarness = null;   // gyms G02–G04 (#108), built once the game object exists (below)
 function simulateOnce(dt, extra = false) {
   if (!extra) xr.update(dt);                 // VR controllers -> the same intents as keyboard/mouse (before the player reads them)
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
@@ -711,6 +722,7 @@ function simulateOnce(dt, extra = false) {
   trailCams.update(dt);
   fieldKit.update(dt);
   fieldCamp.update(dt);
+  gymHarness?.update(dt);    // gym proxies, trace and watchers (#108)
   for (const s of sponsorSurvey.update(clues)) photo.toast(`Survey point logged: ${s.name} (${sponsorSurvey.progress.done}/${sponsorSurvey.progress.total})`);
   // Wood knocks a cryptid makes are sounds the field recorder can pick up (#87).
   for (; knocksHeard < knocks.log.length; knocksHeard++) {
@@ -782,7 +794,7 @@ vr.watchPage();
 // The renderer's loop runs on XRSession.requestAnimationFrame while in VR, the page's otherwise.
 // Profiling recorder (#67, GDD 17): a dev tool, opt-in. F6 opens its panel; ?profile starts recording
 // at load. It reads frame timings and game events; it never changes the game or the save.
-const profiler = new ProfilingRecorder({ build: 'dev', gym: 'none', scenario: mapId, platform: 'desktop', seed: getSeed(),
+const profiler = new ProfilingRecorder({ build: 'dev', gym: map.gym ? map.gym.toLowerCase() : 'none', scenario: mapId, platform: 'desktop', seed: getSeed(),
   getTick: () => sim.tick });
 attachProbes(profiler, { photo, trailCams, journal, hunt, camp, pauseState });
 const profilerPanel = new ProfilerPanel(profiler);
@@ -804,3 +816,11 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
 window.__game = { sponsorSurvey, scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+// Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
+// the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
+if (GYM_RUNS[map.gym]) {
+  gymHarness = new GymHarness({ game: window.__game, map, seed: getSeed(), blind: new URLSearchParams(location.search).has('blind') });
+  window.__game.gymHarness = gymHarness;
+  window.__gym = { harness: gymHarness, run: () => GYM_RUNS[map.gym](window.__game, gymHarness), reset: () => gymHarness.reset() };
+  gymHarness.onRun = () => { const r = window.__gym.run(); console.info('[gym]', r); };
+}
