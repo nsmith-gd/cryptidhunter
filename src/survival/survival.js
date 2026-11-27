@@ -53,8 +53,10 @@ export class Survival {
 
   update(dt) {
     this.thermo.update(dt);
-    this.nutrition.update(dt);
-    this.hydration.update(dt);
+    // Asleep you're at rest (#137): hunger and thirst run at 40% (a night's sleep shouldn't dry you out).
+    const rest = this.fatigue.asleep ? 0.4 : 1;
+    this.nutrition.update(dt * rest);
+    this.hydration.update(dt * rest);
     this.fatigue.update(dt);
     // Critical cold (ordinary expeditions): the shared health path, after the warnings (#89).
     this.health.exposure('Hypothermia', THERMO.criticalDrain, dt, this.thermo.critical);
