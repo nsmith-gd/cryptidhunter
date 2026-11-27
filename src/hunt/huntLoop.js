@@ -15,7 +15,12 @@ export const HUNT = {
 };
 
 export class HuntLoop {
-  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null, onDawn = null, onStart = null, manifest = null }) {
+  constructor({ scene, player, journal, colliders = [], target = 'Bigfoot', onRestart = () => location.reload(), onEnd = null, onDawn = null, onStart = null, manifest = null, clock = null, vehicle = 'van', objective = null }) {
+    // In-world clock (#129): night 11:00 PM -> dawn 5:30 AM by default; a map can run its own, e.g. a
+    // daylight trip that ends at dusk. { startMin, endMin, seconds, label: 'dawn' | 'dusk' }
+    this.clockCfg = { startMin: 23 * 60, endMin: 29 * 60 + 30, seconds: HUNT.dawnSeconds, label: 'dawn', ...(clock ?? {}) };
+    this.vehicle = vehicle;       // what's parked at the exit: 'van' (Pine Hollow) or 'car' (Oro-Medonte)
+    this.objectiveLines = objective; // optional per-map objective (first lines while searching)
     this.onStart = onStart;       // () => void: commit the expedition (#98) as the hunt begins
     this.manifest = manifest;     // () => manifest text for the extraction review at the van (#98)
     this.review = null;           // { outcome } while the extraction manifest is open
@@ -49,6 +54,14 @@ export class HuntLoop {
         else this.end(outcome);
       }
       if (e.code === 'KeyC' && this.review) this.closeReview();
+      // E at the vehicle (#129): get in. Same as H there (opens the manifest, E/H again drives off).
+      if (e.code === 'KeyE' && !e.repeat && this.inZone && (this.stage === 'search' || this.stage === 'extract')) {
+        const outcome = this.canLeaveWithPhoto() ? 'complete' : this.canGiveUp() ? 'abandoned' : null;
+        if (!outcome) { this.explainNoLeave(); return; }
+        if (this.review && this.manifest) this.end(this.review.outcome);
+        else if (this.manifest) this.openReview(outcome);
+        else this.end(outcome);
+      }
       if ((e.code === 'Space' || e.code === 'Enter') && this.stage === 'ended' && this.outcome !== 'caught') this.restart();
     });
   }
@@ -58,7 +71,7 @@ export class HuntLoop {
     if (this.stage !== 'search' && this.stage !== 'extract') return;
     const p = this.player.position, d = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z);
     this.notice = !this.inZone
-      ? `The van is ${Math.round(d)} m away (trailhead parking): walk into the green ring to drive out.`
+      ? `The ${this.vehicle} is ${Math.round(d)} m away (trailhead parking): walk into the green ring to drive out.`
       : `You've only just got here: look around for ${Math.ceil(HUNT.giveUpAfter - this.elapsed)} s before heading home.`;
     this.noticeUntil = this.elapsed + 3;
     this.renderHud();
@@ -90,7 +103,7 @@ export class HuntLoop {
     if (this.reviewEl) this.reviewEl.style.display = 'none';
   }
 
-  get timeLeft() { return Math.max(0, HUNT.dawnSeconds - this.elapsed); }
+  get timeLeft() { return Math.max(0, this.clockCfg.seconds - this.elapsed); }
 
   canGiveUp() { return this.stage === 'search' && this.inZone && (this.elapsed >= HUNT.giveUpAfter || this.dawned); }
 
@@ -119,7 +132,7 @@ export class HuntLoop {
     if (this.review && !this.inZone) this.closeReview();   // walked away from the van: keep investigating
     if (this.stage === 'search' || this.stage === 'extract') {
       this.elapsed += dt;
-      if (!this.dawned && this.elapsed >= HUNT.dawnSeconds) {
+      if (!this.dawned && this.elapsed >= this.clockCfg.seconds) {
         this.dawned = true;                // first light: the cryptid leaves, the bonus is gone
         this.onDawn?.();
       }
@@ -227,10 +240,11 @@ export class HuntLoop {
       case 'briefing': return '';
       case 'search': {
         const n = this.journal?.entries.length ?? 0;
-        const lines = [`OBJECTIVE: Photograph ${this.target}`,
-          n === 0 ? 'Search for tracks with your flashlight. Aim at one and press E to examine it.'
+        const lines = [this.objectiveLines?.[0] ?? `OBJECTIVE: Photograph ${this.target}`,
+          n === 0 ? (this.objectiveLines?.[1] ?? 'Search for tracks with your flashlight. Aim at one and press E to examine it.')
             : `Clues logged: ${n}. Follow the trail; when you see ${this.target}, hold right mouse to raise your camera and left-click to snap.`];
-        if (this.dawned) lines[1] = `Dawn: ${this.target} has left the area. Head back to the van and drive home.`;
+        if (this.dawned) lines[1] = this.clockCfg.label === 'dusk' ? `Dusk: it's getting dark. Find your way back to the ${this.vehicle} with your map and compass (M).`
+          : `Dawn: ${this.target} has left the area. Head back to the ${this.vehicle} and drive home.`;
         if (this.canGiveUp()) lines.push('[H] Head home without a photo');
         return lines.join('\n');
       }
@@ -238,10 +252,10 @@ export class HuntLoop {
         // No score in the field (#85, GDD 4.3/4.4): film is only judged once it's developed at home.
         const best = '';
         return this.inZone
-          ? `At the van with your photo${best}.\n[H] Drive home and end the hunt — or keep hunting for a better shot.`
+          ? `At the ${this.vehicle} with your photo${best}.\n[H] Drive home and end the hunt — or keep hunting for a better shot.`
           : this.dawned
-            ? `Dawn: ${this.target} is gone. Bring your photo${best} back to the van at the trailhead parking and press H.\nFind the way with your map and compass (M) and the trail signs.`
-            : `GOT THE SHOT${best}! Back to the van at the trailhead parking before dawn for a +${Math.round(HUNT.dawnBonus * 100)}% bonus.\nFind the way with your map and compass (M) and the trail signs, then press H at the van.`;
+            ? `${this.clockCfg.label === 'dusk' ? 'Dusk' : 'Dawn'}: ${this.target} is gone. Bring your photo${best} back to the ${this.vehicle} at the trailhead and press H.\nFind the way with your map and compass (M) and the trail signs.`
+            : `GOT THE SHOT${best}! Back to the ${this.vehicle} at the trailhead before ${this.clockCfg.label} for a +${Math.round(HUNT.dawnBonus * 100)}% bonus.\nFind the way with your map and compass (M) and the trail signs, then press H at the ${this.vehicle}.`;
       }
       case 'ended': return '';
     }
@@ -253,17 +267,16 @@ export class HuntLoop {
     this.hud.textContent = this.objectiveText() + notice;
     if (this.stage === 'briefing' || this.stage === 'ended') { this.clock.textContent = ''; return; }
     const t = this.timeLeft;
-    // In-world clock: 11:00 PM start, dawn at 5:30 AM.
-    const night = 6.5 * 60; // minutes of in-world night
-    const mins = 23 * 60 + (this.elapsed / HUNT.dawnSeconds) * night;
-    const h = Math.floor(mins / 60) % 24, m = Math.floor(mins % 60);
-    const h12 = ((h + 11) % 12) + 1;
+    // In-world clock (default 11:00 PM -> dawn 5:30 AM; a map can set its own, e.g. afternoon -> dusk).
+    const C = this.clockCfg;
+    const fmt = (mins) => { const h = Math.floor(mins / 60) % 24, m = Math.floor(mins % 60); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
+    const mins = C.startMin + Math.min(1, this.elapsed / C.seconds) * (C.endMin - C.startMin);
     if (this.dawned) {
-      this.clock.textContent = '5:30 AM  ·  DAWN: the trail has gone cold';
+      this.clock.textContent = C.label === 'dusk' ? `${fmt(C.endMin)}  ·  DUSK: it's getting dark` : `${fmt(C.endMin)}  ·  DAWN: the trail has gone cold`;
       this.clock.style.color = '#ffb070';
       return;
     }
-    this.clock.textContent = `${h12}:${String(m).padStart(2, '0')} ${h >= 12 && h < 24 ? 'PM' : 'AM'}  ·  dawn in ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+    this.clock.textContent = `${fmt(mins)}  ·  ${C.label} in ${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
     this.clock.style.color = t < 60 ? '#ffb070' : t < 180 ? '#ffd9a0' : '#cfd8ff';
   }
 

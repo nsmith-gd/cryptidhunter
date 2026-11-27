@@ -89,7 +89,12 @@ export class FieldMap {
       g.strokeStyle = '#4f7da0'; g.lineWidth = 3; g.beginPath();
       m.creek.forEach((p, i) => { const [x, y] = P(p); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke();
       g.fillStyle = '#4f7da0'; g.font = '8px monospace';
-      const [lx, ly] = P(m.creek[Math.floor(m.creek.length * 0.2)]); g.fillText('Hollow Creek', lx - 20, ly + 12);
+      const [lx, ly] = P(m.creek[Math.floor(m.creek.length * 0.2)]); g.fillText(m.creekName ?? 'Hollow Creek', lx - 20, ly + 12);
+    }
+    if (m.lake) {   // a lake (Oro-Medonte, #129): blue disc with its name
+      const [lx, ly] = P(m.lake), [ex] = P({ x: m.lake.x + m.lake.r, z: m.lake.z });
+      g.fillStyle = '#7d9aa8'; g.beginPath(); g.arc(lx, ly, ex - lx, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#2c4450'; g.font = '9px monospace'; g.fillText(m.lake.name ?? 'Lake', lx - 18, ly + 3);
     }
     // Ridge: hatched rock band with its gaps left open.
     if (m.ridge) {
@@ -115,7 +120,7 @@ export class FieldMap {
       const [x, y] = P(p);
       if (p.id === this.home) {
         g.fillStyle = '#1f4f8a'; g.fillRect(x - 6, y - 6, 12, 12); g.fillStyle = '#e8e0c8'; g.fillText('P', x - 3, y + 3);
-        g.fillStyle = '#1f2a3a'; g.fillText('PARKING · VAN', x + 9, y + 3);
+        g.fillStyle = '#1f2a3a'; g.fillText(m.daylight ? 'PARKING · CAR' : 'PARKING · VAN', x + 9, y + 3);
         continue;
       }
       g.fillStyle = '#2a2018'; g.fillRect(x - 2, y - 2, 5, 5); g.fillStyle = '#d9c9a0'; g.fillRect(x - 1, y - 1, 3, 3);
