@@ -81,7 +81,7 @@ await page.evaluate(() => { const c = __game.camera; c.userData.fov0 = c.fov; c.
 await page.screenshot({ path: `${out}/01-igopogo-surfaced-seen-from-shore.png` });
 await page.evaluate(() => { const c = __game.camera; c.fov = c.userData.fov0; c.updateProjectionMatrix(); });
 // Raise the camera and shoot.
-const shot = await page.evaluate(() => {
+const pic = await page.evaluate(() => {
   const g = __game; g.photo.wantRaised = true;
   for (let i = 0; i < 200 && !g.photo.raised; i++) steps(1);
   steps(20);
@@ -92,7 +92,7 @@ const shot = await page.evaluate(() => {
   return e && { result: e.result, subject: e.subject, Q: e.evidence?.quality?.Q, problems: e.evidence?.quality?.problems };
 });
 await page.screenshot({ path: `${out}/02-photograph-it-from-the-point.png` });
-check('you can wait for a surfacing and photograph it from dry land', rise.up && shot?.result === 'HIT' && shot.subject === 'Igopogo', { rise, shot });
+check('you can wait for a surfacing and photograph it from dry land', rise.up && pic?.result === "HIT" && pic.subject === "Igopogo", { rise, pic });
 
 // 3. Noise on the beach while it's up: it dives at once and stays down a while.
 const noisy = await page.evaluate(() => {
