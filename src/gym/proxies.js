@@ -118,7 +118,7 @@ export class TerritoryProxy {
     const toMe = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
     if (this.state === 'idle' && fromHome < G04.warnR) {
       this.warnTime = 0;
-      this.set('warn', { playerFromHome: +fromHome.toFixed(1) });
+      this.set('warn', { playerFromHome: +fromHome.toFixed(3) });
       this.notify('A deep, rattling growl. Something big rears up ahead. This is its ground.');
     } else if (this.state === 'warn') {
       this.warnTime += dt;

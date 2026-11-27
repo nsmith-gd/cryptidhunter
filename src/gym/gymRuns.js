@@ -164,7 +164,7 @@ export function runG04(g, h) {
   const walk = (x, z, opts = {}) => { for (let i = 0; i < (opts.max ?? 3600); i++) { const p = P.position; if (Math.hypot(x - p.x, z - p.z) < (opts.r ?? 1.2)) break; T.face(x, z); T.hold(['KeyW']); step(); } T.hold([]); };
   // 1. Approach along the NW trail, see and heed the warning, back off.
   walk(0, 12);
-  walk(-3, 4);
+  walk(-4, 2);          // ~12.8 m from the lair: inside the warning ring, outside the core
   step(60);
   walk(0, 14);
   step(120);
@@ -183,7 +183,7 @@ export function runG04(g, h) {
   for (let i = 0; i < 90 * 60 && !ev('scent', 'lost-contact').length; i++) step();
   step(60);
   const warns = ev('territory', 'warn'), charges = ev('territory', 'charge');
-  const validWarns = warns.every((e) => e.data.playerFromHome < G04.warnR);
+  const validWarns = warns.every((e) => e.data.playerFromHome <= G04.warnR);
   const acquired = ev('scent', 'acquired');
   const validScent = acquired.every((e) => traceIds.has(e.data.trace));
   const leads = charges.map((c) => c.data.lead);
