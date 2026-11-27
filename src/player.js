@@ -126,7 +126,7 @@ export class Player {
     this.updateNoise(dt, speed);
 
     // Camera.
-    const targetEye = this.height - PLAYER.eyeOffset;
+    const targetEye = this.eyeOverride ?? (this.height - PLAYER.eyeOffset);   // eyeOverride: swimming / sitting in a boat (#139)
     this.eyeHeight += (targetEye - this.eyeHeight) * (1 - Math.exp(-PLAYER.crouchLerp * dt));
     this.camera.position.set(this.position.x, this.position.y + this.eyeHeight, this.position.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
