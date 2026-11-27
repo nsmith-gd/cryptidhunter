@@ -42,6 +42,7 @@ export function buildTimiskamingMap(scene) {
   box(TIMI.shed.x, TIMI.shed.z, 5, 4, 3, 0x6a6a58, { name: 'rental-shed' });
   box(TIMI.shed.x, TIMI.shed.z - 2.05, 3.2, 0.1, 0.7, 0xd8c070, { collide: false, y0: 2.1, name: 'rental-sign' });
   box(TIMI.hut.x, TIMI.hut.z, 4, 3.5, 2.6, 0x7a4a36, { name: 'warming-hut' });
+  box(TIMI.generator.x, TIMI.generator.z, 1.4, 1, 1.1, 0xb08a2a, { name: 'shed-generator' });   // the charging station (#140)
   const hutGlow = new THREE.PointLight(0xffa060, 4, 10, 1.4); hutGlow.position.set(TIMI.hut.x, 1.6, TIMI.hut.z - 2.2); root.add(hutGlow);
   box(3, 11, 0.2, 0.2, 3.4, 0x333333, { name: 'lamp-post' });
   const lamp = new THREE.PointLight(0xfff0d0, 6, 22, 1.5); lamp.position.set(3, 3.4, 10.5); root.add(lamp);
@@ -79,7 +80,7 @@ export function buildTimiskamingMap(scene) {
     playerStart: { x: TIMI.start.x, z: TIMI.start.z, yaw: 0 },
     exit: { x: TIMI.exit.x, z: TIMI.exit.z, name: TIMI.exit.name },
     safeZones: [{ x: TIMI.hut.x, z: TIMI.hut.z, r: 3.2, name: 'warming hut' }],
-    landmarks: { start: TIMI.start, hut: TIMI.hut, shed: TIMI.shed, mooring: TIMI.mooring, exit: TIMI.exit },
+    landmarks: { start: TIMI.start, hut: TIMI.hut, shed: TIMI.shed, generator: TIMI.generator, mooring: TIMI.mooring, exit: TIMI.exit },
     places: [{ id: 'trailhead', name: 'Shore hub', x: TIMI.start.x, z: TIMI.start.z }, { id: 'hut', name: 'Warming hut', x: TIMI.hut.x, z: TIMI.hut.z },
       ...TIMI.basins.map((b) => ({ id: b.id, name: b.name.replace(/^the /, 'The '), x: b.x, z: b.z }))],
     trails: [[...trail, trail[0]]],
@@ -87,6 +88,8 @@ export function buildTimiskamingMap(scene) {
     spawns: {}, keepClear: [],
     // The water: a rental boat at the mooring; where it can float; the shared traversal rules.
     water: { boat: { ...TIMI.mooring }, boatWater, storm: storm ? 1 : 0 },
+    // Power (#140): the shed generator charges what's plugged in at the shed and at the mooring.
+    power: { generator: TIMI.generator, shed: TIMI.shed, mooring: TIMI.mooring },
     environment: storm
       ? { background: 0x0c121a, fog: { color: 0x141c26, near: 12, far: 70 }, lightLevel: 0.16, airTemp: 5, rain: 1 }
       : { background: 0x121c2a, fog: { color: 0x1a2636, near: 25, far: 140 }, lightLevel: 0.3, airTemp: 8 },

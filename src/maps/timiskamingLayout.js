@@ -13,7 +13,7 @@ export const TIMI = {
   shallow: 5,                                   // metres of wadeable rim inside the waterline
   dock: { x0: -1.2, x1: 1.2, z0: -1.5, z1: 9 }, // a platform out over the shallows: dry footing
   mooring: { x: 3.2, z: 0, heading: 0 },         // the rental boat, tied up off the dock end
-  shed: { x: 7, z: 15 }, hut: { x: -10, z: 15 }, start: { x: 0, z: 24 },
+  shed: { x: 7, z: 15 }, generator: { x: 11, z: 12.5 }, hut: { x: -10, z: 15 }, start: { x: 0, z: 24 },
   exit: { x: 14, z: 46, name: 'the road out' },
   trailOffset: 7,                               // the shore trail runs this far outside the waterline
 };

@@ -14,12 +14,12 @@ import { WaterHud } from './waterHud.js';
 //   crouch    swimming: dive (hold your breath); let go to surface
 // ?pfd puts a flotation vest on you (until the shop sells one): you can't slip under when exhausted.
 
-export function createWaterTraversal({ scene, map, player, input, survival, notify = () => {}, hasPfd = null, time = () => 0 }) {
+export function createWaterTraversal({ scene, map, player, input, survival, notify = () => {}, hasPfd = null, time = () => 0, tank = null }) {
   const W = map.water, log = [];
   const trace = (system) => (type, data = {}) => log.push({ t: +time().toFixed(2), system, type, ...data });
   const pfd = hasPfd ?? (() => typeof location !== 'undefined' && new URLSearchParams(location.search).has('pfd'));
   const boat = new Boat({ scene, x: W.boat.x, z: W.boat.z, heading: W.boat.heading ?? 0, isWater: W.boatWater, footingAt: map.surfaceAt,
-    tank: W.tank ?? { fuel: 1 }, storm: () => W.storm ?? 0, trace: trace('boat'), notify });
+    tank: tank ?? W.tank ?? { fuel: 1 }, /* the shared budget's outboard tank (#140) */ storm: () => W.storm ?? 0, trace: trace('boat'), notify });
   const aquatic = new Aquatic({ player, surfaceAt: map.surfaceAt, health: survival.health, isAboard: () => boat.aboard, hasPfd: pfd,
     trace: trace('water'), notify });
   survival.thermo.isSubmerged = () => aquatic.submerged;    // going under soaks you through and chills you faster
