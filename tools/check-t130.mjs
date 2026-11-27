@@ -101,7 +101,7 @@ const before = await page.evaluate(() => ({ x: __go.agent.x, z: __go.agent.z, y:
 await page.evaluate(() => { __look(__go.agent.x, __go.agent.z); __game.sim.step(); __look(__go.agent.x, __go.agent.z); });
 await steps(20);
 const seen = await page.evaluate(() => ({ observed: __go.perception.observed, state: __go.state, speed: +(__go.agent.currentSpeed ?? 0).toFixed(2), event: __game.cryptidEvents.some((e) => e.type === 'stalk-seen'), d: Math.round(__go.playerDistance), toast: document.body.innerText.includes('froze the moment you looked') }));
-await page.evaluate(() => { __game.aiDebug.setVisible(true); });
+await page.evaluate(() => { const fl = __game.flashlight; fl.battery = 1; if (!fl.on) fl.toggle(); __game.aiDebug.setVisible(true); });   // torch on for the picture
 await shot('01-you-turn-round-it-freezes');
 await page.evaluate(() => { __game.aiDebug.setVisible(false); });
 // Keep looking (or walk at it): it bolts.
