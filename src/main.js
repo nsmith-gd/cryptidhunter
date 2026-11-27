@@ -32,6 +32,7 @@ import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
 import { FieldKit } from './gear/fieldKit.js';
 import { Equipment, WEAR } from './gear/condition.js';
+import { ScentField, SCENT_WORLD } from './cryptids/scent.js';
 import { showEquipmentPanel } from './gear/equipmentPanel.js';
 import { FieldCamp } from './survival/fieldCamp.js';
 import { Weather } from './survival/weather.js';
@@ -275,6 +276,26 @@ const survival = new Survival({ player, input, lethalCold: true,   // past the t
     ...(fieldCamp?.heatSources() ?? []),  // inside your pitched tent (#104)
   ] });
 const noiseRing = new NoiseRing(scene, player);
+// Scent traces (#107): food you open and blood from a bleeding wound leave real traces the wind
+// carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
+// east at 1.5 m/s (?wind=x,z,speed overrides for tests). Carcasses use the same field (emit 'carcass').
+const scent = new ScentField();
+{ const w = new URLSearchParams(location.search).get('wind')?.split(',').map(Number); if (w?.length === 3) scent.setWind({ x: w[0], z: w[1], speed: w[2] }); }
+SCENT_WORLD.field = scent;
+{
+  const eat = survival.eat.bind(survival);
+  survival.eat = () => { const r = eat(); if (r) scent.emit('food', player.position.x, player.position.z, { source: 'player' }); return r; };
+}
+let bloodClock = 0;
+function updateScent(dt) {
+  scent.update(dt);
+  const b = survival.health?.bleeding ?? [];
+  if (b.length && (bloodClock -= dt) <= 0) {
+    bloodClock = 3;                              // drops every few seconds while you bleed
+    const heavy = b.some((w) => w.severity === 'heavy');
+    scent.emit('blood', player.position.x, player.position.z, { strength: heavy ? 0.7 : 0.4, source: 'player' });
+  }
+}
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 // Escalation level for this hunt: 1 Pine Hollow (forgiving) .. 3 (relentless).
@@ -639,6 +660,7 @@ function simulateOnce(dt, extra = false) {
   if (!fieldCamp?.sleeping) player.update(dt);   // asleep: you lie still
   updateWear(dt);
   survival.update(dt);
+  updateScent(dt);
   fear.update(dt);
   if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
   photo.update(dt);
@@ -750,4 +772,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
