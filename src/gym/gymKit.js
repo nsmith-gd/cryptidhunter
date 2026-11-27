@@ -1,6 +1,7 @@
 import { hash32 } from '../core/rng.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05World } from './g05.js';
+import { G07World } from './g07.js';
 
 // Gym harness for G02–G04 (GDD 14.2, 15.1–15.3, 17.5; task #108).
 //   Fixture     every load rebuilds the gym from scratch with its fixed seed (GYM_SEEDS, or ?seed=),
@@ -24,6 +25,9 @@ export const GYM_TASKS = {
   G05: ['Board the boat at the dock (E), engine (5), drive out to the sonar buoy', 'Ping the sonar (6) by the buoy and copy its data (7)',
     'Run the battery flat: sonar and GPS go off, torch and paper map still work', 'Charge it at the generator (8) on the shore',
     'Go over the side in deep water (E away from the dock): breath and cold, then reach the shallows and the hut', 'Leave by the dry exit on foot, no boat needed'],
+  G07: ['Commit a module with no opening: nothing is spent', 'Wait for it to feed at the anchor; commit the wrong (heavy) module, then the light one (5 / Shift+5)',
+    'Secure it and crate it (6)', 'Switch the generator off (0): watch integrity fall, then repair the crate (7)', 'Block the cargo route (L), try to stage (9); clear it and stage',
+    'Haul the sled to the truck and deliver (9)', 'Release one (8) and walk out the foot path with your evidence'],
   G04: ['Approach the claw-marked stumps and heed the warning', 'Ignore the warning, then retreat', 'Break line of sight at hide A or B',
     'Bleed (fixed injury), notice the scent follower, bandage (B) and lose it', 'Reach the extraction point by the safe edge route'],
 };
@@ -52,6 +56,15 @@ export class GymHarness {
       const keys = { Digit5: () => this.world.setEngine(!this.world.boat.engine), Digit6: () => this.world.ping(), Digit7: () => this.world.copyBuoy(),
         Digit8: () => this.world.runGenerator(!this.world.generator.running), KeyE: () => (this.world.boat.aboard ? this.world.leave() : this.world.board()) };
       addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && keys[e.code]) keys[e.code](); });
+    }
+    if (this.id === 'G07') {
+      this.world = new G07World({ game, map, trace, notify });
+      this.proxies.push(this.world.proxy);
+      debug(this.world.proxy.mesh);
+      const keys = { Digit5: (e) => this.world.commit(e.shiftKey ? 'heavy' : 'light'), Digit6: () => this.world.secureAndCrate(), Digit7: () => this.world.repair(),
+        Digit8: () => this.world.release(), Digit9: () => this.world.stageOrDeliver(), Digit0: () => this.world.setGenerator(!this.world.generator.running),
+        KeyL: () => this.world.setRouteBlocked(!this.world.routeBlocked) };
+      addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && keys[e.code]) keys[e.code](e); });
     }
     this.fixture();
     this.watch();
@@ -124,7 +137,8 @@ export class GymHarness {
     const g = this.g, p = g.player.position;
     const w = this.world;
     const state = { tick: this.tick, p: [p.x, p.z].map((v) => +v.toFixed(3)),
-      ...(w ? { fuel: +w.boat.fuel.toFixed(4), charge: +w.power.charge.toFixed(3), breath: +w.breath.value.toFixed(3), boat: [w.boat.x, w.boat.z].map((v) => +v.toFixed(3)) } : {}), health: +g.survival.health.value.toFixed(3),
+      ...(w?.machine ? { capture: w.state, integrity: +w.machine.integrity.toFixed(3), condition: +w.machine.condition.toFixed(3), charges: [w.modules.light.charges, w.modules.heavy.charges] } : {}),
+      ...(w?.boat ? { fuel: +w.boat.fuel.toFixed(4), charge: +w.power.charge.toFixed(3), breath: +w.breath.value.toFixed(3), boat: [w.boat.x, w.boat.z].map((v) => +v.toFixed(3)) } : {}), health: +g.survival.health.value.toFixed(3),
       energy: +g.survival.nutrition.energy.toFixed(3), core: +g.survival.thermo.core.toFixed(3), wet: +g.survival.thermo.wetness.toFixed(3),
       proxies: this.proxies.map((x) => [(x.pos ?? x).x, (x.pos ?? x).z].map((v) => +v.toFixed(3))) };
     return (hash32(JSON.stringify({ events: this.events, state })) >>> 0).toString(16);
@@ -148,6 +162,14 @@ export class GymHarness {
       <div>battery ${Math.round(w.power.charge)}% · ${Object.entries(d).map(([k, v]) => `${k} ${v ? 'ok' : 'OFF'}`).join(' · ')}</div>
       <div>generator ${w.generator.running ? 'running' : 'off'} (fuel ${Math.round(w.generator.fuel * 100)}%) · breath ${Math.round(w.breath.value)} s · buoy data ${w.buoy.readings.length} (copied ${w.buoy.copied.length})</div>
       <div style="color:#8fa89a">E board/leave · 5 engine · 6 sonar · 7 copy buoy · 8 generator</div>`;
+  }
+
+  /** G07 readouts: capture state, the two gauges, charges, crate, generator, route. */
+  captureHud() {
+    const w = this.world, m = w.machine;
+    return `<div style="margin-top:4px">capture: <b>${m.state}</b>${m.deliverable ? '' : ' (non-deliverable)'} · integrity ${Math.round(m.integrity)}${m.integrity < 40 ? ' ⚠' : ''} · condition ${Math.round(m.condition)}${m.condition < 35 ? ' ⚠' : ''}</div>
+      <div>charges: light ${w.modules.light.charges} · heavy ${w.modules.heavy.charges} · crate repairs ${w.crate.repairs} · generator ${w.generator.running ? 'running' : 'OFF'} · route ${w.routeBlocked ? 'BLOCKED' : 'clear'} · paid ${w.paid.length}</div>
+      <div style="color:#8fa89a">5 commit light · Shift+5 heavy · 6 secure+crate · 7 repair · 8 release · 9 stage/deliver · 0 generator · L log</div>`;
   }
 
   // ---- HUD ---------------------------------------------------------------------------------
@@ -181,11 +203,11 @@ export class GymHarness {
       ...this.events.slice(-6).map((e) => `<div style="color:#b8c8c0">${e.tick} ${e.system}.${e.type} ${JSON.stringify(e.data).slice(0, 60)}</div>`),
     ].join('');
     this.el.innerHTML = `<div style="font-weight:bold;color:#ffd88a">${this.map.title}</div>
-      <div>${link('G00', 'gym')}${link('G02', 'g02')}${link('G03', 'g03')}${link('G04', 'g04')}${link('G05', 'g05')}</div>
+      <div>${link('G00', 'gym')}${link('G02', 'g02')}${link('G03', 'g03')}${link('G04', 'g04')}${link('G05', 'g05')}${link('G07', 'g07')}</div>
       <div>seed ${this.seed} · tick ${this.tick} · ${this.blind ? 'blind' : 'debug'}</div>
       <div style="margin:4px 0">${btn('reset', 'Reset')}${btn('run', 'Run script')}${btn('blind', this.blind ? 'Debug view' : 'Blind mode')}</div>
       <div>health ${Math.round(s.health.value)}${s.health.bleeding.length ? ' (bleeding)' : ''} · energy ${Math.round(s.nutrition.energy)} · body ${s.thermo.core.toFixed(1)}°C · wet ${Math.round(s.thermo.wetness)}% · stamina ${Math.round(g.player.stamina * 100)}% · you @ ${p.x.toFixed(1)}, ${p.z.toFixed(1)}</div>
-      ${this.world ? this.worldHud() : ''}
+      ${this.world?.boat ? this.worldHud() : this.world?.machine ? this.captureHud() : ''}
       <div style="color:#8fa89a;margin-top:4px">TASKS</div>${(GYM_TASKS[this.id] ?? []).map((t) => `<div>· ${t}</div>`).join('')}
       <div style="margin-top:4px">${answers}</div>
       ${this.criteria.length ? `<div style="color:#8fa89a;margin-top:4px">PASS CRITERIA</div>${this.criteria.map((c) => `<div><span style="color:${status[c.status]}">${c.status.toUpperCase()}</span> ${c.text}</div>`).join('')}` : ''}`;

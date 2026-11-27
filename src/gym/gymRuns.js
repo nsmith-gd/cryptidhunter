@@ -3,6 +3,8 @@ import { verify } from '../evidence/quality.js';
 import { G04 } from '../maps/gymScenes.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05 as G05_CFG } from './g05.js';
+import { G07 as G07_CFG } from './g07.js';
+import { CaptureMachine } from '../capture/captureMachine.js';
 
 // Scripted runs for gyms G02–G04 (#108). Each drives the real game simulation step by step with
 // player inputs (held keys, aim) and a few fixture placements, then judges the gym's GDD 15.2 pass
@@ -304,4 +306,79 @@ export function runG05(g, h) {
   return T.finish();
 }
 
-export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05 };
+// ---- G07 ---------------------------------------------------------------------------------------
+export function runG07(g, h) {
+  const T = tools(g, h), w = h.world, C = G07_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const charges = () => ({ light: w.modules.light.charges, heavy: w.modules.heavy.charges });
+  const waitFor = (fn, max = 60 * 120) => { for (let i = 0; i < max && !fn(); i++) g.sim.step(); return fn(); };
+  // Stand by the anchor (inside commit range, out of the way).
+  T.place(C.anchor.x + 6, C.anchor.z + 6); T.face(C.anchor.x, C.anchor.z);
+  // 1. No valid opportunity: commit while it's wandering. Nothing is spent.
+  const c0 = charges();
+  const r1 = w.commit('light');
+  T.add('no-opportunity', 'A failed precondition consumes nothing (commit with no opening: refused, charges unchanged)', !r1.ok && JSON.stringify(charges()) === JSON.stringify(c0), { why: r1.why, charges: charges() });
+  // 2. An opening, but the wrong (heavy) module: one charge spent, the attempt fails, it goes free in a plausible state.
+  const open1 = waitFor(() => w.state === 'eligible');
+  const r2 = w.commit('heavy');
+  T.add('one-charge-fail', 'A committed attempt consumes exactly one charge even when it fails (incompatible module), and the creature returns to a plausible state',
+    open1 && !r2.ok && charges().heavy === 0 && charges().light === 2 && ['fleeing', 'hostile', 'recovering'].includes(r2.outcome) && w.state === 'free', { why: r2.why, outcome: r2.outcome, charges: charges() });
+  // 3. Next opening, the right module: committed, one charge.
+  const open2 = waitFor(() => w.state === 'eligible');
+  const r3 = w.commit('light');
+  const again = w.commit('light');
+  T.add('one-charge-ok', 'A valid committed attempt consumes exactly one charge (and a second press spends nothing)', open2 && r3.ok && !again.ok && charges().light === 1, { charges: charges(), second: again.why });
+  // 4. Secure and crate it; the creature keeps its identity.
+  T.place(w.proxy.x + 2, w.proxy.z + 2); g.sim.step();
+  const r4 = w.secureAndCrate();
+  const ids = new Set(w.machine.trace.map((e) => e.creature));
+  T.add('identity', 'The creature\'s identity survives containment (one individual through every state; never an inventory item)', r4.ok && w.state === 'contained' && ids.size === 1 && !g.loadout?.items?.some?.((i) => /dogman/i.test(i.name ?? '')), { state: w.state, ids: [...ids] });
+  // 5. Generator off: integrity falls, a warning below 40; repair, then power back on.
+  w.setGenerator(false);
+  const warned = waitFor(() => w.machine.trace.some((e) => e.type === 'warning' && /integrity/.test(e.what)), 60 * 200);
+  const before = w.machine.integrity;
+  T.place(w.crate.x + 2, w.crate.z); g.sim.step();
+  const rep = w.repair(); w.setGenerator(true);
+  T.add('integrity-warning', 'Containment warns when integrity falls below 40, and a repair restores it', warned && rep.ok && w.machine.integrity > before && w.state === 'contained', { warnedAt: Math.round(before), after: Math.round(w.machine.integrity) });
+  // 6. Block the cargo route: staging is refused with the reason. Clear it: staged.
+  w.setRouteBlocked(true);
+  const blocked = w.stageOrDeliver();
+  w.setRouteBlocked(false);
+  const staged = w.stageOrDeliver();
+  T.add('blocked-route', 'A blocked cargo route stops staging (with the reason); clearing it allows it', !blocked.ok && /log/.test(blocked.why) && staged.ok && w.state === 'staged', { blocked: blocked.why, staged: w.state });
+  // 7. Deliver: not at the truck (refused); haul the sled to the truck; deliver once.
+  const early = w.stageOrDeliver();
+  let hauled = true;
+  for (const pt of C.route.slice(1)) hauled = T.walkTo(pt.x, pt.z, { r: 2.5, max: 60 * 60 }) && hauled;
+  const delivered = w.stageOrDeliver(), twice = w.stageOrDeliver();
+  T.add('deliver-once', 'Valid delivery pays once (at the truck, a living, loaded specimen; a second delivery is refused)', !early.ok && delivered.ok && !twice.ok && w.paid.length === 1, { early: early.why, paid: w.paid, twice: twice.why, hauled });
+  // 8. No delivery if escaped, non-living (condition failed) or not loaded: the same rules, fresh specimens.
+  const fresh = () => { const m = new CaptureMachine({ creature: { id: 'dogman-b', species: 'dogman', mass: 140 }, module: { charges: 3, species: ['dogman'] } }); m.opportunity(); m.commit(); m.secure(); return m; };
+  const crate = { id: 'crate', capacity: 180, mass: 60, species: ['dogman'] }, sled = { id: 'sled', capacity: 260 };
+  const esc = fresh(); for (let i = 0; i < 200 && esc.state !== 'free'; i++) esc.tick(1, { resistance: 2 });
+  const dead = fresh(); dead.contain(crate); dead.stage(sled); for (let i = 0; i < 120; i++) dead.tick(1, { adverse: true, resistance: 0 });
+  const unloaded = fresh(); unloaded.contain(crate);
+  const refusals = [esc, dead, unloaded].map((m) => m.deliver({ atExit: true }));
+  T.add('no-bad-delivery', 'No delivery if it escaped, failed (non-living) or was never loaded', refusals.every((r) => !r.ok), { escaped: refusals[0].why, failed: refusals[1].why, unloaded: refusals[2].why });
+  // 9. Abandon a specimen and walk out the foot path with evidence: always available.
+  const clue = g.clues.spawn('hair', { cryptidId: 'dogman', position: { x: C.anchor.x + 1, y: 0, z: C.anchor.z + 1 }, data: {} });
+  const ev = g.evidence.add('hairSample', clue);
+  w.nextSpecimen();
+  const open3 = waitFor(() => w.state === 'eligible');
+  T.place(C.anchor.x + 6, C.anchor.z + 6);
+  w.modules.light.charges = Math.max(1, w.modules.light.charges);
+  const c3 = w.commit('light'); T.place(w.proxy.x + 2, w.proxy.z + 2); g.sim.step(); w.secureAndCrate();
+  const rel = w.release();
+  const walked = T.walkTo(C.footExit.x, C.footExit.z, { r: 2, max: 60 * 120 });
+  g.hunt.elapsed = Math.max(g.hunt.elapsed, 300); g.sim.step();
+  const inZone = g.hunt.inZone;
+  addEventListener; dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' })); g.sim.step(); dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' })); g.sim.step();
+  T.add('foot-exit', 'Abandoning (emergency release) never locks the foot exit: you walk out with your evidence', open3 && c3.ok && !rel.ok && rel.outcome && walked && inZone && g.hunt.stage === 'ended' && g.evidence.items.includes(ev),
+    { released: rel.outcome, walked, inZone, stage: g.hunt.stage, evidence: ev?.name });
+  T.add('tagging', 'Tagging tested independently with three valid telemetry updates', null, { reason: 'the tagging state machine is task #148 (another agent); not built here' });
+  T.add('testers', '4/5 testers can explain the difference between capturing and delivering', null, { reason: 'needs human testers' });
+  return T.finish();
+}
+
+export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05, G07: runG07 };
