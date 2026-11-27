@@ -20,8 +20,8 @@ import * as THREE from 'three';
 // Screen-space vignette is off in VR (comfort, GDD 16.3); fog, sound and behaviour still apply.
 
 export const DREAD = {
-  timeRate: 100 / (14 * 60),   // ~14 min out alone takes you to the top, before anything else
-  depthRate: 0.06,             // extra per second at full depth (far side of the map)
+  timeRate: 100 / (20 * 60),   // ~20 min out alone takes you to the top, before anything else
+  depthRate: 0.04,             // extra per second at full depth (far side of the map)
   darkRate: 0.05,              // extra per second with your torch off (and no lamp)
   clueBump: 3,                 // each fresh sign you examine
   scareShare: 0.2,             // share of every scare that stays with you
@@ -47,7 +47,7 @@ export class Dread {
     this.value = 0; this.peak = 0; this.stage = 0; this.time = 0; this.outside = 0;
     this.log = [];                 // { t, stage, value } each stage change; samples for checks
     this.samples = [];
-    this.baseFogFar = scene.fog?.far ?? 60;
+    this.fogObj = null; this.fogBase = null; this.sightShare = 1;
     this.baseLevels = new Map();
     this.flicker = 0;
     this.buildOverlay();
@@ -95,7 +95,14 @@ export class Dread {
   /** The consequences: fog, fear rates, the creature's boldness, the torch at Dread. */
   applyEffects(dt) {
     const k = this.level;
-    if (this.scene.fog) this.scene.fog.far = this.baseFogFar * (1 - (1 - DREAD.fogFarMin) * k);
+    // Fog: linear fog's far distance shrinks; exponential night fog (FogExp2) gets denser by the
+    // same factor. The base is taken from whatever fog the map ended up with.
+    const f = this.scene.fog;
+    if (f && f !== this.fogObj) { this.fogObj = f; this.fogBase = f.isFogExp2 ? f.density : f.far; }
+    const shrink = 1 - (1 - DREAD.fogFarMin) * k;
+    if (f?.isFogExp2) f.density = this.fogBase / shrink;
+    else if (f) f.far = this.fogBase * shrink;
+    this.sightShare = shrink;                      // share of the normal seeing distance left (checks, status)
     // Fear builds on dread: it rises faster (its rates are scaled live).
     if (this.fear) this.fear.dreadMul = 1 + (DREAD.fearMul - 1) * k;
     // The creature gets bolder: +1 escalation level at Hunted, +2 at Dread (capped at 3).
