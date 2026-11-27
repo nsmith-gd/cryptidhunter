@@ -254,6 +254,7 @@ function escape(via) {
   if (ended) return;
   ended = true;
   const evidence = pack.furSample ? [pack.furSample] : [];
+  photo.wantRaised = false; photo.enabled = false; if (photo.overlay) photo.overlay.style.opacity = '0';   // put the camera away
   // Your best photo of the creature (one sighting event): its grade sets the offer, GDD 4.7
   // round(T × 0.01 × 35 × M) with T = $250 at L01. A grade-0 frame is no evidence.
   const best = photo.records.filter((x) => x.kind === 'creature').sort((a, b) => b.quality.Q - a.quality.Q)[0];

@@ -1,0 +1,143 @@
+{
+  "careful1": {
+    "shown": {
+      "t": 34.57,
+      "type": "showing",
+      "vantage": "east-gallery",
+      "light": "work lamp",
+      "distance": 36.5,
+      "seen": true
+    },
+    "crept": 23.6,
+    "dist": 12.8,
+    "state": "linger",
+    "startled": 0,
+    "health0": 100
+  },
+  "shot1": {
+    "state": "linger",
+    "Q": 87,
+    "light": 0.931,
+    "problems": []
+  },
+  "shot2": null,
+  "end1": {
+    "escaped": true,
+    "evidence": [
+      "photo"
+    ],
+    "text": "YOU GOT OUTUp the maintenance ladder, into the cold night air. 1:02 underground.Trip cost: -$25Creature photo (Exceptional, quality 87)Evidence paid: +$88Cash now: $313Tutorial cleared. Next trip unlocked: Sidehill Gouger (Oro-Medonte, ON).G01 gym · F9 reset · F7 export the event trace",
+    "cash": 31300,
+    "health": 100
+  },
+  "careless": {
+    "why": [
+      "your light",
+      "your light",
+      "your light"
+    ],
+    "scares": 3,
+    "state": "hidden",
+    "gone": true,
+    "flinches": 3,
+    "ended": false,
+    "health0": 100,
+    "health": 100
+  },
+  "end2": {
+    "escaped": true,
+    "cleared": true
+  },
+  "carelessCreatureEvents": [
+    {
+      "t": 11.53,
+      "type": "creature-emerging",
+      "vantage": "east-gallery"
+    },
+    {
+      "t": 25.95,
+      "type": "creature-flinch",
+      "distance": 19.4
+    },
+    {
+      "t": 27.07,
+      "type": "creature-startled",
+      "why": "your light",
+      "scares": 1,
+      "distance": 17.1
+    },
+    {
+      "t": 56.72,
+      "type": "creature-emerging",
+      "vantage": "lower-junction"
+    },
+    {
+      "t": 90.48,
+      "type": "creature-showing",
+      "vantage": "lower-junction",
+      "light": "dark",
+      "distance": 52.1
+    },
+    {
+      "t": 137.15,
+      "type": "creature-slipped-away",
+      "lingered": 46.7
+    },
+    {
+      "t": 179.25,
+      "type": "creature-emerging",
+      "vantage": "east-gallery"
+    },
+    {
+      "t": 193.67,
+      "type": "creature-flinch",
+      "distance": 19.4
+    },
+    {
+      "t": 194.78,
+      "type": "creature-startled",
+      "why": "your light",
+      "scares": 2,
+      "distance": 17.2
+    },
+    {
+      "t": 238.43,
+      "type": "creature-emerging",
+      "vantage": "lower-junction"
+    },
+    {
+      "t": 272.2,
+      "type": "creature-showing",
+      "vantage": "lower-junction",
+      "light": "dark",
+      "distance": 52.1
+    },
+    {
+      "t": 318.87,
+      "type": "creature-slipped-away",
+      "lingered": 46.7
+    },
+    {
+      "t": 374.98,
+      "type": "creature-emerging",
+      "vantage": "east-gallery"
+    },
+    {
+      "t": 389.4,
+      "type": "creature-flinch",
+      "distance": 19.4
+    },
+    {
+      "t": 390.52,
+      "type": "creature-startled",
+      "why": "your light",
+      "scares": 3,
+      "distance": 17.2
+    },
+    {
+      "t": 394.17,
+      "type": "creature-gone",
+      "scares": 3
+    }
+  ]
+}

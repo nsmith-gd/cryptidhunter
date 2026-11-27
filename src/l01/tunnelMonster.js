@@ -43,9 +43,10 @@ export const TUNNEL_MONSTER = {
   rest: [6, 12],          // s in a den before coming out (first time)
   restPerScare: 14,       // extra rest per scare so far
   maxScares: 3,           // scared off this many times: it stays hidden for the rest of the attempt
-  showRange: [10, 48],    // m: picks a vantage this far from you, ahead of you if it can
-  linger: 7,              // s at a vantage at minimum
-  careBonus: 16,          // s more while you're being careful
+  showRange: [10, 56],    // m: picks a vantage this far from you, ahead of you if it can
+  linger: 7,              // s at a vantage if you're careless (moving fast, noisy or lighting it)
+  carefulRate: 0.15,      // while you're careful its linger clock runs at this rate (~45 s)
+  maxLinger: 60,          // s: it never stays longer than this at one vantage
   flinch: 1.1,            // s your beam can rest on it before it bolts (the photo window)
   boltInside: 6,          // m: closer than this and it bolts whatever you do
   loud: 0.45,             // hearing level that startles it
@@ -124,7 +125,12 @@ export function tunnelMonsterBrain(c) {
       const ahead = (dx * heading.x + dz * heading.z) / (d * (Math.hypot(heading.x, heading.z) || 1));
       return ahead * 10 - d * 0.1 + (vp.light !== 'dark' ? 3 : 0);
     };
-    return [...c.tunnel.vantages].sort((a, b) => score(b) - score(a)).find((vp) => score(vp) > -Infinity) ?? null;
+    const pick = [...c.tunnel.vantages].sort((a, b) => score(b) - score(a)).find((vp) => score(vp) > -Infinity);
+    if (pick) return pick;
+    // Nowhere new in range: it comes back to the last place it showed itself, if that's still in range.
+    const last = c.tunnel.vantages.find((vp) => vp.key === c.lastVantage);
+    const d = last ? Math.hypot(last.x - p.x, last.z - p.z) : Infinity;
+    return d >= T.showRange[0] && d <= T.showRange[1] ? last : null;
   };
 
   const root = sel('Tunnel creature',
@@ -132,7 +138,7 @@ export function tunnelMonsterBrain(c) {
     seq('Hiding for good', when('scared off too often', () => c.scares >= T.maxScares && c.state !== 'startled'),
       act('stay hidden', () => { if (c.state !== 'hidden') { c.setState('hidden', 'scared off for good'); c.mesh.visible = false; log('gone', { scares: c.scares }); } return RUN; })),
     // Running for a den: see it through, then rest out of sight.
-    seq('Startled', when('startled', () => c.state === 'startled'),
+    seq('Going home', when('startled or withdrawing', () => c.state === 'startled' || c.state === 'withdraw'),
       act('scuttle to its den', () => {
         if (c.agent.hasPath && c.agent.remainingDistance > 0.6) return RUN;
         c.setState('den', 'safe in its den'); c.mesh.visible = false; return OK;
@@ -160,8 +166,9 @@ export function tunnelMonsterBrain(c) {
     // At its vantage: watching you, the photo opportunity.
     seq('Lingering', when('lingering', () => c.state === 'linger'),
       act('watch you from the edge of the light', () => {
-        c.lingerLeft -= c.dt;
-        if (careful()) c.lingerLeft += c.dt * (T.careBonus / (T.careBonus + T.linger));   // careful: it stays longer
+        // Careful (slow or still, quiet, light off it): its curiosity holds and the clock barely runs.
+        c.lingerLeft -= c.dt * (careful() ? T.carefulRate : 1);
+        if ((c.lingerTime ?? 0) > T.maxLinger) c.lingerLeft = 0;
         c.faceToward(P().x, P().z, c.dt, 3);
         // Perfectly still and dark: it edges a step closer (curious), never nearer than `closest`.
         const still = Math.hypot(pc().player.velocity.x, pc().player.velocity.z) < 0.2 && (pc().beamLevel ?? 0) <= 0;
@@ -171,7 +178,7 @@ export function tunnelMonsterBrain(c) {
           const s = c.agent.grid.sample(nx, nz, 0.5); if (s) { c.agent.x = s.x; c.agent.z = s.z; }
         }
         c.lingerTime = (c.lingerTime ?? 0) + c.dt;
-        if (c.lingerLeft <= 0) { log('slipped-away', { lingered: +c.lingerTime.toFixed(1) }); goTo(c.vantage.den, c.profile.roamSpeed, 'startled', 'had its look'); c.restLeft = T.rest[0] + T.restPerScare * c.scares; }
+        if (c.lingerLeft <= 0) { log('slipped-away', { lingered: +c.lingerTime.toFixed(1) }); goTo(c.vantage.den, c.profile.roamSpeed, 'withdraw', 'had its look'); c.restLeft = T.rest[0] + T.restPerScare * c.scares; }
         return RUN;
       })),
     // Moving out to a vantage.
