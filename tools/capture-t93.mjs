@@ -9,6 +9,7 @@ let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 
 const out = process.argv[2] || '.ballast/media/t93';
+const only = process.argv[3] || 'all';
 mkdirSync(out, { recursive: true });
 const PORT = 4593;
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
@@ -39,6 +40,9 @@ const info = await page.evaluate(() => {
     g.camera.position.set(s.x, camY, s.z + dist); g.camera.lookAt(s.x, lookY, s.z);
     g.flashlight.battery = 1;
   };
+  // Clear reeds and plants near the subject so they don't block the studio shots.
+  g.hidden = [];
+  g.scene.traverse((o) => { if (o.isInstancedMesh || (o.isMesh && /reed|plant|lily|grass|fern/i.test(o.name + (o.material?.map?.name ?? '')))) { g.hidden.push(o); o.visible = false; } });
   g.pose = (dt, speed, state, n = 1) => { for (let i = 0; i < n; i++) c.model.userData.animate(dt, speed, state); };
   g.pose(1 / 30, 0, 'idle', 30);
   let tris = 0; c.model.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
@@ -58,17 +62,18 @@ await page.evaluate(() => {
   g.scene.add(...g.studio);
   if (g.flashlight.on) g.flashlight.toggle();
 });
-for (const [n, h, d, cy, ly] of [['0-side', Math.PI / 2, 2.4, 0.95, 0.65], ['1-three-quarter', 0.7, 2.2, 1.0, 0.65], ['2-front', 0, 2.0, 0.9, 0.7],
-  ['3-back', Math.PI, 2.4, 1.1, 0.6], ['4-face', 0.35, 0.95, 1.0, 0.95]]) {
+for (const [n, h, d, cy, ly] of [['0-side', Math.PI / 2, 1.7, 0.85, 0.6], ['1-three-quarter', 0.7, 1.5, 0.9, 0.6], ['2-front', 0, 1.4, 0.85, 0.65],
+  ['3-back', Math.PI, 1.7, 1.0, 0.6], ['4-face', 0.45, 0.8, 0.95, 0.9]]) {
   await page.evaluate(([h, d, cy, ly]) => __game.orbit(h, d, cy, ly), [h, d, cy, ly]);
   await render(); await snap(`turntable-${n}`);
 }
 
+if (only === 'turntable') { await browser.close(); server.kill(); process.exit(0); }
 // Animation strips: side view, frames every 1/15 s.
 const frames = `${out}/_frames`;
 for (const [clip, speed, state, n] of [['idle', 0, 'idle', 16], ['walk', 1.8, 'stalk', 16], ['run', 9, 'charge', 12], ['crouch', 0, 'windup', 10]]) {
   rmSync(frames, { recursive: true, force: true }); mkdirSync(frames, { recursive: true });
-  await page.evaluate(() => __game.orbit(Math.PI / 2, 2.6, 0.9, 0.55));
+  await page.evaluate(() => __game.orbit(Math.PI / 2, 1.9, 0.85, 0.6));
   for (let i = 0; i < n; i++) {
     await page.evaluate(([sp, st]) => __game.pose(1 / 15, sp, st, 2), [speed, state]);
     await render();
@@ -80,7 +85,7 @@ for (const [clip, speed, state, n] of [['idle', 0, 'idle', 16], ['walk', 1.8, 's
 rmSync(frames, { recursive: true, force: true });
 
 // In game: night, torch only, 5 m away on the boardwalk.
-await page.evaluate(() => { const g = __game; g.scene.remove(...g.studio); if (!g.flashlight.on) g.flashlight.toggle(); g.pose(1 / 30, 0, 'idle', 10); });
+await page.evaluate(() => { const g = __game; g.scene.remove(...g.studio); for (const o of g.hidden) o.visible = true; if (!g.flashlight.on) g.flashlight.toggle(); g.pose(1 / 30, 0, 'idle', 10); });
 for (const [n, h, d] of [['game-torch-5m', 0.5, 5], ['game-torch-9m', 0.2, 9]]) {
   await page.evaluate(([h, d]) => __game.orbit(h, d, 1.6 + 0.34, 0.6), [h, d]);
   await render(); await snap(n);

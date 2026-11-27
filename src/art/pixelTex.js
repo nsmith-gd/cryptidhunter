@@ -706,8 +706,8 @@ export function chupaHideTexture(variant = 0) {
 export function chupaHeadTexture() {
   return pixelTexture('chupaHead', 32, 32, (g, px, r, w, h) => {
     const pal = CHUPA_HIDE;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[1 + Math.floor(r() * 2)]);
-    for (let i = 0; i < 40; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, pal[3]); px(x, y + 1, pal[0]); }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[2 + Math.floor(r() * 2)]);
+    for (let i = 0; i < 50; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, pal[5]); px(x, y + 1, pal[0]); }
     for (let y = 0; y < h; y += 4) for (let x = 0; x < w; x++) if (r() < 0.35) px(x, y, pal[0]);   // wrinkled brow folds
   }, { seed: 951 });
 }

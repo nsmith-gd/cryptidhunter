@@ -22,7 +22,7 @@ const CELL = 0.016;
 
 // ---- skeleton ---------------------------------------------------------------------------------
 const RIG = [
-  ['hips', null, [0, 0.5, -0.28]],
+  ['hips', null, [0, 0.42, -0.26]],
   ['spine', 'hips', [0, 0.05, 0.22]],
   ['chest', 'spine', [0, -0.01, 0.22]],
   ['neck', 'chest', [0, 0.06, 0.14]],
@@ -35,12 +35,12 @@ const RIG = [
     const s = side === 'L' ? -1 : 1;
     return [
       [`upperArm${side}`, 'chest', [s * 0.12, -0.08, 0.04]],
-      [`forearm${side}`, `upperArm${side}`, [0, -0.2, -0.04]],
-      [`hand${side}`, `forearm${side}`, [0, -0.19, 0.03]],
+      [`forearm${side}`, `upperArm${side}`, [0, -0.15, -0.05]],
+      [`hand${side}`, `forearm${side}`, [0, -0.15, 0.04]],
       [`thigh${side}`, 'hips', [s * 0.11, -0.05, 0]],
-      [`shin${side}`, `thigh${side}`, [0, -0.17, 0.09]],
-      [`ankle${side}`, `shin${side}`, [0, -0.17, -0.1]],
-      [`foot${side}`, `ankle${side}`, [0, -0.1, 0.04]],
+      [`shin${side}`, `thigh${side}`, [0, -0.14, 0.1]],
+      [`ankle${side}`, `shin${side}`, [0, -0.13, -0.1]],
+      [`foot${side}`, `ankle${side}`, [0, -0.08, 0.04]],
     ];
   }),
 ];
@@ -123,7 +123,7 @@ function buildGeometry() {
   if (GEO) return GEO;
   const J = jointPositions();
   const { parts, sdf } = sculpt(J);
-  const raw = surfaceNets(sdf, [-0.22, -0.03, -1.0], [0.22, 0.82, 0.72], CELL, { smooth: 2 });
+  const raw = surfaceNets(sdf, [-0.22, -0.03, -1.12], [0.22, 0.8, 0.72], CELL, { smooth: 2 });
   // Materials: 0 hide, 1 belly (underside of chest and waist), 2 head.
   const headZ = J.head[2] - 0.06;
   const geo = facetUV(raw, 3, (c, nm) => (c.z > headZ && c.y > 0.45 ? 2 : nm.y < -0.45 && c.y > 0.25 && c.z > -0.4 ? 1 : 0));
@@ -220,12 +220,12 @@ export function buildChupacabraModel() {
   const at = (bone, p) => p.map((v, i) => v - J[bone][i]);
   // Eyes: big, red, glowing, set forward under the brow.
   const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3a1e });
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff2a10, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff2a10, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
   for (const sx of [-1, 1]) {
     const p = at('head', [sx * 0.05, J.head[1] + 0.03, J.head[2] + 0.085]);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 4), eyeMat);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 4), eyeMat);
     eye.position.set(...p); eye.scale.set(1, 0.7, 0.7);
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.045), glowMat);
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.04, 0.024), glowMat);
     glow.position.set(p[0] + sx * 0.005, p[1], p[2] + 0.012);
     bones.head.add(eye, glow);
   }
@@ -258,6 +258,11 @@ export function buildChupacabraModel() {
     const l = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.03, 4), tooth);
     l.position.set(...at('jaw', [sx * 0.018, J.jaw[1] + 0.005, J.jaw[2] + 0.13]));
     bones.jaw.add(l);
+    for (const k of [0.04, 0.075, 0.11]) {                  // a row of small needle teeth behind them
+      const n = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.022, 3), tooth);
+      n.position.set(...at('head', [sx * (0.03 - k * 0.05), J.head[1] - 0.045, J.head[2] + 0.17 - k])); n.rotation.x = Math.PI;
+      bones.head.add(n);
+    }
   }
   // Claws: three hooked, blood-tipped claws on every foot.
   for (const side of ['L', 'R']) for (const bone of [`hand${side}`, `foot${side}`]) {
