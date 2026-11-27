@@ -130,8 +130,9 @@ check('from far away and low, the same print scores lower and the preview says w
   fpFar?.clue && { Q: fpFar.clue.quality.Q, problems: fpFar.clue.quality.problems });
 await page.evaluate(() => { __clue(__deer, 1.6, -0.82); });
 const deerShot = await snap();
-const deerItem = await page.evaluate(() => __game.evidence.items.some((i) => i.clueId === __deer.id));
-check('deer tracks: the photo stays on the roll (source: ordinary animal) but is no cryptid evidence to sell', deerShot?.clue && /deer/.test(deerShot.clue.source.actual) && !deerItem, deerShot?.clue && { source: deerShot.clue.source, saleable: deerItem });
+const deerItem = await page.evaluate(() => __game.evidence.items.find((i) => i.clueId === __deer.id)?.source ?? null);
+// #99: ordinary prints no longer self-identify in the field; the photo is kept with a hidden tag and HQ rejects it.
+check('deer tracks: the photo stays on the roll with a hidden ordinary-animal source tag (HQ rejects it)', deerShot?.clue && /deer/.test(deerShot.clue.source.actual) && deerItem?.origin === 'ordinary', deerShot?.clue && { source: deerShot.clue.source, item: deerItem });
 
 // ---- 5. storage and review: extract (drive home) -> archive; review the album ---------------------
 const before = await page.evaluate(() => __game.photo.records.length);

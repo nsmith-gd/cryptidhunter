@@ -176,6 +176,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       charges: outcome === 'emergency' ? [{ id: 'evac', cents: EXPEDITION.emergencyCents, memo: 'Emergency evacuation' }] : [],
       outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      records: photo.records.filter((r) => r.kind === 'creature'),   // graded and verified at HQ (#99)
       // Research (#101): this attempt's field notes for the target's dossier (kept only if extracted).
       mapId, research: fieldRecords({ target: huntTarget, journalEntries: journal.entries, photos: hunt.photos,
         evidence: evidence.items.filter((i) => i.stage !== 'lost'), knocks: knocks.log, events: cryptidEvents }),

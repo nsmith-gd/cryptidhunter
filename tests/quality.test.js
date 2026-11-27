@@ -48,3 +48,40 @@ test('structured source tags work too', () => {
   assert.deepEqual(sourceOf({ source: { origin: 'ordinary', species: 'fox' } }), { origin: 'ordinary', species: 'fox' });
   assert.match(verify({ quality: { C: 1, I: 1, K: 1, P: 1 }, source: { origin: 'ordinary', species: 'owl' } }, 'Bigfoot').reason, /owl/);
 });
+
+import { appraise, offer } from '../src/evidence/quality.js';
+
+const sharp = { C: 1, I: 1, K: 1, P: 1, light: 1, steadiness: 1 };
+const dark = { C: 0.08, I: 0.05, K: 0.9, P: 1, light: 0.1, steadiness: 1 };
+
+test('offers follow GDD 4.7 at L01 (T $250): exceptional photo $88, compelling trace $30, suggestive footprint photo $14', () => {
+  assert.equal(offer({ T: 250, B: 35, M: 1 }), 88);
+  assert.equal(offer({ T: 250, B: 15, M: 0.8 }), 30);
+  assert.equal(offer({ T: 250, B: 10, M: 0.55 }), 14);
+  assert.equal(offer({ T: 250, B: 8, M: 0.25 }), 5);
+});
+
+test('HQ appraisal: a clear ordinary track photo is rejected, a dark photo grades low, the same event pays once', () => {
+  const v = appraise({ target: 'Bigfoot', T: 250,
+    records: [
+      { id: 'F1', kind: 'creature', eventId: 'sighting:bf:10', quality: sharp, source: { kind: 'creature', actual: 'Bigfoot' } },
+      { id: 'F2', kind: 'creature', eventId: 'sighting:bf:10', quality: dark, source: { kind: 'creature', actual: 'Bigfoot' } },
+      { id: 'F3', kind: 'creature', eventId: 'sighting:bf:90', quality: dark, source: { kind: 'creature', actual: 'Bigfoot' } },
+    ],
+    items: [
+      { id: 1, type: 'footprintPhoto', name: 'Footprint photo', B: 10, clueId: 7, quality: sharp, source: { origin: 'ordinary', species: 'fox' } },
+      { id: 2, type: 'hairSample', name: 'Hair sample', B: 15, clueId: 8, cryptid: 'Bigfoot', source: { origin: 'cryptid', species: 'bigfoot' } },
+    ] });
+  const [best, dup, low, fox, hair] = v;
+  assert.equal(best.value, 88);
+  assert.equal(dup.value, 0); assert.match(dup.reason, /same event/);
+  assert.ok(low.grade <= 1); assert.match(low.reason, /too dark/);
+  assert.equal(fox.verdict, 'rejected'); assert.equal(fox.grade, 4); assert.equal(fox.value, 0);
+  assert.match(fox.reason, /ordinary animal: a red fox, not Bigfoot/);
+  assert.equal(hair.value, 30); assert.equal(hair.gradeName, 'Compelling');
+});
+
+test('novelty: new events of the same type and cryptid pay 1, 0.5, 0.25', () => {
+  const recs = [1, 2, 3, 4].map((n) => ({ id: `F${n}`, kind: 'creature', eventId: `e${n}`, quality: sharp, source: { actual: 'Bigfoot' } }));
+  assert.deepEqual(appraise({ records: recs, target: 'Bigfoot', T: 250 }).map((r) => r.value), [88, 44, 22, 22]);
+});
