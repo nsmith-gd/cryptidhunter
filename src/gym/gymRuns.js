@@ -209,6 +209,8 @@ export function runG04(g, h) {
     w.grab();
     waitFor(() => hits() > hits3, 4);
     walk(0, 12);
+    // The Hodag's goring wound bleeds heavily (#142): out of its ground, dress it before the long walk.
+    if (s.health.bleeding.some((c) => c.severity === 'heavy')) { s.bandage?.(); step(120); }
   } else {
     walk(-6, 4, { r: 0.8 }); T.face(G04.cache.x, G04.cache.z); step(60);
     walk(0, 14);

@@ -53,7 +53,7 @@ export class GymHarness {
     if (this.id === 'G03') this.proxies.push(new ContourProxy({ scene: game.scene, clues: game.clues, trace, debug }));
     if (this.id === 'G04') {
       const which = new URLSearchParams(location.search).get('proxy') ?? 'both';
-      if (which !== 'scent') this.proxies.push(this.territory = new TerritoryProxy({ scene: game.scene, trace, debug, notify }));
+      if (which !== 'scent') this.proxies.push(this.territory = new TerritoryProxy({ scene: game.scene, trace, debug, notify, captions: game.captions }));
       if (which !== 'territory') this.proxies.push(this.scentProxy = new ScentProxy({ scene: game.scene, scent: game.scent, trace }));
       this.world = new G04World({ game, map, trace, notify });   // the gear cache and the withdrawal record (#141)
       addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && e.code === 'Digit5') this.world.grab(); });

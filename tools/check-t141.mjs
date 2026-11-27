@@ -47,7 +47,7 @@ for (const approach of ['recover', 'abandon']) {
   await load(page, `${extra}&blind`);
   const blind = await page.evaluate(() => {
     const h = window.__gym.harness, hud = document.querySelector('#gym-hud').textContent;
-    return { blind: h.blind, hudSaysBlind: /BLIND MODE/.test(hud), answersHidden: !/TRACE \(last/.test(hud) && !/territorial:/.test(hud), ringsHidden: h.debugObjects.every((o) => !o.visible) };
+    return { blind: h.blind, hudSaysBlind: /BLIND MODE/.test(hud), answersHidden: !/TRACE \(last/.test(hud) && !/hodag:/.test(hud), ringsHidden: h.debugObjects.every((o) => !o.visible) };
   });
   const id = `G04 ${approach}`;
   check(`${id}: loads from ?map=g04${extra} with its fixed seed`, first.seed === 404 && first.ticks > 0, { seed: first.seed, ticks: first.ticks, events: first.events });
