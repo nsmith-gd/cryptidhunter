@@ -1,6 +1,7 @@
 import { hash32 } from '../core/rng.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05World } from './g05.js';
+import { G04World } from './g04.js';
 
 // Gym harness for G02–G04 (GDD 14.2, 15.1–15.3, 17.5; task #108).
 //   Fixture     every load rebuilds the gym from scratch with its fixed seed (GYM_SEEDS, or ?seed=),
@@ -25,7 +26,7 @@ export const GYM_TASKS = {
     'Run the battery flat: sonar and GPS go off, torch and paper map still work', 'Charge it at the generator (8) on the shore',
     'Go over the side in deep water (E away from the dock): breath and cold, then reach the shallows and the hut', 'Leave by the dry exit on foot, no boat needed'],
   G04: ['Approach the claw-marked stumps and heed the warning', 'Ignore the warning, then retreat', 'Break line of sight at hide A or B',
-    'Bleed (fixed injury), notice the scent follower, bandage (B) and lose it', 'Reach the extraction point by the safe edge route'],
+    'Bleed (fixed injury), notice the scent follower, bandage (B) and lose it', 'Recover the camera case in the core (5) or abandon it', 'Reach the extraction point by the safe edge route'],
 };
 
 export class GymHarness {
@@ -44,6 +45,8 @@ export class GymHarness {
       const which = new URLSearchParams(location.search).get('proxy') ?? 'both';
       if (which !== 'scent') this.proxies.push(this.territory = new TerritoryProxy({ scene: game.scene, trace, debug, notify }));
       if (which !== 'territory') this.proxies.push(this.scentProxy = new ScentProxy({ scene: game.scene, scent: game.scent, trace }));
+      this.world = new G04World({ game, map, trace, notify });   // the gear cache and the withdrawal record (#141)
+      addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && e.code === 'Digit5') this.world.grab(); });
     }
     if (this.id === 'G05') {
       this.world = new G05World({ game, map, trace, storm: new URLSearchParams(location.search).has('storm'), notify });
@@ -115,7 +118,7 @@ export class GymHarness {
     this.tick++; this.time += dt;
     const g = this.g;
     for (const p of this.proxies) p.update?.(dt, { player: g.player, health: g.survival.health });
-    this.world?.update(dt);
+    this.world?.update?.(dt);
     this.poll();
   }
 
@@ -124,7 +127,8 @@ export class GymHarness {
     const g = this.g, p = g.player.position;
     const w = this.world;
     const state = { tick: this.tick, p: [p.x, p.z].map((v) => +v.toFixed(3)),
-      ...(w ? { fuel: +w.boat.fuel.toFixed(4), charge: +w.power.charge.toFixed(3), breath: +w.breath.value.toFixed(3), boat: [w.boat.x, w.boat.z].map((v) => +v.toFixed(3)) } : {}), health: +g.survival.health.value.toFixed(3),
+      ...(w && this.id === 'G04' ? { cache: w.cache.state } : {}),
+      ...(w && this.id === 'G05' ? { fuel: +w.boat.fuel.toFixed(4), charge: +w.power.charge.toFixed(3), breath: +w.breath.value.toFixed(3), boat: [w.boat.x, w.boat.z].map((v) => +v.toFixed(3)) } : {}), health: +g.survival.health.value.toFixed(3),
       energy: +g.survival.nutrition.energy.toFixed(3), core: +g.survival.thermo.core.toFixed(3), wet: +g.survival.thermo.wetness.toFixed(3),
       proxies: this.proxies.map((x) => [(x.pos ?? x).x, (x.pos ?? x).z].map((v) => +v.toFixed(3))) };
     return (hash32(JSON.stringify({ events: this.events, state })) >>> 0).toString(16);
@@ -143,6 +147,10 @@ export class GymHarness {
 
   /** G05 readouts: fuel, battery and what it powers, breath, buoy data (not answers: you'd know these). */
   worldHud() {
+    if (this.id === 'G04') {   // the gear cache and the withdrawal record (#141)
+      const c = this.world.cache, wd = this.world.withdrawal;
+      return `<div style="margin-top:4px">${c.name} ($${c.value}): <b>${c.state}</b>${wd ? ` · withdrawal: ${wd.decision}, gear lost $${wd.gearLost}` : ''}</div><div style="color:#8fa89a">5 pick up the case (beside it) · B bandage</div>`;
+    }
     const w = this.world, d = w.deviceStatus(), b = w.boat;
     return `<div style="margin-top:4px">${w.storm ? 'STORM' : 'calm'} · boat ${b.aboard ? 'aboard' : 'at ' + b.x.toFixed(0) + ',' + b.z.toFixed(0)} · engine ${b.engine ? 'ON' : 'off'} · fuel ${Math.round(b.fuel * 100)}%</div>
       <div>battery ${Math.round(w.power.charge)}% · ${Object.entries(d).map(([k, v]) => `${k} ${v ? 'ok' : 'OFF'}`).join(' · ')}</div>
