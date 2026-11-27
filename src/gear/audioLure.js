@@ -59,6 +59,7 @@ export class AudioLures {
     this.t += dt;
     for (const l of this.lures) {
       if (!l.active) continue;
+      if (l.jammed) continue;                // electrical interference (#145): silent while it lasts
       l.age += dt;
       l.nextCall -= dt;
       const led = l.mesh.userData.led;
