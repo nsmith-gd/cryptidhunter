@@ -150,6 +150,22 @@ export class Supplier {
     return out;
   }
 
+  /**
+   * An ordinary death out in the field (#89, GDD 9.1): owned gear you had on you is lost. Its asset
+   * value leaves the books (no cash change; buying a replacement is a later expense).
+   */
+  loseInUse() {
+    const lost = [];
+    for (const o of this.owned) {
+      o.gone = 'lost in the field';
+      const a = this.ledger.assets[o.instanceId];
+      if (a) { a.sold = true; a.lost = true; }
+      lost.push(CATALOGUE[o.id].name);
+    }
+    this.camp.save();
+    return lost;
+  }
+
   /** Mass added by gear in use (net of what it replaces), and the pack you carry (for S03 load). */
   kit() {
     const worn = [];

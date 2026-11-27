@@ -82,6 +82,12 @@ export class StatusModel {
           fix: t.nearHeat ? `Drying off by the ${t.nearHeat}` : 'Dry off by a fire, in the cabin or in the van' });
       }
       const fixCold = t.nearHeat ? `Warming up by the ${t.nearHeat}: stay a while` : t.wetness >= 30 ? 'Get dry and warm up by a fire, the cabin or the van' : 'Keep moving, or warm up by a fire, the cabin or the van';
+      // Ordinary expeditions (#89): critical cold drains health. SOON before it starts, NOW while it does.
+      if (t.lethal && t.core < THERMO.hypothermiaSoon) {
+        const now = t.core < THERMO.criticalBelow;
+        add({ id: 'hypothermia', stage: now ? 'now' : 'soon', severity: 2, name: now ? 'Hypothermic' : 'Dangerously cold',
+          cause: this.heatCause(), effect: now ? `Body ${t.core.toFixed(1)}°C: you are losing health` : `Body ${t.core.toFixed(1)}°C: below ${THERMO.criticalBelow}°C you start losing health`, fix: fixCold });
+      }
       if (t.core < THERMO.comfortLow) {
         const band = t.core < THERMO.severeBelow ? 'Very cold' : t.core < THERMO.coldBelow ? 'Cold' : 'Chilly';
         add({ id: 'cold', stage: 'now', severity: t.core < THERMO.severeBelow ? 2 : t.core < THERMO.coldBelow ? 1 : 0, name: band,

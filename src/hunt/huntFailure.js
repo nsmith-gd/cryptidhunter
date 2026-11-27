@@ -65,8 +65,11 @@ export class HuntFailure {
     if (!this.enabled || this.isCaught) return;
     this.isCaught = true;
     this.caughtBy = name;
-    this.reason.textContent = this.health
-      ? `${name === 'Your wounds' ? 'You bled out' : `${name} got you`}. The hunt is over, and any unsaved evidence is lost.`
+    // Name the way you died (GDD 9.1: creature, an untreated wound, critical cold all end it the same way).
+    const cold = name === 'Hypothermia', bled = name === 'Your wounds';
+    if (this.title) this.title.textContent = cold ? 'FROZEN' : bled ? 'BLED OUT' : 'CAUGHT';
+    this.reason.textContent = cold ? 'You collapsed from the cold: hypothermia. You didn\'t make it out, and the hunt is over.'
+      : this.health ? `${bled ? `You bled out${this.health.woundCause ? ` from the wound ${this.health.woundCause} gave you` : ''}` : `${name} got you`}. You didn't make it out, and the hunt is over.`
       : `${name} got you. The hunt is over, and any unsaved evidence is lost.`;
     this.screen.style.display = 'flex';
     document.exitPointerLock?.();
@@ -99,13 +102,15 @@ export class HuntFailure {
     const s = this.screen = document.createElement('div');
     Object.assign(s.style, {
       position: 'fixed', inset: '0', display: 'none', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', gap: '14px', background: 'rgba(40,0,0,0.82)', color: '#eee',
+      justifyContent: 'safe center', overflowY: 'auto', gap: '14px', background: 'rgba(40,0,0,0.82)', color: '#eee',
       fontFamily: 'monospace', textAlign: 'center', zIndex: '20', cursor: 'pointer',
     });
     const title = Object.assign(document.createElement('div'), { textContent: 'CAUGHT' });
+    this.title = title;
     Object.assign(title.style, { fontSize: '56px', letterSpacing: '8px', color: '#ff5a4a' });
     this.reason = document.createElement('div');
-    this.reason.style.fontSize = '16px';
+    // Keep the line breaks: the death report lists what was lost and what you keep (#89).
+    Object.assign(this.reason.style, { fontSize: '15px', whiteSpace: 'pre-line', maxWidth: '760px', lineHeight: '1.5' });
     const hint = Object.assign(document.createElement('div'), { textContent: 'Click or press Space to start a new hunt' });
     Object.assign(hint.style, { fontSize: '13px', color: '#bbb' });
     s.append(title, this.reason, hint);
