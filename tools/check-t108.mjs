@@ -5,7 +5,7 @@
 // Run: npm run check:t108 [outDir] [g02,g03,g04]
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
@@ -61,7 +61,10 @@ for (const gym of only) {
   await page.close();
 }
 
-writeFileSync(`${out}/gym-results.json`, JSON.stringify(report, null, 2));
+// Merge with earlier results, so running one gym doesn't drop the others.
+let prev = {};
+try { prev = JSON.parse(readFileSync(`${out}/gym-results.json`, 'utf8')); } catch { /* first run */ }
+writeFileSync(`${out}/gym-results.json`, JSON.stringify({ ...prev, ...report }, null, 2));
 console.log(results.join('\n'));
 await browser.close();
 server.kill();

@@ -72,7 +72,18 @@ export function runG02(g, h) {
     { ate: ate?.name ?? null, energy: [40, +energyAfter.toFixed(1)], wetIn: +wetIn.toFixed(1), core: [core0, +coreIn.toFixed(2)], equilibriumInWater: +eqIn?.toFixed(2) });
   T.add('rest', 'Safe rest at the shelter interrupts the deterioration (dries you, warms you back up)', wetOut < wetIn && coreOut > coreIn,
     { wet: [+wetIn.toFixed(1), +wetOut.toFixed(1)], core: [+coreIn.toFixed(2), +coreOut.toFixed(2)] });
-  T.add('hydration', 'Dehydrate, then drink at the water source', null, { reason: 'no hydration system (S07) in this build yet; the water source is in place for it' });
+  // Hydration (S07, #103): dehydrated at the water source, drink from the packed bottles.
+  const hy = s.hydration;
+  if (hy) {
+    T.place(L.water.x + 1.5, L.water.z, 0);
+    hy.value = 20; T.steps(2);
+    const deficit = hy.thirstDeficit, band0 = hy.band, healthHy = s.health.value;
+    const sips = [hy.drink(), hy.drink(), hy.drink()];
+    T.steps(8 * 60);
+    T.add('hydration', 'Dehydrate, then drink: the reserve recovers over a few seconds and thirst stops slowing stamina recovery',
+      sips.every((r) => r.ok) && hy.value > 20 && hy.thirstDeficit < deficit && s.health.value === healthHy,
+      { hydration: [20, +hy.value.toFixed(1)], band: [band0, hy.band], thirstDeficit: [+deficit.toFixed(2), +hy.thirstDeficit.toFixed(2)], drinks: sips.map((r) => r.src) });
+  } else T.add('hydration', 'Dehydrate, then drink at the water source', null, { reason: 'no hydration system (S07) in this build' });
 
   // Injury: one authored fall, submitted twice in the same moment: it must count once.
   s.health.value = 100;

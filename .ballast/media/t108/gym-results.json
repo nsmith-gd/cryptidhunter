@@ -1,8 +1,8 @@
 {
   "G02": {
     "seed": 202,
-    "digest": "614f9205",
-    "events": 12,
+    "digest": "59537b93",
+    "events": 13,
     "criteria": [
       {
         "id": "load",
@@ -11,17 +11,17 @@
         "detail": {
           "light": {
             "kg": 5,
-            "dist": 11.16,
-            "used": 0.5744,
-            "perMetre": 0.05148,
-            "loadFactor": 1.379
+            "dist": 10.6,
+            "used": 0.6,
+            "perMetre": 0.05661,
+            "loadFactor": 1.44
           },
           "heavy": {
             "kg": 20,
             "dist": 6.58,
-            "used": 0.9078,
-            "perMetre": 0.13799,
-            "loadFactor": 2.179
+            "used": 0.9333,
+            "perMetre": 0.14187,
+            "loadFactor": 2.24
           }
         }
       },
@@ -31,7 +31,7 @@
         "text": "Walking costs no stamina; sprinting does",
         "detail": {
           "walkChange": 0,
-          "sprintUsed": 0.5744
+          "sprintUsed": 0.6
         }
       },
       {
@@ -69,10 +69,26 @@
       },
       {
         "id": "hydration",
-        "status": "not_evaluated",
-        "text": "Dehydrate, then drink at the water source",
+        "status": "pass",
+        "text": "Dehydrate, then drink: the reserve recovers over a few seconds and thirst stops slowing stamina recovery",
         "detail": {
-          "reason": "no hydration system (S07) in this build yet; the water source is in place for it"
+          "hydration": [
+            20,
+            49.5
+          ],
+          "band": [
+            "dehydrated",
+            "thirsty"
+          ],
+          "thirstDeficit": [
+            0.6,
+            0.01
+          ],
+          "drinks": [
+            "bottle",
+            "bottle",
+            "bottle"
+          ]
         }
       },
       {
@@ -111,193 +127,6 @@
         "detail": {
           "reason": "no death in this script; fairness needs testers",
           "died": false
-        }
-      }
-    ]
-  },
-  "G03": {
-    "seed": 303,
-    "digest": "7d4e6ac6",
-    "events": 38,
-    "criteria": [
-      {
-        "id": "schedule",
-        "status": "pass",
-        "text": "The proxy follows its own schedule whatever the player does",
-        "detail": {
-          "maxDeviation": 0
-        }
-      },
-      {
-        "id": "traces-unseen",
-        "status": "pass",
-        "text": "It leaves valid traces while unseen, and none while watched",
-        "detail": {
-          "traces": 9,
-          "skippedWhileSeen": 2
-        }
-      },
-      {
-        "id": "collect",
-        "status": "pass",
-        "text": "Collect useful evidence of it without a direct sighting",
-        "detail": {
-          "item": "Footprint photo",
-          "clue": 9
-        }
-      },
-      {
-        "id": "duplicate",
-        "status": "pass",
-        "text": "An exact duplicate pays zero (the same print can't be recorded twice)",
-        "detail": {
-          "second": null
-        }
-      },
-      {
-        "id": "independent",
-        "status": "pass",
-        "text": "Two independent observations are distinguishable",
-        "detail": {
-          "events": [
-            9,
-            13
-          ]
-        }
-      },
-      {
-        "id": "ordinary",
-        "status": "pass",
-        "text": "The ordinary-animal trace is rejected at verification; the real one is not",
-        "detail": {
-          "deer": "ordinary animal: a deer, not gouger-proxy",
-          "real": "accepted"
-        }
-      },
-      {
-        "id": "camp-sleep",
-        "status": "pass",
-        "text": "Sleep at a safe camp skips time (the creature keeps its schedule meanwhile)",
-        "detail": {
-          "woke": "rested",
-          "fatigue": [
-            60,
-            5
-          ],
-          "creatureSecondsPassed": 73.3
-        }
-      },
-      {
-        "id": "payout",
-        "status": "not_evaluated",
-        "text": "Evidence-only partial payout and a dossier milestone work",
-        "detail": {
-          "reason": "settled by the normal debrief and research dossier (#98/#101 checks); the gym has no buyer fixture yet"
-        }
-      },
-      {
-        "id": "lost-device",
-        "status": "not_evaluated",
-        "text": "A lost remote camera without a copy loses its evidence",
-        "detail": {
-          "reason": "trail-camera retrieval and data copies are not in this build yet (GDD 4.3)"
-        }
-      },
-      {
-        "id": "testers",
-        "status": "not_evaluated",
-        "text": "4/5 testers infer a plausible route and collect something useful; idle waits are not long",
-        "detail": {
-          "reason": "needs human playtests (GDD 15.3)"
-        }
-      }
-    ]
-  },
-  "G04": {
-    "seed": 404,
-    "digest": "685f862d",
-    "events": 22,
-    "criteria": [
-      {
-        "id": "valid-signals",
-        "status": "pass",
-        "text": "Creatures act only on valid signals (warning only inside the ring; scent only on real traces)",
-        "detail": {
-          "warnings": [
-            14.989,
-            14.976
-          ],
-          "scentAcquisitions": 1,
-          "allTracesReal": true
-        }
-      },
-      {
-        "id": "no-teleport",
-        "status": "pass",
-        "text": "No proxy ever moves faster than its speed (no unobserved teleport)",
-        "detail": {
-          "maxStepVsSpeed": 1
-        }
-      },
-      {
-        "id": "warning",
-        "status": "pass",
-        "text": "A warning always comes first (lead ≥ 2 s), and a heeded warning never leads to an attack",
-        "detail": {
-          "heeded": true,
-          "alertToAttackLead": [
-            4.02
-          ]
-        }
-      },
-      {
-        "id": "disengage",
-        "status": "pass",
-        "text": "Leaving the territory makes it disengage and go home (predictable)",
-        "detail": {
-          "states": [
-            "made its point"
-          ]
-        }
-      },
-      {
-        "id": "lost-contact",
-        "status": "pass",
-        "text": "Lost contact can be demonstrated (stop the bleeding and the scent follower loses you)",
-        "detail": {
-          "acquisitions": 1,
-          "lost": 1
-        }
-      },
-      {
-        "id": "retreat",
-        "status": "pass",
-        "text": "Retreat stays physically viable after a nonlethal encounter (reach extraction alive)",
-        "detail": {
-          "healthAfterHit": 46.2,
-          "reachedExtraction": true,
-          "healthNow": 33.7
-        }
-      },
-      {
-        "id": "measures",
-        "status": "not_evaluated",
-        "text": "Measure: alert-to-attack lead time, avoidable vs unavoidable deaths, withdrawal choice, gear loss",
-        "detail": {
-          "reason": "recorded for review",
-          "alertToAttackLead": [
-            4.02
-          ],
-          "deaths": 0,
-          "hits": 1
-        }
-      },
-      {
-        "id": "testers",
-        "status": "not_evaluated",
-        "text": "4/5 testers can explain what alerted the creature and one escape response",
-        "detail": {
-          "reason": "needs human playtests (GDD 15.3)"
         }
       }
     ]

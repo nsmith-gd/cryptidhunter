@@ -52,6 +52,7 @@ export class GymHarness {
     const g = this.g, s = g.survival;
     if (g.huntFailure) g.huntFailure.enabled = this.id === 'G04';     // only G04 can end in a "caught"
     s.nutrition.energy = 80; s.thermo.core = 37; s.thermo.wetness = 0; s.fatigue && (s.fatigue.value = 20);
+    if (s.hydration) s.hydration.value = 80;
     g.player.stamina = 1;
     if (this.id === 'G03') { g.fieldKit.carried.tent = 1; g.fieldKit.carried.fireKit = 2; }
     if (this.id === 'G04') {
