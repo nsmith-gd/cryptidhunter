@@ -133,4 +133,18 @@ export const GOUGER = makeProfile({
   }),
 });
 
-export const PROFILES = Object.freeze({ default: DEFAULT_PROFILE, bigfoot: BIGFOOT, prowler: PROWLER, gouger: GOUGER });
+// CHUPACABRA (#93): the species entry for the framework registry. Its stalk-and-pounce behaviour
+// is its own (chupacabra.js); the body comes from the registered 'chupacabra' model.
+export const CHUPACABRA = makeProfile({
+  id: 'chupacabra',
+  name: 'Chupacabra',
+  homeLevel: 3,
+  model: 'chupacabra',
+  height: 0.6, radius: 0.3, length: 1.1,
+  color: 0x454b38,
+  catchHits: 3,
+  threatening: true,
+  senses: Object.freeze({ hearing: 1.2, sightRange: 35, viewAngle: 70 }),
+});
+
+export const PROFILES = Object.freeze({ default: DEFAULT_PROFILE, bigfoot: BIGFOOT, prowler: PROWLER, gouger: GOUGER, chupacabra: CHUPACABRA });
