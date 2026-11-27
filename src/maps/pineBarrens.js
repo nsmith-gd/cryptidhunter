@@ -70,7 +70,7 @@ export function buildPineBarrensMap(scene) {
   }
   for (let i = 0, n = 0; i < 4000 && n < 900; i++) {
     const x = rnd(-H + 2, H - 2), z = rnd(-H + 2, H - 2);
-    if (distToPolyline(x, z, ROAD) < 2) continue;
+    if (distToPolyline(x, z, ROAD) < 2 || CLEARINGS.some(([c, r]) => Math.hypot(x - c.x, z - c.z) < r * 0.7)) continue;   // bare sand in the open
     kit.add(rng() < 0.5 ? 'bush:0' : young[Math.floor(rng() * young.length)], x, 0, z, rng() * 6.28, rnd(0.8, 1.6));
     n++;
   }

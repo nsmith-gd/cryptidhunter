@@ -118,7 +118,8 @@ await page.evaluate(() => { const d = __game.jerseyDevil; d.setState('climb', 't
 for (let i = 0; i < 120; i++) { await steps(15); if ((await devil()).tagWindow) break; }
 const per = await page.evaluate(() => ({ ...__game.jerseyDevil.perch, window: __game.jerseyDevil.tagWindow }));
 // Stand 18 m off at the nest's edge and aim.
-await page.evaluate((per) => { const g = __game, p = g.player; p.position.set(per.x + 14, 0, per.z + 11); p.velocity.set(0, 0, 0); g.sim.step();
+await page.evaluate((per) => { const g = __game, p = g.player, n = g.map.nest, dx = n.x - per.x, dz = n.z - per.z, d = Math.hypot(dx, dz) || 1;
+  p.position.set(per.x + (dx / d) * 18, 0, per.z + (dz / d) * 18); p.velocity.set(0, 0, 0); g.sim.step();   // across the open nest clearing from it
   const e = g.camera.position; p.yaw = Math.atan2(-(per.x - e.x), -(per.z - e.z)); p.pitch = Math.atan2(per.y - e.y, Math.hypot(per.x - e.x, per.z - e.z)); }, per);
 await steps(2);
 await shot('04-perched-tag-window');
