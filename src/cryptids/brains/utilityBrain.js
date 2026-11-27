@@ -134,6 +134,42 @@ export function utilityBrain(c) {
       start: () => c.enterAggress(c.playerDistance <= (B().turnWithin || -1) ? 'cornered' : 'detected you'),
       tick: () => { if (c.state !== 'aggress') return OK; c.tickAggress(c.dt, c.p); return c.state === 'aggress' ? RUN : OK; },
     },
+    // Stalk (#130, GDD 5.3 action library): shadow the player from cover while unobserved, at a
+    // distance that shrinks as dusk falls and as they go deeper (level context). Watched, it freezes;
+    // watched too long or approached, it bolts. Species tune it with profile.stalk.
+    stalk: {
+      eligible: () => !!c.profile.stalk && !pc().detected && c.playerDistance < c.profile.stalk.range && (c.state === 'stalk' || !pc().observed),
+      score: () => {
+        const ctx = c.context?.() ?? {}, pull = Math.min(1, Math.max(ctx.dusk ?? 0, ctx.depth ?? 0));
+        return 0.3 + 0.3 * pull + T.curiosity * 0.2 + (c.state === 'stalk' ? 0.1 : 0);
+      },
+      start: () => { c.releaseLure(); c.setState('stalk', 'shadowing you'); c.stalkReplan = 0; c.watchedFor = 0; },
+      tick: () => {
+        const S = c.profile.stalk, ctx = c.context?.() ?? {}, pull = Math.min(1, Math.max(ctx.dusk ?? 0, ctx.depth ?? 0));
+        const want = S.far + (S.near - S.far) * pull;
+        c.stalkWant = want;
+        if (pc().observed) {             // you're looking right at it: it freezes, then decides
+          c.agent.stop();
+          c.faceToward(c.p.x, c.p.z, c.dt, 2);
+          c.watchedFor += c.dt;
+          if (!c.seenStalking) { c.seenStalking = true; c.emit('stalk-seen', { distance: c.playerDistance }); }
+          if (c.playerDistance < S.startle || c.watchedFor > S.holdStare) { c.flees++; c.enterFlee(c.p, 'you saw it'); return OK; }
+          return RUN;
+        }
+        c.watchedFor = Math.max(0, c.watchedFor - c.dt * 0.5);
+        c.stalkReplan -= c.dt;
+        if (c.stalkReplan <= 0 || !c.agent.hasPath) {
+          c.stalkReplan = 1.5;
+          // A spot `want` metres from you on its own side, held to its contour height.
+          const dx = c.agent.x - c.p.x, dz = c.agent.z - c.p.z, d = Math.hypot(dx, dz) || 1;
+          const t = c.contourPoint ? c.contourPoint(0.01, 1, { x: c.p.x + (dx / d) * want, z: c.p.z + (dz / d) * want }) : { x: c.p.x + (dx / d) * want, z: c.p.z + (dz / d) * want };
+          const sp = c.agent.grid.sample(t.x, t.z, 4);
+          if (sp) c.agent.setDestination(sp.x, sp.z);
+        }
+        c.agent.speed = c.profile.roamSpeed * (c.playerDistance > want + 10 ? 2.4 : 1.1);
+        return RUN;
+      },
+    },
     return: {
       eligible: () => awayFromHome() > c.profile.roamRadius * (T.territoriality > 0 ? 1.3 : 1.8) && !pc().detected,
       score: () => 0.3 + T.territoriality * 0.4,

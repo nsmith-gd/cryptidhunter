@@ -80,6 +80,9 @@ export class ClueTrail {
   dropFootprint(p, heading, fp) {
     // Feet sit either side of the walking line: right vector of heading is (cos h, -sin h).
     const side = (this.leftFoot ? -1 : 1) * fp.width * 0.9;
+    // Lopsided gait (#130, the Sidehill Gouger): its short-legged side leaves shorter prints, so a
+    // trail of them reads as something walking across a slope, always with the same side uphill.
+    if (fp.uneven && this.leftFoot) fp = { ...fp, length: fp.length * fp.uneven, short: true };
     this.leftFoot = !this.leftFoot;
     this.clues.spawn('footprint', {
       cryptidId: this.cryptid.profile.id,

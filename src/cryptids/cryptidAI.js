@@ -495,9 +495,48 @@ export class CryptidAI {
     this.pickRoamPoint();
   }
 
+  // --- Contour walking (#130, the Sidehill Gouger): keep to one height around the hills, one way. ---
+  /** Ground slope direction here: unit gradient (uphill) and its steepness. */
+  slopeHere(x = this.agent.x, z = this.agent.z) {
+    const e = 1.2, gx = groundAt(x + e, z) - groundAt(x - e, z), gz = groundAt(x, z + e) - groundAt(x, z - e);
+    const len = Math.hypot(gx, gz) || 1e-6;
+    return { ux: gx / len, uz: gz / len, slope: len / (2 * e) };
+  }
+
+  /** A point `dist` metres along the contour (this.contourDir = +1/-1), pulled back toward this.contourY. */
+  contourPoint(dist, dir = this.contourDir, from = this.agent) {
+    let x = from.x, z = from.z;
+    const steps = Math.max(1, Math.round(dist / 3));
+    for (let i = 0; i < steps; i++) {
+      const s = this.slopeHere(x, z);
+      // Along the contour: perpendicular to the uphill vector. On flat ground keep the old heading.
+      let tx = -s.uz * dir, tz = s.ux * dir;
+      if (s.slope < 0.03) { tx = -Math.sin(this.agent.heading); tz = -Math.cos(this.agent.heading); }
+      x += tx * (dist / steps); z += tz * (dist / steps);
+      // Height correction: slide up or down the slope back to its contour height.
+      const dy = (this.contourY ?? groundAt(x, z)) - groundAt(x, z);
+      if (s.slope > 0.03) { const k = Math.max(-2, Math.min(2, dy / Math.max(0.1, s.slope))); x += s.ux * k; z += s.uz * k; }
+    }
+    return { x, z };
+  }
+
+  /** Walk on along the contour; turn round (other way) if the way ahead is blocked. */
+  contourStep(dist) {
+    this.contourY ??= groundAt(this.agent.x, this.agent.z);
+    this.contourDir ??= this.rand() < 0.5 ? 1 : -1;
+    for (const dir of [this.contourDir, -this.contourDir]) {
+      const t = this.contourPoint(dist, dir), p = this.agent.grid.sample(t.x, t.z, 3);
+      if (p && Math.hypot(p.x - this.agent.x, p.z - this.agent.z) > 2 && this.agent.setDestination(p.x, p.z)) { this.contourDir = dir; return true; }
+    }
+    // Stuck at a dead end: drift to a new contour a little higher or lower.
+    this.contourY = groundAt(this.agent.x, this.agent.z) + (this.rand() - 0.5) * 4;
+    return false;
+  }
+
   pickRoamPoint() {
     // roamStyle 'directional': keeps travelling the same general way (a route, a contour line)
     // instead of milling about its home; it turns back only when the way ahead is blocked.
+    if (this.profile.roamStyle === 'contour' && this.contourStep(this.profile.roamRadius * 0.5)) return;
     if (this.profile.roamStyle === 'directional') {
       const step = this.profile.roamRadius * 0.6;
       for (let i = 0; i < 8; i++) {
@@ -515,6 +554,17 @@ export class CryptidAI {
 
   pickFleePoint(player) {
     this.replanTimer = 1.0;
+    // fleeStyle 'contour' (#130): bolt along the slope (traversable for it, hard going for you),
+    // whichever way along the contour takes it away from you.
+    if (this.profile.fleeStyle === 'contour') {
+      this.contourY ??= groundAt(this.agent.x, this.agent.z);
+      const away = [1, -1].map((dir) => ({ dir, p: this.contourPoint(this.profile.fleeStep, dir) }))
+        .sort((a, b) => Math.hypot(b.p.x - player.x, b.p.z - player.z) - Math.hypot(a.p.x - player.x, a.p.z - player.z));
+      for (const { dir, p } of away) {
+        const s = this.agent.grid.sample(p.x, p.z, 3);
+        if (s && Math.hypot(s.x - player.x, s.z - player.z) > Math.hypot(this.agent.x - player.x, this.agent.z - player.z) + 1 && this.agent.setDestination(s.x, s.z)) { this.contourDir = dir; return; }
+      }
+    }
     const ax = this.agent.x, az = this.agent.z;
     let awayX = ax - player.x, awayZ = az - player.z;
     const len = Math.hypot(awayX, awayZ) || 1;

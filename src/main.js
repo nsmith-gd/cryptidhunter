@@ -30,7 +30,7 @@ import { buildTimiskamingMap } from './maps/timiskaming.js';   // L05 greybox (#
 import { createWaterTraversal } from './water/index.js';         // boat, swimming, breath (#139)
 import { createPowerSystem } from './power/index.js';             // batteries, devices, fuel (#140)
 import { buildForestMap } from './maps/forest.js';
-import { setGroundHeight } from './maps/ground.js';
+import { setGroundHeight, groundAt } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
 import { PixelWater } from './art/pixelWater.js';
 import { Atmosphere, timeOfDayConfig } from './maps/atmosphere.js';
@@ -348,6 +348,8 @@ const cryptidEvents = [];   // recent events, for the debug hook / checks
 function cryptidEvent(type, e) {
   cryptidEvents.push({ type, name: e.name, distance: e.distance, why: e.why, bluff: e.bluff, t: performance.now() });
   if (cryptidEvents.length > 50) cryptidEvents.shift();
+  // #130: you turned and caught the Gouger shadowing you along the slope. It freezes, then bolts.
+  if (type === 'stalk-seen') { fear?.scare?.(6, 'stalked'); photo?.toast(`Something low on the slope, ${Math.round(e.distance)} m off, froze the moment you looked. It's been following you.`); }
   const where = (x, z) => { const d = Math.hypot(x - player.position.x, z - player.position.z); return `${d.toFixed(0)} m away`; };
   if (type === 'whoop') fieldKit?.hear({ kind: 'whoop', x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: e.cryptid.profile.id, name: e.name });
   // A significant cue wakes you if you're asleep nearby (#104, #137, GDD 6.5): any creature sound or
@@ -376,6 +378,9 @@ const cryptids = new CryptidManager({ scene, colliders, halfSize: bounds, getPla
   // ?nosenses falls back to the L0 fixed flee distance (used by older mechanic checks).
   senses: new URLSearchParams(location.search).has('nosenses') ? null
     : { player, flashlight, camera, lightLevel: map.environment?.lightLevel ?? 0 } });
+// Level context for the AI (#130): on a daylight trip, how close dusk is and how deep you are.
+if (map.daylight) cryptids.context = () => ({ dusk: Math.min(1, hunt.elapsed / (map.clock?.seconds ?? 1)),
+  depth: Math.min(1, Math.hypot(player.position.x - HUNT.exit.x, player.position.z - HUNT.exit.z) / 250) });
 // State-machine debug overlay (F4 toggles; ?nodebugai starts it hidden).
 // Bigfoot knocks on trees now and then; K knocks back with your stick and can draw it closer.
 const knocks = new WoodKnocks({ cryptids, player, camera, fear, input });
@@ -487,8 +492,9 @@ const photo = new PhotoCamera({
   camera, scene, input,
   getSubjects: () => [
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, object3d: c.mesh, radius: c.profile.radius,
-      center: new THREE.Vector3(c.agent.x, c.profile.height * 0.6, c.agent.z),
-      base: new THREE.Vector3(c.agent.x, 0, c.agent.z), height: c.profile.height })),
+      // On the ground it stands on (hills, #130), not at y = 0.
+      center: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z) + c.profile.height * 0.6, c.agent.z),
+      base: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z), c.agent.z), height: c.profile.height })),
     ...(igopogo?.subject() ? [igopogo.subject()] : []),
     ...(sandbox ? [
       { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
@@ -510,7 +516,14 @@ fieldMap.getUnfoldDelay = () => dread.effects.mapDelay;  // ...and slower to unf
 fieldMap.notify = (m) => photo.toast(m);
 {
   const snap = photo.snap.bind(photo);
-  photo.snap = () => { const shot = snap(); if (shot) evidence.photographed(shot, photo); return shot; };
+  photo.snap = () => {
+    const shot = snap();
+    if (shot) evidence.photographed(shot, photo);
+    // #130: the Gouger caught walking across a slope is distinctive-locomotion evidence.
+    const go = shot?.subject === 'Sidehill Gouger' ? cryptids.cryptids.find((c) => c.profile.id === 'gouger') : null;
+    if (go?.slopeHere) { const s = go.slopeHere(), speed = go.agent.currentSpeed ?? 0; if (s.slope > 0.15 && speed > 0.3) evidence.addGait(go, { slope: s.slope, speed }); }
+    return shot;
+  };
 }
 // T sets a trail camera facing where you look: it photographs any cryptid that walks into its
 // view, on its own (grainy shots, lower score).
