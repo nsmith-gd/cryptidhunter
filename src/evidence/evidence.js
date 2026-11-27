@@ -28,6 +28,7 @@ export const EVIDENCE = {
     biologicalSample: { id: 'EV06', name: 'Droppings sample', base: 30, from: 'scat', how: 'vial' },
     footprintCast: { id: 'EV05', name: 'Footprint cast', base: 20, from: 'footprint', how: 'cast' },
     audioRecording: { id: 'EV07', name: 'Acoustic recording', base: 20, from: 'sound', how: 'recorder' },   // F05 field recorder (#87)
+    telemetry: { id: 'EV13', name: 'Tracking telemetry', base: 55, from: 'tag', how: 'receiver' },            // F16 tag + F17 receiver interval (#148)
     gaitPhoto: { id: 'EV03', name: 'Hillside gait photo', base: 35, from: 'creature', how: 'photo' },       // the Gouger's distinctive locomotion (#130, GDD L02)
   },
   dollarsPerUnit: 3,                            // $ per base unit (photos pay ~$2 per score point)
@@ -118,6 +119,15 @@ export class EvidenceKit {
     item.slope = +slope.toFixed(2); item.speed = +speed.toFixed(2);
     this.notify('Hillside gait photo saved as evidence: it walks leaning into the slope');
     return item;
+  }
+
+  /** Valid recovered telemetry (#148, GDD 8.2): one record per recorded interval, carried out with you. */
+  addTelemetry(track) {
+    return track.intervals.map((iv, i) => {
+      const item = this.add('telemetry', { id: `telemetry:${track.tagId}:${i}`, cryptidId: track.subjectId });
+      item.cryptid = 'Jersey Devil'; item.interval = { ...iv };
+      return item;
+    });
   }
 
   /** X: bag a hair tuft, or start casting a footprint. */

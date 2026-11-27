@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "check:t148": "vite build && node tools/check-t148.mjs",
     "check:t147": "vite build && node tools/check-t147.mjs",
     "check:t130": "vite build && node tools/check-t130.mjs",
     "check:t129": "vite build && node tools/check-t129.mjs",
