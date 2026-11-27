@@ -32,6 +32,7 @@ export function describeClue(clue) {
     case 'deerTrack': return 'Small split-hoof prints in pairs, 7 cm long';
     case 'foxTrack': return 'Small four-toed paw prints in a neat single line, 5 cm long';
     case 'owlFeather': return 'A soft feather, barred brown and cream, a hand long';
+    case 'wingDust': return 'Fine grey scales smeared on the boards, glittering like moth-wing dust';
     default: return clue.type;
   }
 }
@@ -41,15 +42,15 @@ export function describeClue(clue) {
 export const CANDIDATES = [
   {
     id: 'bigfoot', name: 'Bigfoot',
-    likelihood: { 'footprint:large': 0.45, 'footprint:small': 0.02, hair: 0.3, 'scratch:high': 0.2, 'scratch:low': 0.03, 'branch:high': 0.25, 'branch:low': 0.05, 'scat:large': 0.15, 'scat:small': 0.02 },
+    likelihood: { 'footprint:large': 0.45, 'footprint:small': 0.02, hair: 0.3, 'scratch:high': 0.2, 'scratch:low': 0.03, 'branch:high': 0.25, 'branch:low': 0.05, 'scat:large': 0.15, 'scat:small': 0.02, wingDust: 0.01 },
   },
   {
     id: 'chupacabra', name: 'Chupacabra',
-    likelihood: { 'footprint:large': 0.03, 'footprint:small': 0.45, hair: 0.15, 'scratch:high': 0.02, 'scratch:low': 0.35, 'branch:high': 0.02, 'branch:low': 0.1, 'scat:large': 0.03, 'scat:small': 0.2 },
+    likelihood: { 'footprint:large': 0.03, 'footprint:small': 0.45, hair: 0.15, 'scratch:high': 0.02, 'scratch:low': 0.35, 'branch:high': 0.02, 'branch:low': 0.1, 'scat:large': 0.03, 'scat:small': 0.2, wingDust: 0.01 },
   },
   {
     id: 'mothman', name: 'Mothman',
-    likelihood: { 'footprint:large': 0.05, 'footprint:small': 0.05, hair: 0.1, 'scratch:high': 0.2, 'scratch:low': 0.05, 'branch:high': 0.12, 'branch:low': 0.05, 'scat:large': 0.03, 'scat:small': 0.05 },
+    likelihood: { 'footprint:large': 0.05, 'footprint:small': 0.05, hair: 0.1, 'scratch:high': 0.2, 'scratch:low': 0.05, 'branch:high': 0.12, 'branch:low': 0.05, 'scat:large': 0.03, 'scat:small': 0.05, wingDust: 0.6 },
   },
 ];
 
