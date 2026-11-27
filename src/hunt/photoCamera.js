@@ -108,6 +108,8 @@ export class PhotoCamera {
     // Camera motion: how fast the view is turning (your mouse) plus fear shake.
     const motion = shake + this.lookSpeed / PHOTO.lookBlur;
     const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, motion, ...photoScore(r, motion), at: performance.now() };
+    // Equipment condition (#106): a worn camera loses low-light clarity (night photos score lower).
+    if (r.subject && (this.clarity ?? 1) < 1) { entry.score = Math.round(entry.score * this.clarity); entry.clarity = +this.clarity.toFixed(2); }
     entry.thumb = this.thumbnail();   // grabbed before the flash: what the lens saw
     entry.frame = this.filmTotal - this.film;
     if (r.subject) entry.evidence = this.recordCreature(r, entry);
