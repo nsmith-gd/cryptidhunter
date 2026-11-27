@@ -407,6 +407,7 @@ addEventListener('pointerdown', () => {      // browsers only start sound after 
   if (dreadAudio || new URLSearchParams(location.search).has('mute')) return;
   try { const ac = new (globalThis.AudioContext ?? globalThis.webkitAudioContext)(); dreadAudio = buildDreadAudio(ac); dreadAudio.set(dread.level); } catch { /* no audio */ }
 });
+dread.audio = () => dreadAudio;   // checks: the breathing/heartbeat the player hears matches the label (#131)
 
 // Level flow: spawn this hunt's Bigfoot. On maps with spawn zones (the forest) it picks where it
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
@@ -759,6 +760,7 @@ function present(dt) {
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) { drawFrame(); return; }
   nightVision.update(dt);
+  viewmodel.tremor = dread.feedback.tremor;   // dread (#131): a tremor in the hands holding the tools, never the view
   viewmodel.update(dt);
   loadout.render();
   loadout.update(dt);

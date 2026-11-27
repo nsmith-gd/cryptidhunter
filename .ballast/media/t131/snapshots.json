@@ -1,0 +1,43 @@
+{
+  "calm": {
+    "value": 0.1,
+    "label": null,
+    "tremor": 0,
+    "breath": 0,
+    "heart": 0,
+    "condition": null,
+    "meterInDom": false,
+    "meterInStatus": false,
+    "viewSteady": true,
+    "hudWarnings": []
+  },
+  "shaken": {
+    "value": 34.1,
+    "label": "Shaken: hands unsteady, breathing loud",
+    "tremor": 0.00363,
+    "breath": 0.385,
+    "heart": 0.297,
+    "condition": {
+      "name": "Shaken (dread)",
+      "cause": "Deep in the woods, a long time out",
+      "effect": "Hands unsteady (tremor on what you hold), breathing loud, fear comes quicker, the fog feels closer",
+      "fix": "Get somewhere lit and safe: the van, the cabin, your tent, a lamp or a fire"
+    },
+    "meterInDom": false,
+    "meterInStatus": false,
+    "viewSteady": true,
+    "hudWarnings": []
+  },
+  "cleared": {
+    "value": 24.8,
+    "label": null,
+    "tremor": 0,
+    "breath": 0,
+    "heart": 0,
+    "condition": null,
+    "meterInDom": false,
+    "meterInStatus": false,
+    "viewSteady": true,
+    "hudWarnings": []
+  }
+}
