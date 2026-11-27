@@ -167,7 +167,7 @@ check('after four nights: four hunts logged, four trips charged once each, every
 await page.goto(URL.replace('map=forest', 'map=swamp'));
 await loadCamp();
 const s0 = await camp();
-check('night 5 in Black Water Swamp also starts at base camp with the same career', s0.hunts === 4 && /EXPEDITION PREP · Black Water Swamp/.test(s0.prep), { prep: s0.prep.split('\n')[0] });
+check('night 5 in Blackwater Swamp also starts at base camp with the same career', s0.hunts === 4 && /EXPEDITION PREP · Blackwater Swamp/.test(s0.prep), { prep: s0.prep.split('\n')[0] });
 await commit();
 await page.evaluate(() => __game.hunt.onPhoto({ subject: __game.hunt.target, distance: 12, score: 55, source: 'handheld camera' }));
 await steps(2);
