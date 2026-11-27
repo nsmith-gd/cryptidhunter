@@ -98,7 +98,11 @@ const deerEvidence = await page.evaluate(() => __game.evidence.items.length);
 await page.evaluate(() => __game.sim.frame(0)); await page.waitForTimeout(400);
 await page.screenshot({ path: `${out}/03-deer-tracks-false-lead.png` });
 const verdict = await page.evaluate(() => { const v = __game.journal.verdict(); return v.likely?.name ?? v.ranking[0]?.name; });
-check('deer tracks read as an ordinary animal: no direction to a cryptid, nothing to collect, and the journal still names Bigfoot', deer && /ordinary animal/.test(deerHint) && /deer/.test(deerDesc) && deerEvidence === 0 && verdict === 'Bigfoot', { deerHint, deerDesc, deerEvidence, verdict });
+// #99: what made the prints is a hidden tag only HQ reads. In the field they're described by what
+// you see (small split-hoof prints), give no direction to a cryptid, can't be cast, and leave the
+// journal pointing at Bigfoot.
+check('deer tracks are a false lead: described by what you see (not named), no direction to a cryptid, nothing to collect, and the journal still names Bigfoot',
+  deer && !/deer|ordinary/i.test(deerHint) && !/went|heading|toward/i.test(deerHint) && /split-hoof/.test(deerDesc) && !/deer/i.test(deerDesc) && deerEvidence === 0 && verdict === 'Bigfoot', { deerHint, deerDesc, deerEvidence, verdict });
 
 // Droppings -> sample (X); snapped branch -> photo evidence.
 await goTo('scat', 'bigfoot', false);

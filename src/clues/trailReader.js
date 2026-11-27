@@ -62,7 +62,10 @@ export class TrailReader {
 
   hintFor(clue) {
     // GDD 4.4: ordinary animal signs are real false leads. Reading them tells you so, not where it went.
-    if (clue.type === 'deerTrack') return 'Deer tracks: an ordinary animal. Not what you\'re hunting.';
+    // Ordinary sign (GDD 4.4, #99): reading it tells you what you see, not what made it.
+    if (clue.type === 'deerTrack') return 'Small, neat hoof prints wandering off. Light-footed, whatever it was.';
+    if (clue.type === 'foxTrack') return 'Tiny paw prints in a dead-straight line. Something small and quick.';
+    if (clue.type === 'owlFeather') return 'A single soft feather. Nothing else nearby.';
     const ahead = this.aheadOf(clue);
     return ahead ? clueHint(clue, ahead) : coldHint(clue);
   }

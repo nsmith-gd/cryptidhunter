@@ -88,7 +88,7 @@ const darkToast = await toastText();
 await shot('02-dark-shot-preview');
 check('the same shot with the torch off is "too dark": lower clarity and Q, named in the preview', dark?.ev && dark.ev.quality.C < rec.quality.C - 0.3 && dark.ev.quality.Q < rec.quality.Q && /Too dark/.test(darkToast),
   { litC: rec.quality.C, darkC: dark?.ev?.quality.C, litQ: rec.quality.Q, darkQ: dark?.ev?.quality.Q, preview: darkToast });
-check('in the dark his features can\'t be made out: identification drops too, coverage doesn\'t (a black frame is no proof)', dark?.ev && dark.ev.quality.I < rec.quality.I && dark.ev.quality.K === rec.quality.K && dark.ev.quality.Q < 60, { I: [rec.quality.I, dark?.ev?.quality.I], K: [rec.quality.K, dark?.ev?.quality.K], Q: [rec.quality.Q, dark?.ev?.quality.Q] });
+check('in the dark his features can\'t be made out: identification and recorded coverage drop (a black frame is no proof)', dark?.ev && dark.ev.quality.I < rec.quality.I && dark.ev.quality.K < rec.quality.K && dark.ev.quality.Q < 40, { I: [rec.quality.I, dark?.ev?.quality.I], K: [rec.quality.K, dark?.ev?.quality.K], Q: [rec.quality.Q, dark?.ev?.quality.Q] });
 await page.evaluate(() => { __pose(9); __light(false); __game.nightVision.toggle(true); });
 const nv = await snap();
 await page.evaluate(() => __game.nightVision.toggle(false));
@@ -130,8 +130,9 @@ check('from far away and low, the same print scores lower and the preview says w
   fpFar?.clue && { Q: fpFar.clue.quality.Q, problems: fpFar.clue.quality.problems });
 await page.evaluate(() => { __clue(__deer, 1.6, -0.82); });
 const deerShot = await snap();
-const deerItem = await page.evaluate(() => __game.evidence.items.some((i) => i.clueId === __deer.id));
-check('deer tracks: the photo stays on the roll (source: ordinary animal) but is no cryptid evidence to sell', deerShot?.clue && /deer/.test(deerShot.clue.source.actual) && !deerItem, deerShot?.clue && { source: deerShot.clue.source, saleable: deerItem });
+const deerItem = await page.evaluate(() => __game.evidence.items.find((i) => i.clueId === __deer.id)?.source ?? null);
+// #99: ordinary prints no longer self-identify in the field; the photo is kept with a hidden tag and HQ rejects it.
+check('deer tracks: the photo stays on the roll with a hidden ordinary-animal source tag (HQ rejects it)', deerShot?.clue && /deer/.test(deerShot.clue.source.actual) && deerItem?.origin === 'ordinary', deerShot?.clue && { source: deerShot.clue.source, item: deerItem });
 
 // ---- 5. storage and review: extract (drive home) -> archive; review the album ---------------------
 const before = await page.evaluate(() => __game.photo.records.length);
