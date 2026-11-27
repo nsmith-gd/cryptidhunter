@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { recordCommitment, recordFinaleOutcome } from '../story/finale.js';
+import { showCommitPrompt } from '../story/commitPrompt.js';
 
 // G09 finale rehearsal fixture (GDD §15.2 G09 "separate short finale fixture with water crossing,
 // base, final commitment and authored ending"; §11.2; task #155). Greybox, proxy art. ?map=g09.
@@ -8,7 +10,7 @@ import * as THREE from 'three';
 //   the middle with one shallow ford; the base (a tent and a supply cache that never restocks) on
 //   the far bank; the final site - a ring of standing stones - in the north.
 //   Before the commitment: an ordinary trip. Leave by the trailhead: ordinary extraction.
-//   The commitment (at the stones): two presses of 5 - a warning, then the step past it.
+//   The commitment (at the stones): 5 opens the explicit warning (#156); Turn back, or Go on.
 //   The return: the base's landmarks have changed (the lantern is out, the tent has moved), calls
 //   come from where nothing is (mimicry), and something tall is seen between the trees. The paper
 //   map stays truthful. At the last extraction approach the authored encounter interrupts the
@@ -107,16 +109,28 @@ export class G09World {
     return { ok: true, left: this.cache[item] };
   }
 
-  /** 5 at the stones: first press warns, the second commits. Elsewhere: nothing. */
+  /** 5 at the stones: the explicit commitment prompt (#156). Elsewhere: nothing. */
   commitStep() {
     if (this.phase === 'ended' || this.phase === 'committed') return { ok: false, why: this.phase };
     if (!this.near(G09.site, G09.siteR + 1)) return { ok: false, why: 'only at the stones' };
-    if (this.phase === 'approach') {
-      this.phase = 'warned'; this.log('warned', {});
-      this.notify('If you go further, there may be no coming back. Press 5 again to go on, or walk away.');
-      return { ok: true, phase: this.phase };
-    }
+    if (this.phase === 'warned') return { ok: true, phase: this.phase };          // already asking
+    this.phase = 'warned'; this.log('warned', {});
+    this.prompt = typeof document !== 'undefined' ? showCommitPrompt({ onConfirm: () => this.confirmCommit(), onCancel: () => this.declineCommit() }) : null;
+    return { ok: true, phase: this.phase };
+  }
+  /** "Turn back": nothing changes; it's still an ordinary trip. */
+  declineCommit() {
+    if (this.phase !== 'warned') return { ok: false, why: this.phase };
+    if (this.prompt?.el.isConnected) this.prompt.el.remove();
+    this.phase = 'approach'; this.log('turned-back', {});
+    return { ok: true, phase: this.phase };
+  }
+  /** "Go on": the irreversible step. */
+  confirmCommit() {
+    if (this.phase !== 'warned') return { ok: false, why: this.phase };
+    if (this.prompt?.el.isConnected) this.prompt.el.remove();
     this.phase = 'committed'; this.committedAt = this.time; this.log('committed', {});
+    if (this.g.camp) { recordCommitment(this.g.camp.state, { attemptId: this.g.expedition?.attemptId ?? null, at: +this.time.toFixed(1) }); this.g.camp.save?.(); }
     this.notify('You step into the circle.');
     this.changeLandmarks();
     return { ok: true, phase: this.phase };
@@ -165,6 +179,8 @@ export class G09World {
   end(outcome) {
     this.phase = 'ended'; this.outcome = outcome;
     this.log('ended', { outcome });
+    // The career record (#156): the disappearance is narrative completion, distinct from death.
+    if (this.g.camp) { recordFinaleOutcome(this.g.camp.state, { kind: outcome, attemptId: this.g.expedition?.attemptId ?? null, at: +this.time.toFixed(1) }); this.g.camp.save?.(); }
     if (outcome === 'disappeared' && this.black) this.black.style.opacity = '1';
     if (outcome === 'extracted') this.notify('You drive out. The case stays open.');
     if (outcome === 'died') this.notify('You died out here. (An ordinary death: you can try again.)');
