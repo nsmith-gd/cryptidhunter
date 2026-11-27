@@ -1,5 +1,6 @@
 import { hash32 } from '../core/rng.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
+import { G05World } from './g05.js';
 
 // Gym harness for G02–G04 (GDD 14.2, 15.1–15.3, 17.5; task #108).
 //   Fixture     every load rebuilds the gym from scratch with its fixed seed (GYM_SEEDS, or ?seed=),
@@ -20,6 +21,9 @@ export const GYM_TASKS = {
     'Wade the crossing, then dry off and warm up at the shelter', 'Take the authored fall injury and bandage it (B)', 'Rest at the shelter with several deficits at once'],
   G03: ['Find fresh tracks and follow them toward the den or feeding area', 'Photograph or collect something without seeing the creature',
     'Tell the ordinary-animal trace from the real one', 'Pitch the tent at camp A or B and sleep', 'Head back to the trailhead'],
+  G05: ['Board the boat at the dock (E), engine (5), drive out to the sonar buoy', 'Ping the sonar (6) by the buoy and copy its data (7)',
+    'Run the battery flat: sonar and GPS go off, torch and paper map still work', 'Charge it at the generator (8) on the shore',
+    'Go over the side in deep water (E away from the dock): breath and cold, then reach the shallows and the hut', 'Leave by the dry exit on foot, no boat needed'],
   G04: ['Approach the claw-marked stumps and heed the warning', 'Ignore the warning, then retreat', 'Break line of sight at hide A or B',
     'Bleed (fixed injury), notice the scent follower, bandage (B) and lose it', 'Reach the extraction point by the safe edge route'],
 };
@@ -40,6 +44,14 @@ export class GymHarness {
       const which = new URLSearchParams(location.search).get('proxy') ?? 'both';
       if (which !== 'scent') this.proxies.push(this.territory = new TerritoryProxy({ scene: game.scene, trace, debug, notify }));
       if (which !== 'territory') this.proxies.push(this.scentProxy = new ScentProxy({ scene: game.scene, scent: game.scent, trace }));
+    }
+    if (this.id === 'G05') {
+      this.world = new G05World({ game, map, trace, storm: new URLSearchParams(location.search).has('storm'), notify });
+      this.proxies.push(this.world.proxy);
+      this.world.proxy.mesh.name = 'gym-proxy-mugwump'; debug(this.world.proxy.mesh);
+      const keys = { Digit5: () => this.world.setEngine(!this.world.boat.engine), Digit6: () => this.world.ping(), Digit7: () => this.world.copyBuoy(),
+        Digit8: () => this.world.runGenerator(!this.world.generator.running), KeyE: () => (this.world.boat.aboard ? this.world.leave() : this.world.board()) };
+      addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && keys[e.code]) keys[e.code](); });
     }
     this.fixture();
     this.watch();
@@ -102,16 +114,19 @@ export class GymHarness {
   update(dt) {
     this.tick++; this.time += dt;
     const g = this.g;
-    for (const p of this.proxies) p.update(dt, { player: g.player, health: g.survival.health });
+    for (const p of this.proxies) p.update?.(dt, { player: g.player, health: g.survival.health });
+    this.world?.update(dt);
     this.poll();
   }
 
   /** Hash of the trace and the final state: equal digests = the same run. */
   get digest() {
     const g = this.g, p = g.player.position;
-    const state = { tick: this.tick, p: [p.x, p.z].map((v) => +v.toFixed(3)), health: +g.survival.health.value.toFixed(3),
+    const w = this.world;
+    const state = { tick: this.tick, p: [p.x, p.z].map((v) => +v.toFixed(3)),
+      ...(w ? { fuel: +w.boat.fuel.toFixed(4), charge: +w.power.charge.toFixed(3), breath: +w.breath.value.toFixed(3), boat: [w.boat.x, w.boat.z].map((v) => +v.toFixed(3)) } : {}), health: +g.survival.health.value.toFixed(3),
       energy: +g.survival.nutrition.energy.toFixed(3), core: +g.survival.thermo.core.toFixed(3), wet: +g.survival.thermo.wetness.toFixed(3),
-      proxies: this.proxies.map((x) => [x.pos.x, x.pos.z].map((v) => +v.toFixed(3))) };
+      proxies: this.proxies.map((x) => [(x.pos ?? x).x, (x.pos ?? x).z].map((v) => +v.toFixed(3))) };
     return (hash32(JSON.stringify({ events: this.events, state })) >>> 0).toString(16);
   }
 
@@ -125,6 +140,15 @@ export class GymHarness {
   }
 
   reset() { location.reload(); }
+
+  /** G05 readouts: fuel, battery and what it powers, breath, buoy data (not answers: you'd know these). */
+  worldHud() {
+    const w = this.world, d = w.deviceStatus(), b = w.boat;
+    return `<div style="margin-top:4px">${w.storm ? 'STORM' : 'calm'} · boat ${b.aboard ? 'aboard' : 'at ' + b.x.toFixed(0) + ',' + b.z.toFixed(0)} · engine ${b.engine ? 'ON' : 'off'} · fuel ${Math.round(b.fuel * 100)}%</div>
+      <div>battery ${Math.round(w.power.charge)}% · ${Object.entries(d).map(([k, v]) => `${k} ${v ? 'ok' : 'OFF'}`).join(' · ')}</div>
+      <div>generator ${w.generator.running ? 'running' : 'off'} (fuel ${Math.round(w.generator.fuel * 100)}%) · breath ${Math.round(w.breath.value)} s · buoy data ${w.buoy.readings.length} (copied ${w.buoy.copied.length})</div>
+      <div style="color:#8fa89a">E board/leave · 5 engine · 6 sonar · 7 copy buoy · 8 generator</div>`;
+  }
 
   // ---- HUD ---------------------------------------------------------------------------------
   buildHud() {
@@ -151,16 +175,17 @@ export class GymHarness {
     const btn = (a, t) => `<button data-a="${a}" style="font:11px monospace;margin-right:6px;background:#1d2a24;color:#d8e4dc;border:1px solid #4d7a64;cursor:pointer">${t}</button>`;
     const status = { pass: '#8fe08a', fail: '#ff8a7a', not_evaluated: '#a8a8a8' };
     const answers = this.blind ? '<div style="color:#a8a8a8">BLIND MODE: debug answers hidden</div>' : [
-      ...this.proxies.map((x) => `<div>${x.mesh.name.replace('gym-proxy-', '')}: <b>${x.state ?? 'scheduled'}</b> @ ${x.pos.x.toFixed(1)}, ${x.pos.z.toFixed(1)}</div>`),
+      ...this.proxies.map((x) => `<div>${x.mesh.name.replace('gym-proxy-', '')}: <b>${x.state ?? 'scheduled'}</b> @ ${(x.pos ?? x).x.toFixed(1)}, ${(x.pos ?? x).z.toFixed(1)}</div>`),
       ...(this.falseTrace ? [`<div>ordinary trace: deer prints @ ${this.map.landmarks.falseTrace.x}, ${this.map.landmarks.falseTrace.z}</div>`] : []),
       `<div style="color:#8fa89a;margin-top:4px">TRACE (last 6 of ${this.events.length})</div>`,
       ...this.events.slice(-6).map((e) => `<div style="color:#b8c8c0">${e.tick} ${e.system}.${e.type} ${JSON.stringify(e.data).slice(0, 60)}</div>`),
     ].join('');
     this.el.innerHTML = `<div style="font-weight:bold;color:#ffd88a">${this.map.title}</div>
-      <div>${link('G00', 'gym')}${link('G02', 'g02')}${link('G03', 'g03')}${link('G04', 'g04')}</div>
+      <div>${link('G00', 'gym')}${link('G02', 'g02')}${link('G03', 'g03')}${link('G04', 'g04')}${link('G05', 'g05')}</div>
       <div>seed ${this.seed} · tick ${this.tick} · ${this.blind ? 'blind' : 'debug'}</div>
       <div style="margin:4px 0">${btn('reset', 'Reset')}${btn('run', 'Run script')}${btn('blind', this.blind ? 'Debug view' : 'Blind mode')}</div>
       <div>health ${Math.round(s.health.value)}${s.health.bleeding.length ? ' (bleeding)' : ''} · energy ${Math.round(s.nutrition.energy)} · body ${s.thermo.core.toFixed(1)}°C · wet ${Math.round(s.thermo.wetness)}% · stamina ${Math.round(g.player.stamina * 100)}% · you @ ${p.x.toFixed(1)}, ${p.z.toFixed(1)}</div>
+      ${this.world ? this.worldHud() : ''}
       <div style="color:#8fa89a;margin-top:4px">TASKS</div>${(GYM_TASKS[this.id] ?? []).map((t) => `<div>· ${t}</div>`).join('')}
       <div style="margin-top:4px">${answers}</div>
       ${this.criteria.length ? `<div style="color:#8fa89a;margin-top:4px">PASS CRITERIA</div>${this.criteria.map((c) => `<div><span style="color:${status[c.status]}">${c.status.toUpperCase()}</span> ${c.text}</div>`).join('')}` : ''}`;
