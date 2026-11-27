@@ -86,8 +86,10 @@ rmSync(frames, { recursive: true, force: true });
 
 // In game: night, torch only, 5 m away on the boardwalk.
 await page.evaluate(() => { const g = __game; g.scene.remove(...g.studio); for (const o of g.hidden) o.visible = true; if (!g.flashlight.on) g.flashlight.toggle(); g.pose(1 / 30, 0, 'idle', 10); });
-for (const [n, h, d] of [['game-torch-5m', 0.5, 5], ['game-torch-9m', 0.2, 9]]) {
+for (const [n, h, d] of [['game-torch-4m', 0.5, 4], ['game-torch-8m', 0.2, 8]]) {
   await page.evaluate(([h, d]) => __game.orbit(h, d, 1.6 + 0.34, 0.6), [h, d]);
+  // Clear only foreground clutter within 2 m of the lens, so the shot frames the creature.
+  await page.evaluate(() => { const g = __game, cp = g.camera.position; for (const o of g.hidden) { const p = o.getWorldPosition(new g.THREE.Vector3()); o.visible = o.isInstancedMesh || p.distanceTo(cp) > 2.5; } });
   await render(); await snap(n);
 }
 console.log(errors.length ? `ERRORS ${JSON.stringify(errors)}` : 'ok');

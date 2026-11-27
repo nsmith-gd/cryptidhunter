@@ -68,11 +68,11 @@ function sculpt(J) {
   E('chest', add(J.chest, [0, 0.03, 0.06]), [0.115, 0.07, 0.1], 0.04);         // shoulder blades
   // Neck thrust forward and low, a heavy skull, a long tapering muzzle and the underslung jaw.
   C('neck', add(J.neck, [0, -0.04, -0.04]), add(J.head, [0, -0.02, -0.02]), 0.07, 0.055, 0.04);
-  E('head', add(J.head, [0, 0.02, 0.03]), [0.08, 0.07, 0.085], 0.03);
-  C('head', add(J.head, [0, 0.0, 0.08]), add(J.head, [0, -0.03, 0.2]), 0.05, 0.026, 0.03);   // muzzle
+  E('head', add(J.head, [0, 0.02, 0.03]), [0.07, 0.066, 0.078], 0.03);
+  C('head', add(J.head, [0, 0.0, 0.08]), add(J.head, [0, -0.03, 0.2]), 0.04, 0.018, 0.025);   // muzzle
   C('head', add(J.head, [-0.055, 0.055, 0.06]), add(J.head, [0.055, 0.055, 0.06]), 0.024, 0.024, 0.02);   // brow ridge
   for (const s of [-1, 1]) C('head', add(J.head, [s * 0.05, 0.06, -0.03]), add(J.head, [s * 0.085, 0.14, -0.08]), 0.022, 0.006, 0.015);   // swept-back ears
-  C('jaw', add(J.jaw, [0, -0.01, 0.02]), add(J.jaw, [0, -0.02, 0.15]), 0.036, 0.018, 0.02);
+  C('jaw', add(J.jaw, [0, -0.01, 0.02]), add(J.jaw, [0, -0.02, 0.15]), 0.028, 0.014, 0.02);
   // Tail: a thin whip.
   C('tail1', J.tail1, J.tail2, 0.04, 0.03, 0.03);
   C('tail2', J.tail2, J.tail3, 0.03, 0.018, 0.02);
