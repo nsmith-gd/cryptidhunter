@@ -444,6 +444,14 @@ let knocksHeard = 0;
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
   pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
   gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit, equipment, repairKit: { uses: 0 }, notify: (m) => photo.toast(m) } });
+// S07 hydration (#103): the packed bottles are the loadout's water; the canteen and tablets come
+// from camp. The canteen and its water are carried in the pack (mass counts once, in the load).
+survival.hydration.bottles = { get: () => loadout.water, set: (n) => { loadout.water = n; loadout.render(); } };
+survival.hydration.hasCanteen = (camp.state.gear.canteen ?? 0) > 0;
+survival.hydration.canteen.litres = survival.hydration.hasCanteen ? 1 : 0;
+survival.hydration.tablets = camp.state.gear.purTablets ?? 0;
+survival.hydration.onTablet = () => { camp.state.gear.purTablets = Math.max(0, (camp.state.gear.purTablets ?? 0) - 1); camp.save(); };
+loadout.extraPack = () => (survival.hydration.hasCanteen ? { canteen: 1, canteenWater: survival.hydration.canteen.litres } : {});
 photo.onLoweredClick = () => loadout.use();
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
   onChange: ({ slots, pack, water }) => {

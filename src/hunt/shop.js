@@ -23,6 +23,8 @@ export const SHOP = Object.freeze({
     whistle: { name: 'Signal whistle', price: 5, note: 'One blast heard 60 m away (Y)', durable: true },
     dryClothes: { name: 'Dry clothes', price: 20, note: 'Change out of wet layers (Q)' },
     fireKit: { name: 'Fire kit', price: 12, note: 'Light a small fire for warmth (Q, 6 uses)' },
+    canteen: { name: 'Canteen (1 L)', price: 12, note: 'Refill at a stream or the swamp (I)', durable: true },
+    purTablets: { name: 'Purification tablets', price: 9, note: 'Make stream water safe to drink (6 uses)' },
     tent: { name: 'Two-person tent', price: 110, note: 'Pitch a camp, shelter from rain, sleep off fatigue (Q)', durable: true },   // D03 (#104)
   },
   // values[level]: level 0 is the stock gear; prices[level] is the cost of the NEXT level.
@@ -46,7 +48,7 @@ export function buyGear(camp, key) {
   if (item.durable && (camp.state.gear[key] ?? 0) >= 1) return { ok: false, reason: 'already owned' };
   const r = camp.ledger.purchase(camp.ledger.nextId(`buy:${key}`), cents(item.price), item.name);
   if (!r.ok) return { ok: false, reason: `need $${item.price}` };
-  camp.state.gear[key] = (camp.state.gear[key] ?? 0) + (key === 'fireKit' ? 6 : 1);   // a fire kit is 6 uses
+  camp.state.gear[key] = (camp.state.gear[key] ?? 0) + (key === 'fireKit' || key === 'purTablets' ? 6 : 1);   // a fire kit is 6 uses
   camp.save();
   return { ok: true };
 }
