@@ -601,7 +601,7 @@ export function buildSwampMap(scene) {
   for (const c of candidates) if (picked.length < 5 && picked.every((p) => Math.hypot(p.t.x - c.t.x, p.t.z - c.t.z) > 12)) picked.push(c);
   const clueSpots = picked.map(({ t, deck }, i) => {
     const dx = deck.x - t.x, dz = deck.z - t.z, len = Math.hypot(dx, dz) || 1;
-    const y = deck.top + 2.3 + cr() * 0.5, rr = trunkAt(t, y) + 0.03;
+    const y = deck.top + 2.3 + cr() * 0.5, rr = trunkAt(t, y) * 1.15 + 0.06;   // just proud of the faceted bark
     const type = i < 3 ? 'scratch' : 'branch';
     return { type, cryptidId: 'mothman', position: { x: t.x + (dx / len) * rr, y, z: t.z + (dz / len) * rr }, rotationY: Math.atan2(dx, dz),
       data: type === 'scratch' ? { length: 0.7 } : { length: 0.8 } };
