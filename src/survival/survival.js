@@ -1,6 +1,7 @@
 import { Thermoregulation, THERMO } from './thermoregulation.js';
 import { Nutrition } from './nutrition.js';
 import { Health, HEALTH } from './health.js';
+import { Fatigue } from './fatigue.js';
 
 // Survival systems for the tutorial tier (GDD 1.2 S01 Nutrition, S02 Thermoregulation).
 // Each system owns its own state; this module steps them in the GDD order (environment first,
@@ -9,9 +10,11 @@ import { Health, HEALTH } from './health.js';
 // Z eats.
 
 export class Survival {
-  constructor({ player, input, map, heatSources, food, lethalCold = false }) {
+  constructor({ player, input, map, heatSources, food, lethalCold = false, rain = () => 0 }) {
     this.player = player;
-    this.thermo = new Thermoregulation({ player, airTemp: map.environment?.airTemp ?? 6, heatSources, surfaceAt: map.surfaceAt, lethal: lethalCold });
+    this.thermo = new Thermoregulation({ player, airTemp: map.environment?.airTemp ?? 6, heatSources, surfaceAt: map.surfaceAt, lethal: lethalCold, rain });
+    // S09 (#104): sleep debt. Caps stamina capacity; only sleep at a camp brings it down.
+    this.fatigue = new Fatigue({ player });
     this.nutrition = new Nutrition({ player, food, getCold: () => this.thermo.coldDeficit });
     // S08: the only damage path. onDeath is set by the hunt (health 0 ends it).
     this.health = new Health({ onDeath: (cause) => this.onDeath?.(cause) });
@@ -39,6 +42,7 @@ export class Survival {
   update(dt) {
     this.thermo.update(dt);
     this.nutrition.update(dt);
+    this.fatigue.update(dt);
     // Critical cold (ordinary expeditions): the shared health path, after the warnings (#89).
     this.health.exposure('Hypothermia', THERMO.criticalDrain, dt, this.thermo.critical);
     this.health.update(dt);
@@ -48,13 +52,14 @@ export class Survival {
     const h = this.health;
     this.player.injuryPenalty = Math.max(0, (70 - h.value) / 70) * 0.35 + (h.bleeding.some((c) => c.severity === 'heavy') ? 0.1 : 0);
     this.player.thermalPenalty = this.thermo.coldDeficit * 0.2;
+    this.player.fatiguePenalty = this.fatigue.penalty;   // stamina_capacity = base × max(0.50, 1 − fatigue − injury)
   }
 
   /** Use another (consolidated) warning list for the HUD: fn() -> [{ id, level, text }]. */
   setWarningSource(fn) { this.warningSource = fn; }
 
   /** Every active warning, each naming its cause. */
-  warnings() { return [...this.health.warnings(), ...this.thermo.warnings(), ...this.nutrition.warnings()]; }
+  warnings() { return [...this.health.warnings(), ...this.thermo.warnings(), ...this.nutrition.warnings(), ...this.fatigue.warnings()]; }
 
   // --- HUD -------------------------------------------------------------------------------
   buildHud() {
@@ -76,6 +81,7 @@ export class Survival {
       <div class="row"><span>HEALTH</span><div class="track"><div class="fill h"></div></div><span class="hn"></span></div>
       <div class="row"><span>ENERGY</span><div class="track"><div class="fill e"></div></div><span class="en"></span></div>
       <div class="row"><span>BODY</span><div class="track"><div class="fill t"></div></div><span class="tn"></span></div>
+      <div class="row"><span>FATIGUE</span><div class="track"><div class="fill f"></div></div><span class="fn"></span></div>
       <div class="warn"></div>`;
     this.toastEl = Object.assign(document.createElement('div'), { id: 'survival-toast' });
     document.body.append(this.el, this.toastEl);
@@ -95,6 +101,10 @@ export class Survival {
     tf.style.width = `${(Math.max(0, Math.min(1, frac)) * 100).toFixed(1)}%`;
     tf.style.background = t.core < THERMO.coldBelow ? '#6aa8ff' : t.core < THERMO.comfortLow ? '#a8c8ff' : '#f0c070';
     this.el.querySelector('.tn').textContent = `${t.core.toFixed(1)}°C${t.wetness >= 5 ? ` · wet ${Math.round(t.wetness)}%` : ''}${t.nearHeat ? ' · warming' : ''}`;
+    const fa = this.fatigue, ff = this.el.querySelector('.fill.f');   // sleep debt: the bar fills as you tire
+    ff.style.width = `${fa.value.toFixed(1)}%`;
+    ff.style.background = fa.value > 70 ? '#c0504d' : fa.value >= 40 ? '#e0a040' : '#9ab0d0';
+    this.el.querySelector('.fn').textContent = `${Math.round(fa.value)} (${fa.band})${fa.asleep ? ' · asleep' : ''}`;
     // The HUD list can be fed by the consolidated status model (GDD 2.11, #71).
     const w = this.warningSource ? this.warningSource() : this.warnings();
     const html = w.map((x) => `<div class="l${x.level}">⚠ ${x.text}</div>`).join('');

@@ -8,6 +8,7 @@
 // once it does. Labels are words (SOON / NOW, severity names), never colour or sound alone.
 
 import { THERMO } from '../survival/thermoregulation.js';
+import { FATIGUE } from '../survival/fatigue.js';
 import { FEAR } from '../hunt/fear.js';
 import { FLASHLIGHT } from '../flashlight.js';
 
@@ -98,6 +99,25 @@ export class StatusModel {
       }
     }
 
+    if (s?.fatigue) {   // S09 (#104): sleep debt caps stamina; only sleep at camp fixes it
+      const fa = s.fatigue, cap = Math.round(Math.max(0.5, 1 - fa.penalty) * 100);
+      const fixSleep = 'Pitch your tent somewhere dry and flat (Q), step inside and sleep (Q). A fire nearby helps';
+      if (fa.value > FATIGUE.impaired) {
+        add({ id: 'fatigue', stage: 'now', severity: 2, name: 'Exhausted', cause: `Awake too long (fatigue ${Math.round(fa.value)})`,
+          effect: `Drowsy: stamina capped at ${cap}%`, fix: fixSleep });
+      } else if (fa.value >= FATIGUE.strained) {
+        add({ id: 'fatigue', stage: 'now', severity: 1, name: 'Tired', cause: `Sleep debt (fatigue ${Math.round(fa.value)})`,
+          effect: `Stamina capped at ${cap}%; it gets worse the longer you stay up`, fix: fixSleep });
+      } else if (fa.value >= FATIGUE.strained - 8) {
+        add({ id: 'fatigue', stage: 'soon', severity: 0, name: 'Getting tired', cause: `Long day (fatigue ${Math.round(fa.value)})`,
+          effect: `Stamina will start to cap at fatigue ${FATIGUE.strained}`, fix: fixSleep });
+      }
+      if (s.thermo.rainExposure > 0) {
+        add({ id: 'rain', stage: s.thermo.wetness >= 30 ? 'now' : 'soon', severity: 1, name: 'Out in the rain', cause: 'Rain',
+          effect: 'Soaking your clothes: wet clothes lose heat faster', fix: 'Get under shelter: your tent, the cabin or the van' });
+      }
+    }
+
     if (p.exhausted) {
       add({ id: 'winded', stage: 'now', severity: 1, name: 'Winded', cause: 'Sprinted until out of breath',
         effect: "Can't sprint until you catch your breath", fix: 'Walk or stand still to recover' });
@@ -147,6 +167,7 @@ export class StatusModel {
       const trend = (t.equilibrium ?? t.core) < t.core - 0.02 ? ', cooling' : (t.equilibrium ?? t.core) > t.core + 0.02 ? ', warming' : '';
       a.push({ id: 'temperature', name: 'Body temperature', value: (t.core - THERMO.floor) / (THERMO.ceiling - THERMO.floor), text: `${t.core.toFixed(1)}°C (${t.band}${trend})` });
       a.push({ id: 'wetness', name: 'Wetness', value: t.wetness / 100, text: `${Math.round(t.wetness)}%${t.wetness < 5 ? ' (dry)' : ''}` });
+      if (s.fatigue) a.push({ id: 'fatigue', name: 'Fatigue', value: s.fatigue.value / 100, text: `${Math.round(s.fatigue.value)} (${s.fatigue.band}${s.fatigue.asleep ? ', asleep' : ''}) · low is good` });
     }
     if (f) a.push({ id: 'fear', name: 'Fear', value: f.value / 100, text: `${Math.round(f.value)} (${f.value > 70 ? 'terrified' : f.value > FEAR.swayStart ? 'scared' : f.value > STATUS.fearSoon ? 'uneasy' : 'calm'})` });
     if (fl) a.push({ id: 'battery', name: 'Torch battery', value: fl.battery, text: `${Math.round(fl.battery * 100)}% · ${this.torchMinutes()} of light · ${fl.spares} spare${fl.spares === 1 ? '' : 's'}` });
@@ -157,6 +178,7 @@ export class StatusModel {
   capability() {
     const p = this.player, f = this.fear;
     return [
+      `Stamina capacity: ${Math.round((p.staminaCap ?? 1) * 100)}% (fatigue and wounds lower it, never below 50%)`,
       `Stamina recovery: ${Math.round((p.recoveryScale ?? 1) * 100)}% of normal`,
       `Sprint: ${p.exhausted ? 'locked until you catch your breath' : 'ready'}`,
       `Aim: ${f && f.value > FEAR.swayStart ? 'shaky (photos may blur)' : 'steady'}`,
