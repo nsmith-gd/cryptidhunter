@@ -41,14 +41,14 @@ const setup = (bigfootDx) => page.evaluate((dx) => {
   b.enterRoam?.('test start'); b.perception.reset(); b.perception.memory = [];
   b.roamPause = 1e9; b.pauseLeft = 1e9;
   g.__b = b;
-  for (let i = 0; i < 30; i++) g.sim.frame(1 / 30);
+  for (let i = 0; i < 60; i++) g.sim.step();
   return { bigfoot: [+b.agent.x.toFixed(1), +b.agent.z.toFixed(1)], state: b.state, food: g.survival.nutrition.foodLeft };
 }, bigfootDx);
 const run = (secs) => page.evaluate((secs) => {
   const g = __game, b = g.__b, seen = [];
   let invest = null;
   for (let i = 0; i < secs * 30; i++) {
-    g.sim.frame(1 / 30);
+    g.sim.step(); g.sim.step();                                   // simulate only (no drawing): 1/30 s
     if (b.state === 'investigate' && !invest) invest = { why: b.history[b.history.length - 1]?.why, target: b.target && { x: +b.target.x.toFixed(1), z: +b.target.z.toFixed(1) }, t: +(i / 30).toFixed(1) };
     seen.push(b.perception.scentLevel);
   }
@@ -78,10 +78,10 @@ check('you eat downwind of him: the wind carries it away and he never smells it'
 const blood = await page.evaluate(() => {
   const g = __game;
   g.survival.health.injure({ cause: 'test', damage: 5, wound: 'bleeding', severity: 'light' });
-  for (let i = 0; i < 30 * 7; i++) g.sim.frame(1 / 30);
+  for (let i = 0; i < 60 * 7; i++) g.sim.step();
   const t = g.scent.traces.filter((x) => x.kind === 'blood');
   const s0 = t.length ? g.scent.strengthOf(t[0]) : 0;
-  for (let i = 0; i < 30 * 20; i++) g.sim.frame(1 / 30);
+  for (let i = 0; i < 60 * 20; i++) g.sim.step();
   return { traces: t.length, first: +s0.toFixed(3), later: t.length ? +g.scent.strengthOf(t[0]).toFixed(3) : 0 };
 });
 check('bleeding leaves blood traces that fade with age', blood.traces >= 2 && blood.later < blood.first, blood);
@@ -93,7 +93,7 @@ const routine = await page.evaluate(() => {
   const A = { x: L.x - 12, z: L.z - 2 };
   b.agent.heading = 0; b.agent.x = L.x - 12; b.agent.z = L.z + 10; b.enterRoam?.('watch');
   p.position.set(A.x, 0, A.z);
-  for (let i = 0; i < 30 * 8; i++) { g.sim.frame(1 / 30); b.agent.heading = Math.atan2(-(p.position.x - b.agent.x), -(p.position.z - b.agent.z)); }
+  for (let i = 0; i < 60 * 8; i++) { g.sim.step(); b.agent.heading = Math.atan2(-(p.position.x - b.agent.x), -(p.position.z - b.agent.z)); }
   const B = { x: L.x + 60, z: L.z - 60 };
   const r = b.perception.routine;
   return { seenA: !!r.anticipate(A.x, A.z), confA: +(r.anticipate(A.x, A.z)?.confidence ?? 0).toFixed(2), anticipateB: r.anticipate(B.x, B.z), spots: r.spots.length };
