@@ -25,6 +25,8 @@ import { buildGymG09 } from './gym/g09.js';   // G09 finale rehearsal fixture (#
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildOroMedonteMap } from './maps/oroMedonte.js';
+import { buildPineBarrensMap } from './maps/pineBarrens.js';
+import { JerseyDevil } from './cryptids/jerseyDevil.js';
 import { DaylightCycle } from './maps/daylight.js';
 import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
@@ -151,6 +153,7 @@ const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap,
   simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap, cobaltgym: buildCobaltGym,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
   g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05, g06: buildGymG06, g07: buildGymG07, g09: buildGymG09,
+  pinebarrens: buildPineBarrensMap,   // Level 9 greybox (#147)
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
@@ -182,6 +185,8 @@ addEventListener('pagehide', () => camp.save());   // save on quit (money is als
 // active you go out with the sponsor's loaner kit; your own gear stays at camp, untouched.
 const sponsorSurvey = new RecoveryAssignment({ camp, mapId, tripCents: EXPEDITION.tripCents });
 const packed = sponsorSurvey.active ? sponsorSurvey.loanerKit() : camp.packForHunt();
+// Level 9 (#147): the tagging contract loans a tag launcher with two tracking tags (F16).
+if (mapId === 'pinebarrens') packed.tagLauncher = Math.max(packed.tagLauncher ?? 0, 2);
 // Expedition lifecycle (#98): Plan on the start screen -> Commit (trip debited once, attempt ID)
 // -> Investigate -> Extract (manifest review at the van) -> Debrief. Built after the loadout below.
 let expedition = null;
@@ -399,7 +404,7 @@ if (map.daylight) cryptids.context = () => ({ dusk: Math.min(1, hunt.elapsed / (
 // Bigfoot knocks on trees now and then; K knocks back with your stick and can draw it closer.
 const knocks = new WoodKnocks({ cryptids, player, camera, fear, input });
 const aiDebug = new AIDebug(scene, cryptids, { visible: !new URLSearchParams(location.search).has('nodebugai'),
-  others: () => (sandbox ? [mothman, chupacabra] : []) });
+  others: () => [...(sandbox ? [mothman, chupacabra] : []), ...(jerseyDevil ? [{ name: 'Jersey Devil', state: jerseyDevil.state, level: 9, pathText: `aware ${jerseyDevil.awareness.toFixed(2)} · sees you ${jerseyDevil.visible > 0 ? 'YES' : 'no'}${jerseyDevil.tagWindow ? ' · TAG WINDOW' : ''}` }] : [])] });
 
 // Clues: cryptids drop footprints / hair / scratch marks along the route they actually take.
 // F3 (or ?debug in the URL) draws that true route as a yellow line for checking.
@@ -521,6 +526,7 @@ const photo = new PhotoCamera({
   canvas: renderer.domElement,              // album thumbnails come from the rendered view
   camera, scene, input,
   getSubjects: () => [
+    ...(jerseyDevil ? [jerseyDevil.subject()] : []),
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, object3d: c.mesh, radius: c.profile.radius,
       // On the ground it stands on (hills, #130), not at y = 0.
       center: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z) + c.profile.height * 0.6, c.agent.z),
@@ -585,9 +591,34 @@ const power = map.power ? createPowerSystem({ map, player, input, notify: (m) =>
 const lake = map.water ? createWaterTraversal({ scene, map, player, input, survival, notify: (m) => photo.toast(m), time: () => hunt.elapsed, tank: power?.outboardTank }) : null;
 if (lake) power?.attach(lake);
 let knocksHeard = 0;
+// Level 9 (#147): the Jersey Devil patrols the open sky over the Pine Barrens. Sight only: it can't
+// see you under the canopy or behind rock; light and movement in the open draw it; every swoop is
+// signalled. After a swoop it perches on a dead pine: the window to fire a tracking tag (Q).
+const jerseyDevil = mapId === 'pinebarrens' ? new JerseyDevil({ scene, player, flashlight, map,
+  lights: () => (fieldKit?.fires ?? []).map((f) => ({ x: f.x, z: f.z, kind: 'fire' })),
+  onHit: (injury) => huntFailure.injured('Jersey Devil', injury),
+  onEvent: (type, e) => devilEvent(type, e) }) : null;
+function devilEvent(type, e) {
+  cryptidEvents.push({ type: `devil-${type}`, name: 'Jersey Devil', t: performance.now() });
+  if (type === 'signal') { fear?.scare?.(18, 'shriek'); photo.toast('A shriek right overhead: it\'s hovering over you, eyes burning. Get under the pines NOW!'); }
+  if (type === 'swoop-aborted') photo.toast('It wheels away: it lost you under the canopy.');
+  if (type === 'swoop-miss') photo.toast('Wings rip past where you were standing.');
+  if (type === 'perch') photo.toast('It has landed on a dead pine and gone still: a chance to tag it (tag launcher, Q).');
+  if (type === 'tagged') photo.toast('The tag is on. It shrieks and is gone over the pines.');
+}
+const tags = { carried: 0, log: [],
+  fire() {
+    if (!jerseyDevil) { photo.toast('Nothing to tag here'); return false; }
+    const r = jerseyDevil.tryTag(camera.getWorldPosition(new THREE.Vector3()));
+    this.log.push(r);
+    if (!r.ok) { photo.toast(`Tag: ${r.why}`); return false; }
+    this.carried = Math.max(0, this.carried - 1);
+    return true;
+  } };
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
   pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
-  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit, equipment, repairKit: { uses: 0 }, notify: (m) => photo.toast(m) } });
+  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit, tags, equipment, repairKit: { uses: 0 }, notify: (m) => photo.toast(m) } });
+if (jerseyDevil && !loadout.slots.includes('tagLauncher')) loadout.setSlots([...loadout.slots.slice(0, 3), 'tagLauncher']);   // the loaned launcher rides in slot 4
 // S07 hydration (#103): the packed bottles are the loadout's water; the canteen and tablets come
 // from camp. The canteen and its water are carried in the pack (mass counts once, in the load).
 survival.hydration.bottles = { get: () => loadout.water, set: (n) => { loadout.water = n; loadout.render(); } };
@@ -863,6 +894,7 @@ function simulateOnce(dt, extra = false) {
   updateWear(dt);
   updateInterference(dt);
   survival.update(dt);
+  if (hunt.stage === 'search' || hunt.stage === 'extract') jerseyDevil?.update(dt);
   terrainInjury?.update(dt);
   // Daylight follows the trip clock (sim time), not the frame rate (#129).
   daylight?.update(hunt.elapsed / (map.clock?.seconds ?? 1), Math.max(0, hunt.elapsed - (map.clock?.seconds ?? 0)));
@@ -1000,7 +1032,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { oyt, dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { jerseyDevil, tags, oyt, dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {

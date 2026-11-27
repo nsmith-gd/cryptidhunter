@@ -29,6 +29,7 @@ export const ITEM_SPECS = {
   dryClothes: { kg: 0.5, L: 2.0 },         // B04 (a bundle)
   fireKit: { kg: 0.1, L: 0.15 },           // D06 (6 uses)
   // Hydration (#103).
+  tagLauncher: { kg: 0.5, L: 0.6 },        // F16 tracking tags + launcher (#147), per tag
   canteen: { kg: 0.15, L: 1.1 },           // A03, empty; its water is counted below
   canteenWater: { kg: 1.0, L: 0 },         // litres in the canteen (inside its volume)
   purTablets: { kg: 0.005, L: 0.005 },     // A07, per tablet
