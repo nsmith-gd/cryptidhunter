@@ -450,7 +450,7 @@ function runG06Dogman(g, h, T, w, C) {
   const waitAt = { x: +D.position.x.toFixed(1), z: +D.position.z.toFixed(1) };
   const onA = Math.min(...C.dogman.routeA.slice(1).map(([bx, bz], i) => { const [ax, az] = C.dogman.routeA[i], abx = bx - ax, abz = bz - az, t = Math.max(0, Math.min(1, ((waitAt.x - ax) * abx + (waitAt.z - az) * abz) / (abx * abx + abz * abz))); return Math.hypot(waitAt.x - ax - abx * t, waitAt.z - az - abz * t); })) < 3;
   // 3. Change your routine: take route B instead. How close do you pass it, versus keeping to A?
-  const minDist = (pts) => { let m = Infinity; T.place(pts[0][0], pts[0][1]); for (const [x, z] of pts.slice(1)) { const dx = x - P.position.x, dz = z - P.position.z, L = Math.hypot(dx, dz); for (let s = 0; s <= L; s += 0.5) m = Math.min(m, Math.hypot(P.position.x + dx * s / L - D.position.x, P.position.z + dz * s / L - D.position.z)); } return +m.toFixed(1); };
+  const minDist = (pts) => { let m = Infinity; for (let k = 0; k < pts.length - 1; k++) { const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az) || 1; for (let s2 = 0; s2 <= L; s2 += 0.5) m = Math.min(m, Math.hypot(ax + (bx - ax) * s2 / L - D.position.x, az + (bz - az) * s2 / L - D.position.z)); } return +m.toFixed(1); };
   const keepA = minDist(C.dogman.routeA), changeB = minDist(C.dogman.routeB);
   T.add('dogman-routine', 'Changing routine has a measurable effect: it waits on route A; taking route B you pass far from it', D.state === 'ambush' && onA && changeB > keepA + 10,
     { waitingAt: waitAt, closestIfYouKeepA: keepA, closestIfYouChangeToB: changeB });
