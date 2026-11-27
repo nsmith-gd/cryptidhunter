@@ -18,10 +18,14 @@ import { buildGymMap } from './maps/gymG00.js';
 import { buildGymG02, buildGymG03, buildGymG04, GYM_SEEDS } from './maps/gymScenes.js';
 import { GymHarness } from './gym/gymKit.js';
 import { GYM_RUNS } from './gym/gymRuns.js';
+import { buildGymG05 } from './gym/g05.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
 import { Igopogo, heardAt } from './cryptids/igopogo.js';
+import { buildTimiskamingMap } from './maps/timiskaming.js';   // L05 greybox (#139)
+import { createWaterTraversal } from './water/index.js';         // boat, swimming, breath (#139)
+import { createPowerSystem } from './power/index.js';             // batteries, devices, fuel (#140)
 import { buildForestMap } from './maps/forest.js';
 import { setGroundHeight } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
@@ -97,7 +101,7 @@ const keyRemap = new KeyRemap();
 
 // One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
 // Gyms (#108) have a fixed default seed, so the fixture is the same every time.
-const gymRun = ['g02', 'g03', 'g04'].includes(new URLSearchParams(location.search).get('map'));
+const gymRun = ['g02', 'g03', 'g04', 'g05'].includes(new URLSearchParams(location.search).get('map'));
 setSeed(Number(new URLSearchParams(location.search).get('seed')) || GYM_SEEDS[new URLSearchParams(location.search).get('map')] || randomSeed());
 console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
 
@@ -132,7 +136,8 @@ const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, simcoe: buildSimcoeMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
-  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04 };                                          // gyms G02–G04 (#108)
+  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05,
+  l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
@@ -332,7 +337,12 @@ function cryptidEvent(type, e) {
   if (cryptidEvents.length > 50) cryptidEvents.shift();
   const where = (x, z) => { const d = Math.hypot(x - player.position.x, z - player.position.z); return `${d.toFixed(0)} m away`; };
   if (type === 'whoop') fieldKit?.hear({ kind: 'whoop', x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: e.cryptid.profile.id, name: e.name });
-  if (['whoop', 'rock', 'roar', 'hiss', 'screech'].includes(type) && e.cryptid?.agent) fieldCamp?.cue({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, what: `a ${type}` });
+  // A significant cue wakes you if you're asleep nearby (#104, #137, GDD 6.5): any creature sound or
+  // event with a place (a call, a splash, a surfacing), not its quiet moment-to-moment moves.
+  if (!['stalk', 'perched', 'emerging'].includes(type)) {
+    const at = e.cryptid?.agent ?? (Number.isFinite(e.x) ? e : null);
+    if (at) fieldCamp?.cue({ x: at.x, z: at.z, what: e.what ?? `a ${type}` });
+  }
   if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: true }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
   if (type === 'rock') { fear.scare(e.distance < 3 ? 22 : 12, 'rock'); photo.toast(`A rock slams into the ground ${e.distance.toFixed(0)} m from you. Back off.`); }
   if (type === 'rock-hit') { equipment.impact(); fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
@@ -399,7 +409,15 @@ hunt.journal = journal;
 const dread = new Dread({ player, fear, flashlight, scene, half: map.bounds ?? 150,
   getHome: () => HUNT.exit,
   getThreats: () => cryptids.cryptids,
-  isSafe: () => fear.inSafeZone() || fear.lampLight() > 0.5 || !!fieldCamp?.insideTent,
+  // #132: the kind of safe place you're in; dread falls fastest at the van, then in shelter, by a fire, in lamplight.
+  isSafe: () => {
+    const p = player.position, near = (x, z, r) => Math.hypot(p.x - x, p.z - z) < r;
+    if (near(HUNT.exit.x, HUNT.exit.z, 8)) return 'vehicle';
+    if (fieldCamp?.insideTent || (map.safeZones ?? []).some((z) => near(z.x, z.z, z.r))) return 'shelter';
+    if ((fieldKit?.fires ?? []).some((f) => near(f.x, f.z, 4)) || (map.landmarks?.campsite && near(map.landmarks.campsite.x, map.landmarks.campsite.z, 4.5))) return 'fire';
+    if (fear.lampLight() > 0.5) return 'light';
+    return false;
+  },
   notify: (m) => m && photo.toast(m),
   vr: () => !!renderer.xr?.isPresenting });
 { const scare = fear.scare.bind(fear); fear.scare = (amount, why) => { dread.onScare(amount); return scare(amount, why); }; }
@@ -464,7 +482,7 @@ const photo = new PhotoCamera({
     ] : []),
   ],
   onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); },
-  getShake: () => fear.swaySpeed,
+  getShake: () => fear.swaySpeed + (dread?.effects.photoShake ?? 0),   // dread (#132): shaking hands blur photos
   getAimOffset: () => fear.hiddenSway,      // evidence sees the full hand shake whatever the screen shows (#77)
   // What each evidence record needs (#85): attempt, field clock, the map's ambient light, goggles on.
   evidenceContext: () => ({ attemptId: expedition?.attemptId ?? null, time: hunt.elapsed, ambient: map.environment?.lightLevel ?? 0.05,
@@ -473,6 +491,9 @@ const photo = new PhotoCamera({
 // Physical evidence (#73): X bags a hair tuft or casts a footprint; a photo of a footprint or
 // scratch marks is kept as evidence too. Drive home to sell it at base camp; caught = lost.
 const evidence = new EvidenceKit({ camera, clues, input, notify: (m) => photo.toast(m) });
+evidence.getEffects = () => dread.effects;              // dread (#132): slower casting and sampling with shaking hands
+fieldMap.getUnfoldDelay = () => dread.effects.mapDelay;  // ...and slower to unfold the map
+fieldMap.notify = (m) => photo.toast(m);
 {
   const snap = photo.snap.bind(photo);
   photo.snap = () => { const shot = snap(); if (shot) evidence.photographed(shot, photo); return shot; };
@@ -499,6 +520,11 @@ fieldKit = new FieldKit({ scene, camera, player, flashlight, photo, evidence, in
 // a creature coming close, a loud cue or a worsening condition.
 fieldCamp = new FieldCamp({ scene, player, survival, weather, fieldKit, colliders, surfaceAt: map.surfaceAt, notify: (m) => photo.toast(m),
   isThreatNear: (r) => cryptids.cryptids.find((c) => c.mesh.visible && c.playerDistance < r)?.profile.name ?? null });
+// Water (#139): the rental boat and swimming / diving / breath on maps with open water (L05).
+// Power (#140): shared battery packs, devices, fuel tanks and the shed generator (S12).
+const power = map.power ? createPowerSystem({ map, player, input, notify: (m) => photo.toast(m), time: () => hunt.elapsed }) : null;
+const lake = map.water ? createWaterTraversal({ scene, map, player, input, survival, notify: (m) => photo.toast(m), time: () => hunt.elapsed, tank: power?.outboardTank }) : null;
+if (lake) power?.attach(lake);
 let knocksHeard = 0;
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
   pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
@@ -512,6 +538,16 @@ survival.hydration.tablets = camp.state.gear.purTablets ?? 0;
 survival.hydration.onTablet = () => { camp.state.gear.purTablets = Math.max(0, (camp.state.gear.purTablets ?? 0) - 1); camp.save(); };
 loadout.extraPack = () => (survival.hydration.hasCanteen ? { canteen: 1, canteenWater: survival.hydration.canteen.litres } : {});
 photo.onLoweredClick = () => loadout.use();
+// The night's clock for 'sleep until dawn' (#137).
+fieldCamp.getClock = () => ({ dawned: hunt.dawned, elapsed: hunt.elapsed, dawnSeconds: HUNT.dawnSeconds });
+// Level 3 (the first overnight trip, GDD 1.5 L03): it introduces sleep and campcraft, so the tent and
+// fire kit come with the trip and sit in your first slots, and sleep lasts until dawn or a cue.
+if (map.level === 3) {
+  fieldCamp.sleepUntil = 'dawn';
+  loadout.owned.tent = Math.max(loadout.owned.tent ?? 0, 1); loadout.owned.fireKit = Math.max(loadout.owned.fireKit ?? 0, 6);
+  fieldKit.carried.tent = Math.max(fieldKit.carried.tent ?? 0, 1); fieldKit.carried.fireKit = Math.max(fieldKit.carried.fireKit ?? 0, 6);
+  loadout.setSlots(['tent', 'fireKit', ...loadout.slots.filter((id) => id !== 'tent' && id !== 'fireKit')].slice(0, 4), loadout.pack);
+}
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
   onChange: ({ slots, pack, water }) => {
     if (hunt.stage !== 'briefing') return;         // packing happens before you set off
@@ -731,7 +767,12 @@ function simulateOnce(dt, extra = false) {
   if (!extra) xr.update(dt);                 // VR controllers -> the same intents as keyboard/mouse (before the player reads them)
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) return;                       // world freezes behind the end screens
+  // Dread's effects this tick (#132): from its value at the start of the last tick, so nothing it
+  // causes now can raise it again in the same tick. Breathing noise, stamina recovery.
+  { const e = dread.effects; player.breathNoise = { level: e.breathNoise, radius: e.breathRadius }; survival.dreadPenalty = e.recoveryPenalty; }
   if (!fieldCamp?.sleeping) player.update(dt);   // asleep: you lie still
+  lake?.update(dt);                          // boat seats you; swim / dive / breath (#139), before survival reads it
+  power?.update(dt);                         // packs, devices, fuel, generator (#140)
   updateWear(dt);
   survival.update(dt);
   updateScent(dt);
@@ -786,6 +827,8 @@ function present(dt) {
   loadout.update(dt);
   fieldMap.update(dt);
   survival.render();
+  lake?.render();
+  power?.render();
   weather.update(dt);
   sponsorSurvey.renderHud();
   evidence.render();
@@ -861,7 +904,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { igopogo, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {

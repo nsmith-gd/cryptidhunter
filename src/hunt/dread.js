@@ -27,8 +27,8 @@ export const DREAD = {
   darkRate: 0.05,              // extra per second with your torch off (and no lamp)
   clueBump: 3,                 // each fresh sign you examine
   scareShare: 0.2,             // share of every scare that stays with you
-  safeEase: 0.25,              // per second in a lit safe place, never below the floor
-  floorShare: 0.6,             // easing stops at 60% of the highest dread you've reached
+  // #132 (GDD D05): dread falls quickly where it's safe, faster the safer the place.
+  safeFall: { vehicle: 4, shelter: 3, fire: 2.5, light: 2 },   // per second
   stages: [
     { at: 0, name: 'Uneasy', note: '' },
     { at: 25, name: 'Watched', note: 'The crickets have stopped. Something in the trees is very quiet.' },
@@ -42,7 +42,8 @@ export const DREAD = {
 export class Dread {
   /**
    * getHome(): {x, z} the van. half: map half-size (for depth). getThreats(): cryptids to embolden.
-   * isSafe(): true in a lit safe place. fear: Fear. flashlight. scene (fog). camera (for the vignette).
+   * isSafe(): the kind of safe place you're in ('vehicle' | 'shelter' | 'fire' | 'light') or false.
+   * fear: Fear. flashlight. scene (fog).
    */
   constructor({ player, fear, flashlight, scene, getHome, half = 150, getThreats = () => [], isSafe = () => false, notify = () => {}, vr = () => false }) {
     Object.assign(this, { player, fear, flashlight, scene, getHome, half, getThreats, isSafe, notify, vr });
@@ -52,7 +53,9 @@ export class Dread {
     this.fogObj = null; this.fogBase = null; this.sightShare = 1;
     this.baseLevels = new Map();
     this.flicker = 0;
-    this.buildOverlay();
+    this.pending = 0;                // dread from scares and signs, applied at the start of the next tick
+    this.effects = dreadEffects(0);  // this tick's effects (from the value at the start of the tick)
+    if (typeof document !== 'undefined') this.buildOverlay();
   }
 
   get level() { return this.value / 100; }
@@ -69,13 +72,20 @@ export class Dread {
   /** A scare: some of it stays with you. */
   onScare(amount) { this.add(amount * DREAD.scareShare, 'scare'); }
 
-  add(v) { this.value = Math.min(100, this.value + v); }
+  // Scares and signs don't change dread on the spot: they're queued and land at the start of the next
+  // tick. So nothing dread itself causes this tick (louder breathing drawing the creature, a scare
+  // from fear it made build faster) can raise it again in the same tick (#132, GDD D05).
+  add(v) { this.pending += v; }
 
   update(dt, { active = true } = {}) {
     this.time += dt;
+    // This tick's effects come from the value at the START of the tick (before anything below).
+    this.effects = dreadEffects(this.value);
     if (!active) return;
+    this.value = Math.min(100, this.value + this.pending); this.pending = 0;
     const safe = this.isSafe();
-    if (safe) this.value = Math.max(this.peak * DREAD.floorShare, this.value - DREAD.safeEase * dt);
+    this.safeKind = safe || null;
+    if (safe) this.value -= (DREAD.safeFall[safe] ?? DREAD.safeFall.light) * dt;
     else {
       this.outside += dt;
       const dark = !(this.flashlight.on && (this.flashlight.battery ?? 1) > 0) && (this.fear?.lampLight?.() ?? 0) < 0.2;
@@ -89,6 +99,9 @@ export class Dread {
       this.stage = s;
       this.log.push({ t: +this.time.toFixed(1), stage: s, name: DREAD.stages[s].name, value: +this.value.toFixed(1) });
       this.notify(DREAD.stages[s].note);
+    } else if (s < this.stage) {   // calmed down (#132): the stage comes back down quietly
+      this.stage = s;
+      this.log.push({ t: +this.time.toFixed(1), stage: s, name: DREAD.stages[s].name, value: +this.value.toFixed(1), calmed: true });
     }
     if (Math.floor(this.time) !== Math.floor(this.time - dt)) this.samples.push({ t: Math.floor(this.time), v: +this.value.toFixed(2), stage: this.stage });
     this.applyEffects(dt);
@@ -142,6 +155,36 @@ export class Dread {
     this.label.style.opacity = f.label ? '1' : '0';
     this.labelShown = !!f.label;
   }
+}
+
+/** Upper bounds of dread's gameplay effects (#132, GDD D05 / S14), reached at full dread. */
+export const DREAD_EFFECT = {
+  breathNoise: 0.35,     // noise level of your breathing (0..1, a walk is ~0.35)
+  breathRadius: 9,       // metres your breathing carries (creatures within can hear it)
+  photoShake: 3.5,       // deg/s of hand tremor added to the camera's motion (blur → lower clarity)
+  taskSlow: 0.6,         // casting takes up to 60% longer
+  handleDelay: 1.2,      // s of fumbling to bag a sample (none when calm)
+  mapDelay: 1.5,         // s to unfold the map with shaking hands (none when calm)
+  recovery: 0.25,        // stamina-recovery penalty, inside the GDD 2.8 floor of 0.25
+};
+
+/**
+ * Dread's gameplay effects at `value` (#132): all zero until dread affects you (the same point the
+ * label and tremor start, so nothing happens that the UI doesn't say), then growing with it, each
+ * capped at DREAD_EFFECT. Never health, never input, never what the UI shows.
+ */
+export function dreadEffects(value) {
+  const f = dreadFeedback(value), t = f.tremor, E = DREAD_EFFECT;
+  return {
+    on: f.on,
+    breathNoise: f.breath * E.breathNoise,
+    breathRadius: f.breath * E.breathRadius,
+    photoShake: t * E.photoShake,
+    taskSlow: 1 + t * E.taskSlow,
+    handleDelay: t * E.handleDelay,
+    mapDelay: t * E.mapDelay,
+    recoveryPenalty: t * E.recovery,
+  };
 }
 
 /** The level dread starts to affect you (the label, tremor and breathing all start here). */

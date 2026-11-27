@@ -66,7 +66,8 @@ Object.assign(ITEMS, {
   dryClothes: kitItem('dryClothes', 'Dry clothes', null, (k) => k.changeClothes(), false),
   fireKit: kitItem('fireKit', 'Fire kit', null, (k) => k.lightFire(), false),
   // D03 tent (#104): pitch it, sleep in it (Q inside), pack it (Q beside it). See survival/fieldCamp.js.
-  tent: kitItem('tent', 'Tent', null, (k) => !!k.camp?.use()),
+  // It's still yours while it's pitched (#137): the slot keeps working to sleep in it or pack it away.
+  tent: { ...kitItem('tent', 'Tent', null, (k) => !!k.camp?.use()), count: (g) => (g.fieldKit?.carried.tent || g.fieldKit?.camp?.tent ? null : 0) },
 });
 
 // Field repair kit (#106, D10): 5 uses, counted in uses; slot it and press Q to patch the worst
