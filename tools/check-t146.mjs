@@ -44,10 +44,11 @@ const travel = await page.evaluate(() => {
   const segD = (p, line) => Math.min(...line.slice(1).map((b, i) => { const a = line[i], ab = b.clone().sub(a), t = Math.max(0, Math.min(1, p.clone().sub(a).dot(ab) / ab.lengthSq())); return a.clone().addScaledVector(ab, t).distanceTo(p); }));
   const samples = [], states = new Set();
   mo.dark = 0;
-  for (let k = 0; k < 40; k++) { mo.dark = 0; steps(60); states.add(mo.state); const p = mo.mesh.position.clone(); samples.push({ x: +p.x.toFixed(1), y: +p.y.toFixed(1), z: +p.z.toFixed(1), off: +Math.min(...m.mothmanCorridors.map((l) => segD(p, l))).toFixed(1) }); }
-  return { states: [...states], maxOff: Math.max(...samples.slice(5).map((s) => s.off)), spanX: Math.max(...samples.map((s) => s.x)) - Math.min(...samples.map((s) => s.x)), first: samples[5], last: samples.at(-1) };
+  for (let k = 0; k < 50; k++) { mo.dark = 0; steps(60); states.add(mo.state); const p = mo.mesh.position.clone(); samples.push({ x: +p.x.toFixed(1), y: +p.y.toFixed(1), z: +p.z.toFixed(1), off: +Math.min(...m.mothmanCorridors.map((l) => segD(p, l))).toFixed(1) }); }
+  const onLine = samples.findIndex((s) => s.off < 1.5);
+  return { states: [...states], joinedAt: onLine, maxOff: onLine < 0 ? 99 : Math.max(...samples.slice(onLine).map((s) => s.off)), spanX: Math.max(...samples.map((s) => s.x)) - Math.min(...samples.map((s) => s.x)), first: samples[5], last: samples.at(-1) };
 });
-check('the Mothman travels along its corridors (pylon line, rail spur)', travel.maxOff < 3 && travel.spanX > 30, travel);
+check('the Mothman travels along its corridor (rail spur, pylon line) once it reaches it, and stays on it', travel.joinedAt >= 0 && travel.maxOff < 2 && travel.spanX > 30, travel);
 // Dark a while: it settles on a perch on one of the tall things.
 const perch = await page.evaluate(() => {
   const g = __game, mo = g.mothman;

@@ -14,6 +14,7 @@ export const INTERFERENCE = Object.freeze({
   inner: 8,            // metres: full strength
   outer: 30,           // metres: no effect beyond
   recover: 1.5,        // seconds below flicker level before a failed device works again
+  vertical: 0.4,       // height difference counts this much toward distance
   devices: Object.freeze({
     torch: { name: 'torch', flicker: 0.2, fail: 0.65 },
     nightVision: { name: 'night vision', flicker: 0.15, fail: 0.45 },
@@ -27,7 +28,8 @@ export const INTERFERENCE = Object.freeze({
 
 /** Field strength (0..1) of one source { x, y?, z, inner?, outer? } at point p { x, y?, z }. */
 export function strengthAt(src, p) {
-  const d = Math.hypot(p.x - src.x, (p.y ?? 0) - (src.y ?? 0), p.z - src.z);
+  // Height counts for less than ground distance: the field drops down from a high perch (#146).
+  const d = Math.hypot(p.x - src.x, ((p.y ?? 0) - (src.y ?? 0)) * INTERFERENCE.vertical, p.z - src.z);
   const inner = src.inner ?? INTERFERENCE.inner, outer = src.outer ?? INTERFERENCE.outer;
   if (d <= inner) return 1;
   if (d >= outer) return 0;

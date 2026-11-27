@@ -133,10 +133,11 @@ export function buildPointPleasantMap(scene) {
     // The Mothman perches on the tall things and travels the pylon line and the rail spur.
     spawns: { mothman: { x: LANDMARKS[0].x, z: LANDMARKS[0].z } },
     mothmanPerches: perches,
-    mothmanCorridors: [
-      PYLONS.map((p) => new THREE.Vector3(p.x, heightAt(p.x, p.z) + p.height + 3, p.z)),
-      RAIL.map((p) => new THREE.Vector3(p.x, 14, p.z)),
-    ],
+    // One continuous flight line: up the rail spur from the south, then east along the pylon line.
+    mothmanCorridors: [[
+      ...RAIL.map((p) => new THREE.Vector3(p.x, 14, p.z)),
+      ...PYLONS.map((p) => new THREE.Vector3(p.x, heightAt(p.x, p.z) + p.height + 3, p.z)),
+    ]],
     keepClear: [], safeZones: [],
     environment: {
       background: 0x0c0d10, fog: { color: 0x121418, near: 18, far: 110 }, lightLevel: 0.05, airTemp: 8,
