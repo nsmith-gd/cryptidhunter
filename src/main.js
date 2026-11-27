@@ -704,6 +704,8 @@ function simulateOnce(dt, extra = false) {
   updateWear(dt);
   survival.update(dt);
   terrainInjury?.update(dt);
+  // Daylight follows the trip clock (sim time), not the frame rate (#129).
+  daylight?.update(hunt.elapsed / (map.clock?.seconds ?? 1), Math.max(0, hunt.elapsed - (map.clock?.seconds ?? 0)));
   updateScent(dt);
   fear.update(dt);
   if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
@@ -762,7 +764,6 @@ function present(dt) {
   clueFinder.update();
   journalUI.update(dt);
   aiDebug.update(camera);
-  daylight?.update(hunt.elapsed / (map.clock?.seconds ?? 1), Math.max(0, hunt.elapsed - (map.clock?.seconds ?? 0)));
   night?.update(player.position, dt);
   water?.update(dt);
   atmosphere?.update(dt);

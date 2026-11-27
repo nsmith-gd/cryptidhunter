@@ -77,8 +77,9 @@ await page.evaluate((st) => {
 await page.keyboard.down('KeyW'); await page.keyboard.down('ShiftLeft');
 await steps(90);
 await page.keyboard.up('ShiftLeft'); await page.keyboard.up('KeyW');
+await page.evaluate(() => { __game.terrainInjury.rand = Math.random; });
 const inj = await page.evaluate(() => ({ count: __game.terrainInjury.count, health: Math.round(__game.survival.health.value), log: __game.survival.health.log.map((l) => `${l.cause}:${l.wound}`) }));
-check('sprinting down a steep slope turns an ankle: a light "Rough ground" injury through the health system', inj.count === 1 && inj.health < 100 && inj.log.includes('Rough ground:sprain'), inj);
+check('rushing (Shift) down a steep slope turns an ankle: a light "Rough ground" injury through the health system', inj.count === 1 && inj.health < 100 && inj.log.includes('Rough ground:sprain'), inj);
 
 // Campsites are warm; the lake shore is water you can wade into.
 const L = await page.evaluate(() => __game.map.landmarks);
@@ -106,7 +107,7 @@ await page.evaluate(() => { __game.hunt.elapsed = __game.map.clock.seconds + 60;
 await steps(5);
 const dusk = await page.evaluate(() => ({ clock: __game.hunt.clock.textContent, hud: __game.hunt.hud.textContent.split('\n')[1], light: +__game.daylight.hemi.intensity.toFixed(2), fog: __game.scene.fog.color.getHexString() }));
 await shot('06-dusk-falls');
-check('far from the car (300 m+) at the den, dusk falls: the clock says DUSK, it gets dark, and the HUD says to find the way back with map and compass',
+check('far from the car (over 250 m) at the den, dusk falls: the clock says DUSK, it gets dark, and the HUD says to find the way back with map and compass',
   lost.carDist > 250 && /DUSK/.test(dusk.clock) && /map and compass/.test(dusk.hud) && dusk.light < light0 * 0.8, { lost, dusk, light0: +light0.toFixed(2) });
 
 // Walk back to the car: hold W, steer along a route between the trees (real collisions and hills).
