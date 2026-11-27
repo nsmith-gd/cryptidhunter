@@ -54,6 +54,8 @@ import { Equipment, WEAR } from './gear/condition.js';
 import { ScentField, SCENT_WORLD } from './cryptids/scent.js';
 import { HowlerProxy } from './cryptids/howlerProxy.js';
 import { DogmanProxy } from './cryptids/dogmanProxy.js';   // #151 routine-learning proxy
+import { OldYellowTop } from './cryptids/oldYellowTop.js';   // #133 L04 proxy
+import { buildCobaltGym } from './maps/cobaltGym.js';         // #133 Old Yellow Top behaviour gym
 import { InterferenceField, INTERFERENCE } from './power/interference.js';
 import { showEquipmentPanel } from './gear/equipmentPanel.js';
 import { FieldCamp } from './survival/fieldCamp.js';
@@ -148,7 +150,7 @@ const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Cam
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
-  simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap,   // simcoe: L03 greybox (#135)
+  simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap, cobaltgym: buildCobaltGym,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
   g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05, g06: buildGymG06, g07: buildGymG07, g09: buildGymG09,
   pinebarrens: buildPineBarrensMap,   // Level 9 greybox (#147)
@@ -477,9 +479,17 @@ const howler = howlerAt ? new HowlerProxy({ scene, field: scent, x: howlerAt.x, 
 // the routes and camps it has watched you use, and waits on a route it has seen you take twice.
 const dogmanAt = map.spawns?.dogman ?? (new URLSearchParams(location.search).has('dogman') ? { x: player.position.x + 25, z: player.position.z - 25 } : null);
 const dogman = dogmanAt ? new DogmanProxy({ scene, colliders, x: dogmanAt.x, z: dogmanAt.z }) : null;
+// Old Yellow Top (#133): on a map with its paths (the Cobalt gym), or ?oyt with the map's own trails.
+const oyt = map.oytRoutes ? new OldYellowTop({ scene, routes: map.oytRoutes, colliders, clues, x: map.spawns?.oldyellowtop?.x ?? 0, z: map.spawns?.oldyellowtop?.z ?? 0 }) : null;
 // Igopogo (#136, L03 Lake Simcoe): a proxy in the lake that surfaces on a seeded cycle and dives
 // when the shore is noisy (you, a fire, pitching a tent). It never leaves the water.
 const igopogo = map.surfacing ? new Igopogo({ scene, zones: map.surfacing, seed: getSeed(), waterY: map.waterHeight ?? 0 }) : null;
+// #133: at night it shadows you along the shore from the water; its surfacings leave a call (the field
+// recorder can take it) and, near the shore, a trace at the water's edge.
+const igopogoCtx = igopogo ? { player, heightAt: map.heightAt, onEvent: (type, e) => {
+  if (type === 'call') fieldKit?.hear({ kind: 'call', x: e.x, z: e.z, cryptid: 'igopogo', name: 'Igopogo' });
+  if (type === 'shoreTrace') { const c = clues.spawn('shoreTrace', { cryptidId: 'igopogo', position: { x: e.at.x, y: 0, z: e.at.z }, rotationY: 0, data: {} }); c.lifetime = 1e9; }
+} } : null;
 if (mapId === 'oromedonte') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.gouger, clueTrails, clues });   // Level 2: the Sidehill Gouger
 else if (mapId !== 'swamp' && !map.noBigfoot) levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
 // #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
@@ -522,6 +532,7 @@ const photo = new PhotoCamera({
       center: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z) + c.profile.height * 0.6, c.agent.z),
       base: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z), c.agent.z), height: c.profile.height })),
     ...(igopogo?.subject() ? [igopogo.subject()] : []),
+    ...(oyt ? [{ name: 'Old Yellow Top', object3d: oyt.mesh, radius: 0.7, center: oyt.position.clone().setY(oyt.position.y + 1.6) }] : []),
     ...(map.mothman && !sandbox ? [{ name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() }] : []),   // #146
     ...(sandbox ? [
       { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
@@ -897,6 +908,7 @@ function simulateOnce(dt, extra = false) {
   bait.update(dt);
   cryptids.update(dt);
   howler?.update(dt);
+  oyt?.update(dt, { player, cams: trailCams.cams.map((c) => ({ x: c.group.position.x, z: c.group.position.z })), camp: fieldCamp?.tent ? { x: fieldCamp.tent.x, z: fieldCamp.tent.z } : null });
   dogman?.update(dt, { player, camps: [...(fieldCamp?.tent ? [{ x: fieldCamp.tent.x, z: fieldCamp.tent.z, what: 'tent' }] : []),
     ...(fieldKit?.fires ?? []).map((f) => ({ x: f.x, z: f.z, what: 'fire' }))] });
   if (igopogo) {
@@ -904,7 +916,7 @@ function simulateOnce(dt, extra = false) {
     igopogo.update(hunt.elapsed, dt, (zone) => Math.max(
       heardAt(zone, { x: P.x, z: P.z, level: player.noise, radius: player.noiseRadius }),
       fieldCamp?.pitching ? heardAt(zone, { x: P.x, z: P.z, level: 0.5, radius: 8 }) : 0,          // hammering tent pegs
-      ...(fieldKit?.fires ?? []).map((f) => heardAt(zone, { x: f.x, z: f.z, level: 0.35, radius: 6 }))));   // crackle and glow
+      ...(fieldKit?.fires ?? []).map((f) => heardAt(zone, { x: f.x, z: f.z, level: 0.35, radius: 6 }))), igopogoCtx);   // crackle and glow
   }
   knocks.update(dt);
   clueTrails.update();
@@ -1020,7 +1032,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { jerseyDevil, tags, dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { jerseyDevil, tags, oyt, dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {

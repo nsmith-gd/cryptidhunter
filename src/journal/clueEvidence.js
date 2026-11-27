@@ -34,6 +34,7 @@ export function describeClue(clue) {
     case 'deerTrack': return 'Small split-hoof prints in pairs, 7 cm long';
     case 'foxTrack': return 'Small four-toed paw prints in a neat single line, 5 cm long';
     case 'owlFeather': return 'A soft feather, barred brown and cream, a hand long';
+    case 'shoreTrace': return 'Reeds pressed flat in a wide swathe toward the water, slick with slime';
     case 'wingDust': return 'Fine grey scales smeared on the boards, glittering like moth-wing dust';
     default: return clue.type;
   }

@@ -186,15 +186,44 @@ export function runG04(g, h) {
   step(120);
   const ev = (sys, type) => h.events.filter((e) => e.system === sys && e.type === type);
   const heeded = ev('territory', 'idle').some((e) => e.data.why === 'warning heeded') && !ev('territory', 'charge').length;
-  // 2. Ignore it: walk in and stand; it charges after its warning, hits once (nonlethal), then disengages.
-  walk(-4, 0);
-  for (let i = 0; i < 9 * 60 && !ev('territory', 'hit').length; i++) step();
+  const w = h.world, approach = new URLSearchParams(location.search).get('approach') === 'abandon' ? 'abandon' : 'recover';
+  const hits = () => ev('territory', 'hit').length;
+  const waitFor = (fn, secs) => { for (let i = 0; i < secs * 60 && !fn(); i++) step(); return fn(); };
+  const homeIdle = () => terr?.state === 'idle';
+  // 2. Ignore the warning, then break line of sight (#141): stand in view at the ring until it charges,
+  //    step behind the rock blind (hide A); it loses you, pulls up and goes home. Then back out.
+  walk(-3.5, 2.6, { r: 0.6 });
+  waitFor(() => terr?.state === 'charge', 6);
+  const hits2 = hits();
+  walk(-1.5, 2.2, { r: 0.4 });
+  waitFor(() => terr?.state === 'lost-sight' || hits() > hits2, 5);
+  const brokeSight = { lostSight: terr?.state === 'lost-sight' || ev('territory', 'lost-sight').length > 0, hitWhileHiding: hits() > hits2 };
+  waitFor(() => terr?.state === 'disengage', 4);
+  walk(0, 14);
+  waitFor(homeIdle, 20); step(60);
+  // 3. The camera case in the core. recover: walk in, grab it (it charges and makes its point), walk
+  //    out. abandon (?approach=abandon): look at it from the ring and leave it.
+  const hits3 = hits(), hp3 = s.health.value;
+  if (approach === 'recover') {
+    walk(G04.cache.x + 0.8, G04.cache.z + 0.8, { r: 0.6 });
+    w.grab();
+    waitFor(() => hits() > hits3, 4);
+    walk(0, 12);
+    // The Hodag's goring wound bleeds heavily (#142): out of its ground, dress it before the long walk.
+    if (s.health.bleeding.some((c) => c.severity === 'heavy')) { s.bandage?.(); step(120); }
+  } else {
+    walk(-6, 4, { r: 0.8 }); T.face(G04.cache.x, G04.cache.z); step(60);
+    walk(0, 14);
+  }
+  waitFor(homeIdle, 20);
+  const approachB = { approach, hits: hits() - hits3, healthLost: +(hp3 - s.health.value).toFixed(1), cache: w.cache.state };
   const hpAfterHit = s.health.value;
-  // 3. Retreat by the safe edge route to the extraction point (still bleeding: the scent follower comes).
+  // 4. Retreat by the safe edge route to the extraction point (still bleeding: the scent follower comes).
   walk(0, 12); walk(16, 12); walk(16, -20); walk(G04.extraction.x, G04.extraction.z, { r: 1.5 });
   const reached = Math.hypot(P.position.x - G04.extraction.x, P.position.z - G04.extraction.z) < 2;
+  const withdrawal = reached ? w.extract() : null;
   const disengagedHome = ev('territory', 'idle').some((e) => e.data.why === 'home');
-  // 4. Bandage the wound: no new blood. The scent follower works through the last traces and loses contact.
+  // 5. Bandage the wound: no new blood. The scent follower works through the last traces and loses contact.
   s.bandage?.();
   for (let i = 0; i < 90 * 60 && !ev('scent', 'lost-contact').length; i++) step();
   step(60);
@@ -213,8 +242,16 @@ export function runG04(g, h) {
     { acquisitions: acquired.length, lost: ev('scent', 'lost-contact').length });
   T.add('retreat', 'Retreat stays physically viable after a nonlethal encounter (reach extraction alive)', reached && !s.health.dead && hpAfterHit > 0,
     { healthAfterHit: +hpAfterHit.toFixed(1), reachedExtraction: reached, healthNow: +s.health.value.toFixed(1) });
-  T.add('measures', 'Measure: alert-to-attack lead time, avoidable vs unavoidable deaths, withdrawal choice, gear loss', null,
-    { reason: 'recorded for review', alertToAttackLead: leads, deaths: s.health.dead ? 1 : 0, hits: ev('territory', 'hit').length + ev('scent', 'hit').length });
+  T.add('break-sight', 'Breaking line of sight (behind hide A) makes a charging creature lose you; it pulls up and goes home', brokeSight.lostSight && !brokeSight.hitWhileHiding
+    && ev('territory', 'disengage').some((e) => e.data.why === 'lost sight'), brokeSight);
+  T.add('gear-choice', 'Recover the gear (it costs you a hit) or abandon it (it costs its value); either way you get out', withdrawal && (approach === 'recover'
+    ? withdrawal.decision === 'recovered the gear' && withdrawal.gearLost === 0 && approachB.hits >= 1
+    : withdrawal.decision === 'abandoned the gear' && withdrawal.gearLost === G04.cache.value && approachB.hits === 0), { ...approachB, withdrawal });
+  // Deaths: avoidable if a warning came first (you could have heeded it), unavoidable otherwise. None expected.
+  const caught = s.health.dead, warnedFirst = warns.length > 0;
+  const measures = { alertToAttackLead: leads, deaths: { avoidable: caught && warnedFirst ? 1 : 0, unavoidable: caught && !warnedFirst ? 1 : 0 },
+    withdrawal: withdrawal?.decision ?? 'did not reach extraction', gearLost: withdrawal?.gearLost ?? G04.cache.value, hits: { territorial: hits(), scent: ev('scent', 'hit').length } };
+  T.add('measures', 'Measure: alert-to-attack lead time, avoidable vs unavoidable deaths, withdrawal choice, gear loss (recorded every run)', leads.length > 0 && !!withdrawal, measures);
   T.add('testers', '4/5 testers can explain what alerted the creature and one escape response', null, { reason: 'needs human playtests (GDD 15.3)' });
   return T.finish();
 }

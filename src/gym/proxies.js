@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { g03Contour, G04 } from '../maps/gymScenes.js';
+import { HodagProxy, HODAG } from '../cryptids/hodag.js';
 
 // Creature proxies for gyms G03 and G04 (GDD 15.2; task #108). Simple, deterministic stand-ins that
 // test one behaviour each, separate from the real cryptid AI. They move only by their own speed
@@ -81,62 +82,16 @@ export class ContourProxy {
 }
 
 // ---- G04 ---------------------------------------------------------------------------------------
-export class TerritoryProxy {
-  static CFG = { charge: 5, back: 2.5, warnHold: 4, contact: 1.3, damage: 12, hitCooldown: 4, disengageMargin: 4 };
-
-  constructor({ scene, trace, debug, notify = () => {} }) {
-    this.trace = trace; this.notify = notify;
-    this.mesh = body(scene, 0x8a3a2a, 2.0, 'gym-proxy-territorial');
+// The G04 territorial proxy is the Hodag (#142, src/cryptids/hodag.js) on the gym's territory: its
+// warning ring (the claw-marked stumps), core and boundary are drawn as debug rings (hidden when blind).
+export class TerritoryProxy extends HodagProxy {
+  static CFG = HODAG;
+  constructor({ scene, trace, debug, notify = () => {}, captions = null }) {
+    super({ scene, territory: { home: G04.home, warnR: G04.warnR, coreR: G04.coreR }, cover: G04.hides, trace, notify, captions });
     debug(ring(scene, G04.home.x, G04.home.z, G04.warnR, 0xffd040));
     debug(ring(scene, G04.home.x, G04.home.z, G04.coreR, 0xff4030));
-    this.pos = { ...G04.home };
-    this.state = 'idle';
-    this.warnTime = 0; this.lastHit = -99; this.time = 0;
-    this.place();
-  }
-
-  place() { this.mesh.position.set(this.pos.x, 0, this.pos.z); }
-
-  set(state, data = {}) {
-    if (state === this.state) return;
-    this.trace('territory', state, { from: this.state, ...data });
-    this.state = state;
-  }
-
-  moveToward(x, z, speed, dt) {
-    const dx = x - this.pos.x, dz = z - this.pos.z, d = Math.hypot(dx, dz);
-    const s = Math.min(d, speed * dt);
-    if (d > 1e-6) { this.pos.x += (dx / d) * s; this.pos.z += (dz / d) * s; this.mesh.rotation.y = Math.atan2(dx, dz) + Math.PI; }
-    this.place();
-    return d - s;
-  }
-
-  update(dt, { player, health }) {
-    this.time += dt;
-    const C = TerritoryProxy.CFG, p = player.position;
-    const fromHome = Math.hypot(p.x - G04.home.x, p.z - G04.home.z);
-    const toMe = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
-    if (this.state === 'idle' && fromHome < G04.warnR) {
-      this.warnTime = 0;
-      this.set('warn', { playerFromHome: +fromHome.toFixed(3) });
-      this.notify('A deep, rattling growl. Something big rears up ahead. This is its ground.');
-    } else if (this.state === 'warn') {
-      this.warnTime += dt;
-      this.mesh.rotation.y = Math.atan2(p.x - this.pos.x, p.z - this.pos.z) + Math.PI;
-      this.mesh.scale.y = 1 + 0.15 * Math.abs(Math.sin(this.time * 6));   // rearing
-      if (fromHome > G04.warnR + 3) { this.mesh.scale.y = 1; this.set('idle', { why: 'warning heeded' }); }
-      else if (fromHome < G04.coreR || this.warnTime > C.warnHold) { this.mesh.scale.y = 1; this.set('charge', { lead: +this.warnTime.toFixed(2), playerFromHome: +fromHome.toFixed(1) }); }
-    } else if (this.state === 'charge') {
-      this.moveToward(p.x, p.z, C.charge, dt);
-      if (toMe < C.contact && this.time - this.lastHit > C.hitCooldown) {
-        this.lastHit = this.time;
-        const ev = health?.injure({ cause: 'territorial proxy', damage: C.damage });
-        this.trace('territory', 'hit', { damage: ev?.damage ?? 0, healthAfter: ev?.healthAfter ?? null });
-        this.set('disengage', { why: 'made its point' });
-      } else if (fromHome > G04.warnR + C.disengageMargin) this.set('disengage', { why: 'intruder left' });
-    } else if (this.state === 'disengage') {
-      if (this.moveToward(G04.home.x, G04.home.z, C.back, dt) < 0.05) this.set('idle', { why: 'home' });
-    }
+    debug(ring(scene, G04.home.x, G04.home.z, this.T.boundaryR, 0x8ab0ff));
+    this.mesh.name = 'gym-proxy-hodag';
   }
 }
 

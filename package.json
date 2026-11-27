@@ -97,6 +97,7 @@
     "check:t152": "vite build && node tools/check-t152.mjs",
     "check:t155": "vite build && node tools/check-t155.mjs",
     "check:t156": "vite build && node tools/check-t156.mjs",
+    "check:t133": "vite build && node tools/check-t133.mjs",
     "capture:t136": "vite build && node tools/capture-t136.mjs",
     "check:t86": "vite build && node tools/check-t86.mjs",
     "check:t88": "vite build && node tools/check-t88.mjs",
@@ -105,7 +106,9 @@
     "check:t90": "vite build && node tools/check-t90.mjs",
     "check:t103": "vite build && node tools/check-t103.mjs",
     "check:t139": "node tools/check-t139.mjs",
-    "check:t140": "node tools/check-t140.mjs"
+    "check:t140": "node tools/check-t140.mjs",
+    "check:t141": "node tools/check-t141.mjs",
+    "check:t142": "node tools/check-t142.mjs"
   },
   "repository": {
     "type": "git",
