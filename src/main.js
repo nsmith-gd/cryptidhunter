@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setSeed, randomSeed, getSeed } from './core/rng.js';
+import { setSeed, randomSeed, getSeed, stream } from './core/rng.js';
 import { FixedStepLoop } from './core/simLoop.js';
 import { WebXRPresenter, PauseState, mountPauseScreen } from './xr/webxr.js';
 import { ProfilingRecorder } from './profiling/recorder.js';
@@ -21,6 +21,9 @@ import { GYM_RUNS } from './gym/gymRuns.js';
 import { buildGymG05 } from './gym/g05.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
+import { buildOroMedonteMap } from './maps/oroMedonte.js';
+import { DaylightCycle } from './maps/daylight.js';
+import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
 import { Igopogo, heardAt } from './cryptids/igopogo.js';
 import { buildTimiskamingMap } from './maps/timiskaming.js';   // L05 greybox (#139)
@@ -135,7 +138,8 @@ const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Cam
 // condition (held in the ledger's asset record) drops with use, water and impact.
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
-const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, simcoe: buildSimcoeMap,   // simcoe: L03 greybox (#135)
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
+  simcoe: buildSimcoeMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
   g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05,
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
@@ -179,6 +183,10 @@ const leftBehindNow = () => [
 // Photo evidence you've brought home, kept across hunts for review (and HQ verification / sale) (#85).
 const evidenceArchive = new EvidenceArchive(camp.saveService);
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: huntTarget,
+  // Level 2 (#129): a daylight trip from the parked car, back before dusk.
+  clock: map.clock ?? null, vehicle: map.daylight ? 'car' : 'van',
+  objective: map.daylight ? [`OBJECTIVE: Find signs of the ${huntTarget} and get back to the car before dusk`,
+    'Leave the trail to search. Drink (I) before you are thirsty, take steep slopes slowly, and keep your map and compass (M) handy.'] : null,
   onStart: () => { expedition?.commit(); supplier.commit(expedition?.attemptId ?? null); sponsorSurvey.bind(expedition?.attemptId ?? null); },   // purchases and rentals are final once you set off (#88)
   manifest: () => {
     const carried = evidence.carried;
@@ -257,6 +265,8 @@ const flashlight = new Flashlight(camera, input);
 const timeOfDay = new URLSearchParams(location.search).get('time');
 const todConfig = timeOfDay ? timeOfDayConfig(mapId === 'swamp' ? 'swamp' : 'forest', timeOfDay) : null;
 const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: { ...map.environment.night, ...(todConfig ?? {}) } }) : null;
+// Daylight maps (#129): the light eases from afternoon through dusk to night as the trip clock runs out.
+const daylight = map.daylight && night && !todConfig ? new DaylightCycle({ night, hemi, scene, day: map.environment.night }) : null;
 // Forest atmosphere: ground mist + midground and background fog curtains (?noatmos turns it off).
 const atmosphere = mapId === 'forest' && !new URLSearchParams(location.search).has('noatmos')
   ? new Atmosphere({ scene, camera, half: bounds, keepClear: map.keepClear, hazeColor: night?.cfg.skyHorizon, glowColor: night?.cfg.moonGlow }) : null;
@@ -298,11 +308,14 @@ const survival = new Survival({ player, input, lethalCold: true,   // past the t
   map: { ...map, environment: { ...map.environment, airTemp: map.environment?.airTemp ?? ({ forest: 6, swamp: 13 }[mapId] ?? 10) } },
   heatSources: () => [
     ...(map.landmarks?.campsite ? [{ ...map.landmarks.campsite, r: 4.5, name: 'campfire' }] : []),
+    ...(map.campsites ?? []),
     ...(map.safeZones ?? []).map((z) => ({ x: z.x, z: z.z, r: z.r, name: z.name })),
     { x: HUNT.exit.x, z: HUNT.exit.z, r: 6, name: 'the van' },
     ...(fieldKit?.heatSources() ?? []),   // your own fire and bivy (#87)
     ...(fieldCamp?.heatSources() ?? []),  // inside your pitched tent (#104)
   ] });
+// Minor terrain injuries (#129): sprinting over steep ground can turn an ankle (Level 2 hills).
+const terrainInjury = map.terrainInjury ? new TerrainInjury({ player, health: survival.health, slopeAt: map.slopeAt, notify: (m) => survival.toast(m), rand: stream('terrain-injury') }) : null;
 const noiseRing = new NoiseRing(scene, player);
 // Scent traces (#107): food you open and blood from a bleeding wound leave real traces the wind
 // carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
@@ -384,7 +397,7 @@ const clueFinder = new ClueFinder(camera, clues, journal, input);
 const trailReader = new TrailReader({ clues, clueTrails, journal, player });
 // Paper map and compass (#70): M raises them. No position marker, no beacon, no distance to the
 // van: the way back is read from the map, the compass, the landmarks and the trail signs.
-const fieldMap = new FieldMap({ map, player, input, home: 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : 'PINE HOLLOW' });
+const fieldMap = new FieldMap({ map, player, input, home: map.daylight ? 'car' : 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : mapId === 'oromedonte' ? 'ORO-MEDONTE WOODS' : 'PINE HOLLOW' });
 const journalUI = new JournalUI(journal, clueFinder);
 // Species dossier in the field journal (#101): milestones banked from earlier extracted trips,
 // career credibility, and what the next milestone needs. Tonight's notes count once you get out.
@@ -442,7 +455,8 @@ const howler = howlerAt ? new HowlerProxy({ scene, field: scent, x: howlerAt.x, 
 // Igopogo (#136, L03 Lake Simcoe): a proxy in the lake that surfaces on a seeded cycle and dives
 // when the shore is noisy (you, a fire, pitching a tent). It never leaves the water.
 const igopogo = map.surfacing ? new Igopogo({ scene, zones: map.surfacing, seed: getSeed(), waterY: map.waterHeight ?? 0 }) : null;
-if (mapId !== 'swamp' && !map.noBigfoot) levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+if (mapId === 'oromedonte') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.gouger, clueTrails, clues });   // Level 2: the Sidehill Gouger
+else if (mapId !== 'swamp' && !map.noBigfoot) levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
 // #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
 for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   const sp = getSpecies(id);
@@ -452,7 +466,7 @@ for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
 }
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
 // #99: plus fox trails and owl feathers. All are tagged ordinary (hidden; HQ verification reads it).
-if (mapId === 'forest') {
+if (mapId === 'forest' || mapId === 'oromedonte') {
   const wild = { clues, bounds,
     blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
     avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] };
@@ -634,6 +648,7 @@ function refreshMoney() {
 }
 // Prep panel (#98): plan numbers and capabilities, and the one COMMIT button that pays for the trip.
 expedition = new Expedition({ camp, loadout, target: huntTarget,
+  tripCents: MAP_CHOICES.find((m) => m.id === mapId)?.tripCents ?? EXPEDITION.tripCents,   // per-level operating cost (L02 $75)
   mapName: MAP_CHOICES.find((m) => m.id === mapId)?.name ?? 'Test range',
   capabilities: () => {
     const g = camp.state.gear, carried = [...loadout.slots, ...loadout.pack];
@@ -780,6 +795,9 @@ function simulateOnce(dt, extra = false) {
   power?.update(dt);                         // packs, devices, fuel, generator (#140)
   updateWear(dt);
   survival.update(dt);
+  terrainInjury?.update(dt);
+  // Daylight follows the trip clock (sim time), not the frame rate (#129).
+  daylight?.update(hunt.elapsed / (map.clock?.seconds ?? 1), Math.max(0, hunt.elapsed - (map.clock?.seconds ?? 0)));
   updateScent(dt);
   fear.update(dt);
   dread.update(dt, { active: hunt.stage === 'search' || hunt.stage === 'extract' });
@@ -910,7 +928,11 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
+<<<<<<< HEAD
 window.__game = { howler, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+=======
+window.__game = { daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+>>>>>>> origin/main
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {

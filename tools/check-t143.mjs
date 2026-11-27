@@ -78,6 +78,20 @@ const route = [{ x: 10, z: 10 }, { x: -18, z: 10 }, { x: -18, z: -18 }];
 const off = Math.max(...follow.trail.filter((p) => p.x < 10).map((p) => Math.min(dist(p, route[0], route[1]), dist(p, route[1], route[2]))));
 const corner = Math.min(...follow.trail.map((p) => Math.hypot(p.x - route[1].x, p.z - route[1].z)));
 console.log('LOG', JSON.stringify(follow.log));
+const drops = await page.evaluate(() => __game.scent.records().filter((r) => r.kind === 'blood').map((r) => ({ x: r.x, z: r.z })));
+// Top-down plot (SVG -> PNG): your route, the blood drops, and the path the proxy walked.
+const W = 520, S = 12, ox = 30 - 10, oz = 30 - 10, X = (x) => (x - (-24)) * S + 20, Z = (z) => (z - (-24)) * S + 20;
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${W}" style="background:#101418">
+<rect width="${W}" height="${W}" fill="#101418"/>
+<polyline points="${route.map((p) => `${X(p.x)},${Z(p.z)}`).join(' ')}" fill="none" stroke="#5a6a7a" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+${drops.map((d) => `<circle cx="${X(d.x)}" cy="${Z(d.z)}" r="6" fill="#b02020"/>`).join('')}
+<polyline points="${follow.trail.map((p) => `${X(p.x)},${Z(p.z)}`).join(' ')}" fill="none" stroke="#ffb040" stroke-width="3"/>
+<circle cx="${X(19)}" cy="${Z(10)}" r="7" fill="#ffb040"/>
+<text x="20" y="${W - 52}" fill="#ccc" font-family="monospace" font-size="14">grey: your route (start bottom-right, west, then north)</text>
+<text x="20" y="${W - 34}" fill="#e05050" font-family="monospace" font-size="14">red: blood drops (one every 3 s while bleeding)</text>
+<text x="20" y="${W - 16}" fill="#ffb040" font-family="monospace" font-size="14">orange: where the scent follower walked</text></svg>`;
+writeFileSync(`${out}/trail.svg`, svg);
+writeFileSync(`${out}/trail.json`, JSON.stringify({ route, drops, followerPath: follow.trail, log: follow.log }, null, 1));
 check('bleeding leaves a trail of blood drops along your route', follow.drops >= 12, follow.drops);
 check('it strikes the trail downwind and follows it drop by drop, round the corner: your route, not a beeline', follow.path >= 10 && corner < 2 && off < 2.5, { checked: follow.path, cornerDist: +corner.toFixed(2), maxOffRoute: +off.toFixed(2), state: follow.state });
 await page.evaluate(() => { const g = __game; for (const el of document.body.children) if (el !== g.renderer.domElement) el.style.visibility = 'hidden';
