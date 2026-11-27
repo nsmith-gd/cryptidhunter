@@ -10,14 +10,16 @@ import * as THREE from 'three';
 //   Eases    only a little, and only somewhere safe and lit (the van, the cabin, by a fire).
 //   Stages   0 Uneasy · 1 Watched · 2 Hunted · 3 Dread. Each new stage lands once with a line of
 //            what you notice ("The crickets have stopped.").
-//   Effects  (real consequences, not just a bar)
-//            · Sight: the fog closes in (you see less far: harder to spot it, harder to navigate),
-//              the edges of your view darken; at Dread the torch stutters now and then.
-//            · Sound: the forest's night chorus thins and dies; a heartbeat rises under it.
+//   Effects  (real consequences; never a meter on screen, #131)
+//            · Sight: the fog closes in (you see less far: harder to spot it, harder to navigate);
+//              at Dread the torch stutters now and then.
+//            · Sound: the forest's night chorus thins and dies; your breathing and a heartbeat rise.
+//            · Your hands: a tremor on the torch and camera you hold (never the view itself).
 //            · Fear rises faster in the dark and near it (it builds on what you already feel).
 //            · The creature gets bolder: its escalation level rises (quicker to anger, more real
 //              charges), so the danger is real, not just an effect.
-// Screen-space vignette is off in VR (comfort, GDD 16.3); fog, sound and behaviour still apply.
+// While it affects you a short label says so ("Shaken: hands unsteady, breathing loud"), and the
+// status screen lists it with its cause and what to do. In VR the tremor is on the held tools only.
 
 export const DREAD = {
   timeRate: 100 / (20 * 60),   // ~20 min out alone takes you to the top, before anything else
@@ -119,29 +121,49 @@ export class Dread {
     } else this.flashlight.dreadDim = 1;
   }
 
-  // ---- presentation --------------------------------------------------------------------------
+  // ---- presentation (#131): dread shows only in the world, never as a meter -----------------------
+  // No bar and no screen overlay. You hear it (breathing, heartbeat: buildDreadAudio), you see it in
+  // your hands (tremor on the held tools: main reads `feedback.tremor`), and a short label says so
+  // while it affects you. The label, the tremor and the sounds all come from dreadFeedback(), so the
+  // label can never claim an effect that isn't happening (the UI never lies).
+  get feedback() { return dreadFeedback(this.value); }
+
   buildOverlay() {
-    const v = this.vignette = document.createElement('div');
-    v.id = 'dread-vignette';
-    Object.assign(v.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '3', opacity: '0', transition: 'opacity 1.5s' });
-    document.body.append(v);
-    const b = this.bar = document.createElement('div');
-    b.id = 'dread-bar';
-    Object.assign(b.style, { position: 'fixed', left: '8px', top: '72px', font: '11px monospace', color: '#ccc', textShadow: '0 0 2px #000', pointerEvents: 'none',
-      display: 'flex', alignItems: 'center', gap: '6px' });
-    b.innerHTML = '<span style="width:58px">DREAD</span><div style="width:120px;height:8px;background:#0008;border:1px solid #888"><div class="f" style="height:100%;width:0;background:#7a3a8a"></div></div><span class="n"></span>';
-    document.body.append(b);
+    const l = this.label = document.createElement('div');
+    l.id = 'shaken-label';
+    Object.assign(l.style, { position: 'fixed', left: '12px', bottom: '112px', font: '13px monospace', color: '#e8d8c8', textShadow: '0 0 3px #000',
+      pointerEvents: 'none', opacity: '0', transition: 'opacity 0.8s' });
+    document.body.append(l);
   }
 
   render() {
-    const k = this.level;
-    const vr = this.vr();
-    this.vignette.style.opacity = vr ? '0' : String(Math.min(0.95, k * 1.1));
-    this.vignette.style.background = `radial-gradient(ellipse at center, transparent ${Math.round(62 - 26 * k)}%, rgba(4,0,8,${(0.35 + 0.5 * k).toFixed(2)}) 100%)`;
-    this.bar.querySelector('.f').style.width = `${(k * 100).toFixed(1)}%`;
-    this.bar.querySelector('.f').style.background = ['#5a5a8a', '#7a4a8a', '#9a3a6a', '#c02a3a'][this.stage];
-    this.bar.querySelector('.n').textContent = this.stageName.toUpperCase();
+    const f = this.feedback;
+    if (f.label && this.label.textContent !== f.label) this.label.textContent = f.label;
+    this.label.style.opacity = f.label ? '1' : '0';
+    this.labelShown = !!f.label;
   }
+}
+
+/** The level dread starts to affect you (the label, tremor and breathing all start here). */
+export const DREAD_FEEDBACK_AT = 25;
+
+/**
+ * What dread at `value` (0-100) does to how you feel, all from one place:
+ *   tremor  0..1  hand tremor on held tools (never the camera)
+ *   breath  0..1  how loud and fast your breathing is
+ *   heart   0..1  heartbeat loudness
+ *   label   the concise status line, or null while dread isn't affecting you
+ */
+export function dreadFeedback(value) {
+  const on = value >= DREAD_FEEDBACK_AT;
+  const amt = on ? Math.min(1, (value - DREAD_FEEDBACK_AT) / (100 - DREAD_FEEDBACK_AT)) : 0;
+  return {
+    on,
+    tremor: on ? 0.25 + 0.75 * amt : 0,
+    breath: on ? 0.3 + 0.7 * amt : 0,
+    heart: on ? 0.2 + 0.8 * amt : 0,
+    label: !on ? null : value >= 75 ? 'Badly shaken: hands trembling, breathing ragged' : 'Shaken: hands unsteady, breathing loud',
+  };
 }
 
 /**
@@ -168,8 +190,20 @@ export function buildDreadAudio(ctx, dest = ctx.destination) {
   wind.connect(lp).connect(windVol).connect(master);
   // Heartbeat: a low sine thump, retriggered by a scheduler.
   const heartVol = ctx.createGain(); heartVol.gain.value = 0; heartVol.connect(master);
+  // Breathing (#131): your own breath, close and band-passed, each breath shaped in by the scheduler;
+  // louder and quicker the more dread affects you (dreadFeedback().breath).
+  const breathSrc = noise(), breathBp = ctx.createBiquadFilter(); breathBp.type = 'bandpass'; breathBp.frequency.value = 900; breathBp.Q.value = 0.9;
+  const breathEnv = ctx.createGain(); breathEnv.gain.value = 0;
+  const breathVol = ctx.createGain(); breathVol.gain.value = 0;
+  breathSrc.connect(breathBp).connect(breathEnv).connect(breathVol).connect(master);
+  breathSrc.start();
   cr.start(); wind.start(); lfo.start();
-  let k = 0, next = ctx.currentTime + 0.2;
+  let k = 0, fb = dreadFeedback(0), next = ctx.currentTime + 0.2, nextBreath = ctx.currentTime + 0.3;
+  const breath = (t, len) => {   // in (rising hiss), a pause, out (longer, softer)
+    const g = breathEnv.gain;
+    g.setValueAtTime(0.0001, t); g.linearRampToValueAtTime(0.9, t + len * 0.35); g.linearRampToValueAtTime(0.05, t + len * 0.45);
+    g.linearRampToValueAtTime(0.6, t + len * 0.6); g.linearRampToValueAtTime(0.0001, t + len);
+  };
   const thump = (t, amp) => {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine'; o.frequency.setValueAtTime(62, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.18);
@@ -179,18 +213,26 @@ export function buildDreadAudio(ctx, dest = ctx.destination) {
   const schedule = (until) => {
     while (next < until) {
       const bpm = 58 + 70 * k;
-      if (k > 0.2) { thump(next, 0.9); thump(next + 0.24, 0.6); }
+      if (fb.heart > 0) { thump(next, 0.9); thump(next + 0.24, 0.6); }
       next += 60 / bpm;
+    }
+    while (nextBreath < until) {
+      const len = 4.2 - 2.4 * fb.breath;               // calm ~4 s a breath; badly shaken ~1.8 s
+      if (fb.breath > 0) breath(nextBreath, len);
+      nextBreath += len;
     }
   };
   return {
     set(level, at = ctx.currentTime) {
       k = Math.max(0, Math.min(1, level));
+      fb = dreadFeedback(k * 100);
       crVol.gain.setTargetAtTime(0.5 * Math.max(0, 1 - k * 1.6), at, 1.2);    // the chorus is gone by ~60% dread
       windVol.gain.setTargetAtTime(0.25 + 0.15 * k, at, 1.5);
-      heartVol.gain.setTargetAtTime(Math.max(0, (k - 0.2) / 0.8) * 0.9, at, 1.0);
+      heartVol.gain.setTargetAtTime(fb.heart * 0.9, at, 1.0);
+      breathVol.gain.setTargetAtTime(fb.breath * 0.55, at, 0.8);
     },
     tick(ahead = 0.5) { schedule(ctx.currentTime + ahead); },
+    get feedback() { return fb; },          // what the sound is doing now (checks: the label matches it)
     scheduleUntil: schedule,
     master,
   };
