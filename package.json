@@ -94,6 +94,7 @@
     "check:t151": "vite build && node tools/check-t151.mjs",
     "check:t152": "vite build && node tools/check-t152.mjs",
     "check:t155": "vite build && node tools/check-t155.mjs",
+    "check:t156": "vite build && node tools/check-t156.mjs",
     "capture:t136": "vite build && node tools/capture-t136.mjs",
     "check:t86": "vite build && node tools/check-t86.mjs",
     "check:t88": "vite build && node tools/check-t88.mjs",
