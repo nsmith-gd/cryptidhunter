@@ -84,6 +84,8 @@
     "check:t100": "vite build && node tools/check-t100.mjs",
     "check:t94": "vite build && node tools/check-t94.mjs",
     "check:t135": "vite build && node tools/check-t135.mjs",
+    "check:t136": "vite build && node tools/check-t136.mjs",
+    "capture:t136": "vite build && node tools/capture-t136.mjs",
     "check:t86": "vite build && node tools/check-t86.mjs",
     "check:t88": "vite build && node tools/check-t88.mjs",
     "check:t87": "vite build && node tools/check-t87.mjs",
