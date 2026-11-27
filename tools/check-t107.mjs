@@ -47,7 +47,11 @@ const setup = (bigfootDx) => page.evaluate((dx) => {
 const run = (secs) => page.evaluate((secs) => {
   const g = __game, b = g.__b, seen = [];
   let invest = null;
+  const home = { x: b.agent.x, z: b.agent.z };
   for (let i = 0; i < secs * 30; i++) {
+    // Hold him where the test put him while he's only roaming (his wandering is random); once he
+    // reacts to something, he's free to move.
+    if (b.state === 'roam') { b.agent.x = home.x; b.agent.z = home.z; b.agent.stop?.(); }
     g.sim.step(); g.sim.step();                                   // simulate only (no drawing): 1/30 s
     if (b.state === 'investigate' && !invest) invest = { why: b.history[b.history.length - 1]?.why, target: b.target && { x: +b.target.x.toFixed(1), z: +b.target.z.toFixed(1) }, t: +(i / 30).toFixed(1) };
     seen.push(b.perception.scentLevel);
