@@ -33,6 +33,7 @@ export class CryptidManager {
     const c = new CryptidAI({
       scene: this.scene, grid: this.gridFor(profile), profile, x, z, getPlayerPosition: this.getPlayerPosition, lures: this.lures, senses: this.senses, calls: this.calls, level: this.level, rocks: this.rocks, onEvent: this.onEvent,
     });
+    c.context = () => this.context?.() ?? {};   // what the level tells the AI (#130: dusk, how deep the player is)
     this.cryptids.push(c);
     return c;
   }
