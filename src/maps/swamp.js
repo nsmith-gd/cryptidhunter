@@ -391,7 +391,9 @@ export function buildSwampMap(scene) {
   const kneeBatch = batch('knee', kneeGeo, M.bark);
   const trunkGeos = [0, 1, 2].map((i) => trunkGeo(0.45, 1));   // unit height, scaled per tree
 
+  const treeList = [];
   function tree(x, z, rad, h, dead, far = false) {
+    if (!far) treeList.push({ x, z, rad, h, dead });
     const t = add(trunkGeos[0], dead ? M.deadBark : M.bark, x, -0.2, z, { ry: r() * 6 });
     t.scale.set(rad / 0.45, h, rad / 0.45);
     colliders.push(new THREE.Box3(new THREE.Vector3(x - rad, 0, z - rad), new THREE.Vector3(x + rad, h, z + rad)));
@@ -580,7 +582,38 @@ export function buildSwampMap(scene) {
   };
   const speedAt = (x, z, y) => ({ dry: 1, shallow: SWAMP.shallowSpeed, deep: SWAMP.deepSpeed })[surfaceAt(x, z, y)];
 
+  // ---- Clue spots (#94): authored Mothman sign along the walkways, plus ordinary false leads ----
+  // Claw gouges and snapped limbs high on cypress trunks a few metres off the boardwalks (where it
+  // landed to perch), scale dust on the boards of its favourite perches, an owl's feather or two.
+  const cr = rng(9401);
+  const nearestDeck = (x, z) => {
+    let best = null;
+    for (const b of decks) {
+      const px = Math.max(b.min.x, Math.min(x, b.max.x)), pz = Math.max(b.min.z, Math.min(z, b.max.z));
+      const d = Math.hypot(x - px, z - pz);
+      if (!best || d < best.d) best = { x: px, z: pz, top: b.max.y, d };
+    }
+    return best;
+  };
+  const trunkAt = (t, y) => { const k = y / t.h; return t.rad * (1 - 0.55 * k) * (1 + 1.6 * Math.pow(1 - Math.min(1, k * 4), 2)); };
+  const candidates = treeList.map((t) => ({ t, deck: nearestDeck(t.x, t.z) })).filter((c) => c.deck.d < 3.2).sort((a, b) => a.deck.d - b.deck.d);
+  const picked = [];
+  for (const c of candidates) if (picked.length < 5 && picked.every((p) => Math.hypot(p.t.x - c.t.x, p.t.z - c.t.z) > 12)) picked.push(c);
+  const clueSpots = picked.map(({ t, deck }, i) => {
+    const dx = deck.x - t.x, dz = deck.z - t.z, len = Math.hypot(dx, dz) || 1;
+    const y = deck.top + 2.3 + cr() * 0.5, rr = trunkAt(t, y) + 0.03;
+    const type = i < 3 ? 'scratch' : 'branch';
+    return { type, cryptidId: 'mothman', position: { x: t.x + (dx / len) * rr, y, z: t.z + (dz / len) * rr }, rotationY: Math.atan2(dx, dz),
+      data: type === 'scratch' ? { length: 0.7 } : { length: 0.8 } };
+  });
+  const bridgeTop = D + SWAMP.step * 7;
+  for (const [x, y, z] of [[0.4, bridgeTop, -20], [-2, D, -43], [21, D, -6], [2.5, D, -6.5]]) {
+    clueSpots.push({ type: 'wingDust', cryptidId: 'mothman', position: { x, y, z }, rotationY: cr() * 6, data: { size: 0.45 + cr() * 0.2 } });
+  }
+  for (const [x, z] of [[-27, 13.5], [2.6, 15.4]]) clueSpots.push({ type: 'owlFeather', cryptidId: 'owl', position: { x, y: D, z }, rotationY: cr() * 6, data: {} });
+
   return {
+    clueSpots,
     colliders,
     bounds: H,
     decks,

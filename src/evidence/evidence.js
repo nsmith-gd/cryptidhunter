@@ -24,6 +24,7 @@ export const EVIDENCE = {
     disturbancePhoto: { id: 'EV04', name: 'Disturbance photo', base: 8, from: 'scratch', how: 'photo' },
     hairSample: { id: 'EV02', name: 'Hair sample', base: 15, from: 'hair', how: 'pouch' },
     featherSample: { id: 'EV02', name: 'Feather sample', base: 15, from: 'owlFeather', how: 'pouch' },
+    scaleSample: { id: 'EV02', name: 'Scale sample', base: 15, from: 'wingDust', how: 'pouch' },   // #94 Mothman wing dust
     biologicalSample: { id: 'EV06', name: 'Droppings sample', base: 30, from: 'scat', how: 'vial' },
     footprintCast: { id: 'EV05', name: 'Footprint cast', base: 20, from: 'footprint', how: 'cast' },
     audioRecording: { id: 'EV07', name: 'Acoustic recording', base: 20, from: 'sound', how: 'recorder' },   // F05 field recorder (#87)
@@ -136,6 +137,14 @@ export class EvidenceKit {
       this.notify(`Feather bagged (${this.pouches} pouches left)`);
       return item;
     }
+    if (c.type === 'wingDust') {
+      if (this.has(c.id, 'scaleSample')) { this.notify('Already bagged'); return null; }
+      if (this.pouches <= 0) { this.notify('No sample pouches left'); return null; }
+      this.pouches--;
+      const item = this.add('scaleSample', c);
+      this.notify(`Scales scraped into a pouch (${this.pouches} pouches left)`);
+      return item;
+    }
     if (c.type === 'deerTrack' || c.type === 'foxTrack') { this.notify('Prints this small won\'t hold a cast: photograph them'); return null; }
     if (c.type === 'footprint') {
       if (this.has(c.id, 'footprintCast')) { this.notify('Already cast'); return null; }
@@ -159,7 +168,7 @@ export class EvidenceKit {
   photographed(entry = null, photo = null) {
     const c = this.aimed(EVIDENCE.photoReach);
     if (!c) return null;
-    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather') ? 'disturbance' : null;
+    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather' || c.type === 'wingDust') ? 'disturbance' : null;
     if (!kind) return null;
     let quality = null, rec = null;
     if (photo && entry) {
