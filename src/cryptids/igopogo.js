@@ -12,6 +12,8 @@ import * as THREE from 'three';
 // greybox body that follows the schedule, plus the photo subject while it's up).
 
 export const IGOPOGO = {
+  // #133 stalking: at night, while it's down, it shadows your movement along the shore from the water.
+  shadow: { near: 12, far: 26, speed: 1.4, deep: -1.8, flee: 35, wary: 120 },
   firstWindow: [60, 150],    // s of hunt clock until the first rise
   gap: [150, 260],           // s resting between windows
   duration: [22, 36],        // s a window lasts if undisturbed
@@ -115,22 +117,87 @@ export class Igopogo {
   get trace() { return this.schedule.trace; }
   get up() { return this.riseLevel > 0.35; }
 
-  /** t: hunt clock (s); dt: step; noiseAt(zone) -> heard noise. */
-  update(t, dt, noiseAt) {
+  /**
+   * t: hunt clock (s); dt: step; noiseAt(zone) -> heard noise.
+   * ctx (#133, optional): { player, heightAt, onEvent(type, data) }. With it, while it's down and not
+   * wary it shadows your movement along the shore from deep water; it surfaces where it is (calling,
+   * and leaving a shore trace at the water's edge if that's close); disturbed, it dives and pulls away.
+   */
+  update(t, dt, noiseAt, ctx = null) {
+    const before = this.schedule.trace.length;
     const s = this.schedule.update(t, noiseAt);
     const target = s === 'up' ? 1 : 0;
     this.riseLevel += Math.sign(target - this.riseLevel) * Math.min(Math.abs(target - this.riseLevel), dt / IGOPOGO.rise);
-    const p = this.schedule.position(t);
-    const z = this.schedule.zone;
+    const zone = this.schedule.zone;
+    if (ctx?.player && ctx.heightAt) {
+      this.stalk(t, dt, ctx, this.schedule.trace.slice(before));
+    } else {
+      this.pos = this.schedule.position(t);
+    }
+    const p = this.pos;
     this.mesh.position.set(p.x, this.waterY - 2.6 + this.riseLevel * 2.6, p.z);
-    this.mesh.rotation.y = Math.atan2(z.x - p.x, z.z - p.z) + Math.PI + t * 0.02;
+    this.mesh.rotation.y = (this.heading ?? Math.atan2(zone.x - p.x, zone.z - p.z) + Math.PI) + (ctx ? 0 : t * 0.02);
     this.mesh.visible = this.riseLevel > 0.02;
+  }
+
+  /** Shadowing, surfacing where it is, and withdrawal (#133). */
+  stalk(t, dt, { player, heightAt, onEvent }, events) {
+    const S = IGOPOGO.shadow, P = player.position;
+    this.pos ??= { ...this.schedule.position(t) };
+    this.log ??= [];
+    const say = (type, data = {}) => { const e = { t: +t.toFixed(1), type, ...data }; this.log.push(e); onEvent?.(type, { ...data, x: this.pos.x, z: this.pos.z }); };
+    for (const e of events) {
+      if (e.type === 'withdraw' || e.type === 'cancel') {
+        this.waryUntil = t + S.wary;
+        const dx = this.pos.x - P.x, dz = this.pos.z - P.z, d = Math.hypot(dx, dz) || 1;
+        this.fleeTo = this.deepPoint(heightAt, P.x + (dx / d) * S.flee * 1.5, P.z + (dz / d) * S.flee * 1.5) ?? null;
+        say('withdraw', { why: e.why });
+      }
+      if (e.type === 'surface') {
+        say('surface');
+        say('call');                                                   // a low call over the water: recordable
+        const edge = this.edgePoint(heightAt);
+        if (edge && Math.hypot(edge.x - this.pos.x, edge.z - this.pos.z) < 25) say('shoreTrace', { at: edge });
+      }
+    }
+    if (this.schedule.state === 'up') return;                          // it surfaces where it is
+    let goal = null;
+    if (this.fleeTo && t < (this.waryUntil ?? 0)) goal = this.fleeTo;
+    else {
+      this.fleeTo = null;
+      goal = this.shadowPoint(P, heightAt);
+      if (goal && !this.shadowing) { this.shadowing = true; say('shadowing'); }
+    }
+    if (!goal) return;
+    const dx = goal.x - this.pos.x, dz = goal.z - this.pos.z, d = Math.hypot(dx, dz);
+    if (d > 0.3) {
+      const k = Math.min(1, (S.speed * (this.fleeTo ? 2 : 1) * dt) / d), nx = this.pos.x + dx * k, nz = this.pos.z + dz * k;
+      if (heightAt(nx, nz) < S.deep) { this.pos.x = nx; this.pos.z = nz; this.heading = Math.atan2(dx, dz); }   // it never leaves deep water
+    }
+  }
+
+  /** The deep-water point nearest you, between `near` and `far` metres out. */
+  shadowPoint(P, heightAt) {
+    const S = IGOPOGO.shadow;
+    let best = null;
+    for (let r = S.near; r <= S.far; r += 2) for (let a = 0; a < Math.PI * 2; a += Math.PI / 16) {
+      const x = P.x + Math.cos(a) * r, z = P.z + Math.sin(a) * r;
+      if (heightAt(x, z) < S.deep) { const d = Math.hypot(x - this.pos.x, z - this.pos.z) * 0.15 + r; if (!best || d < best.d) best = { x, z, d }; }
+    }
+    return best;
+  }
+  deepPoint(heightAt, x, z) { return heightAt(x, z) < IGOPOGO.shadow.deep ? { x, z } : this.shadowPoint({ x, z }, heightAt); }
+  /** The nearest bit of dry shore to where it is (for a shore trace). */
+  edgePoint(heightAt) {
+    let best = null;
+    for (let r = 2; r <= 30; r += 1) { for (let a = 0; a < Math.PI * 2; a += Math.PI / 24) { const x = this.pos.x + Math.cos(a) * r, z = this.pos.z + Math.sin(a) * r, h = heightAt(x, z); if (h > 0.05 && h < 0.6) { best = { x, z }; break; } } if (best) break; }
+    return best;
   }
 
   /** Photo subject while it's up (the head and neck above water). */
   subject() {
     if (!this.up) return null;
-    const c = new THREE.Vector3(); this.head.getWorldPosition(c);
+    const c = new THREE.Vector3(); this.mesh.updateMatrixWorld(true); this.head.getWorldPosition(c);
     return { name: 'Igopogo', object3d: this.mesh, radius: 0.9, center: c };
   }
 }

@@ -17,6 +17,8 @@ export const CLUE_TYPES = Object.freeze({
   owlFeather: { label: 'Feather', lifetime: 1e9, fadeFraction: 0, falseLead: true },
   // Mothman sign (#94): a patch of grey, glittering scales shed on a perch, like moth-wing dust.
   wingDust: { label: 'Dusty scales', lifetime: 1e9, fadeFraction: 0 },
+  // Igopogo sign (#133): reeds flattened in a wide swathe at the water's edge, a smear of slime.
+  shoreTrace: { label: 'Flattened reeds', lifetime: 1e9, fadeFraction: 0 },
 });
 
 // Shared geometry (one per kind); materials are per clue so each can fade on its own.
@@ -190,4 +192,22 @@ export function buildWingDust(data, rand = stream('clueArt')) {
   return g;
 }
 
-export const BUILDERS = { wingDust: buildWingDust, footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack, foxTrack: buildFoxTrack, owlFeather: buildOwlFeather };
+/** Shore trace (#133): a wide swathe of reeds pressed flat toward the water, with a slick of slime. */
+export function buildShoreTrace(data, rand = stream('clueArt')) {
+  const g = new THREE.Group();
+  const slime = new THREE.Mesh(unitDisc, mat(0x2a3a2e, { opacity: 0.8, roughness: 0.3 }));
+  slime.rotation.x = -Math.PI / 2; slime.scale.set(1.4, 2.4, 1); slime.position.y = 0.01;
+  g.add(slime);
+  const reed = mat(0x6a6a3a);
+  for (let i = 0; i < 18; i++) {
+    const r = new THREE.Mesh(twigGeo, reed);
+    r.scale.set(0.6, 0.6, 0.9 + rand() * 0.5);
+    r.position.set((rand() - 0.5) * 1.6, 0.03, (rand() - 0.5) * 2.2);
+    r.rotation.set(0, (rand() - 0.5) * 0.4, 0);
+    g.add(r);
+  }
+  return g;
+}
+const twigGeo = new THREE.BoxGeometry(0.03, 0.03, 1);
+
+export const BUILDERS = { shoreTrace: buildShoreTrace, wingDust: buildWingDust, footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack, foxTrack: buildFoxTrack, owlFeather: buildOwlFeather };

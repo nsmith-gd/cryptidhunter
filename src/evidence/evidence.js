@@ -173,7 +173,7 @@ export class EvidenceKit {
   photographed(entry = null, photo = null) {
     const c = this.aimed(EVIDENCE.photoReach);
     if (!c) return null;
-    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather' || c.type === 'wingDust') ? 'disturbance' : null;
+    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather' || c.type === 'wingDust' || c.type === 'shoreTrace') ? 'disturbance' : null;
     if (!kind) return null;
     let quality = null, rec = null;
     if (photo && entry) {
