@@ -67,7 +67,7 @@ export class DogmanProxy {
     M.update(dt);
     const seeing = this.sees(p);
     if (seeing) { M.sampleSeen(p); if (this.state === 'watch') { this.heading = Math.atan2(p.x - this.position.x, p.z - this.position.z); this.mesh.rotation.y = this.heading; } }
-    for (const c of camps) if (this.sees(c, 0.5)) { const had = M.anticipate(c.x, c.z); M.observeCamp(c.x, c.z, c.what); if (!had || had.kind !== 'camp') this.note('saw a camp', { what: c.what, x: +c.x.toFixed(1), z: +c.z.toFixed(1) }); }
+    for (const c of camps) if (this.sees(c, 0.5)) { const known = M.spots.some((q) => q.kind === 'camp' && Math.hypot(q.x - c.x, q.z - c.z) < 8); M.observeCamp(c.x, c.z, c.what); if (!known) this.note('saw a camp', { item: c.what, x: +c.x.toFixed(1), z: +c.z.toFixed(1) }); }
     const ambush = M.ambushSpot();
     if (ambush && this.state !== 'ambush' && !(this.target && Math.hypot(this.target.x - ambush.x, this.target.z - ambush.z) < 2)) {
       this.state = 'ambush'; this.target = ambush; this.note('goes to wait on a route it watched you use', { x: +ambush.x.toFixed(1), z: +ambush.z.toFixed(1), uses: ambush.count, confidence: +ambush.confidence.toFixed(2) });
