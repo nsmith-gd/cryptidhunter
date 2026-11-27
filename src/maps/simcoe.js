@@ -166,7 +166,11 @@ export function buildSimcoeMap(scene) {
     playerStart: { x: PARKING.x - 3, z: PARKING.z - 4, yaw: 0.6 },
     exit: { x: EXIT.x + 2, z: EXIT.z + 6, name: EXIT.name },
     landmarks,
-    camps: CAMPS, observation: OBSERVATION, surfacing: SURFACING, trails: TRAILS,
+    camps: CAMPS, observation: OBSERVATION, surfacing: SURFACING,
+    // For the paper field map (nav/fieldMap.js): trail lines and named places ('trailhead' is home).
+    trails: [...Object.values(TRAILS), ROAD],
+    places: [{ id: 'trailhead', name: 'Parking', x: PARKING.x, z: PARKING.z }, ...CAMPS.map((c) => ({ id: c.id, name: c.name, x: c.x, z: c.z })),
+      ...OBSERVATION.map((o) => ({ id: o.id, name: o.name.replace(/^the /, 'The '), x: o.x, z: o.z }))],
     /** Which dry observation points see each surfacing zone (line of sight; for checks and debug). */
     get visibility() { return visibilityReport({ trees }); },
     spawns: {},
