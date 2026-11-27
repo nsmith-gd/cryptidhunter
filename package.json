@@ -106,7 +106,8 @@
     "check:t103": "vite build && node tools/check-t103.mjs",
     "check:t139": "node tools/check-t139.mjs",
     "check:t140": "node tools/check-t140.mjs",
-    "check:t141": "node tools/check-t141.mjs"
+    "check:t141": "node tools/check-t141.mjs",
+    "check:t142": "node tools/check-t142.mjs"
   },
   "repository": {
     "type": "git",
