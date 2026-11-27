@@ -54,7 +54,7 @@ const far = await page.evaluate(() => { at(42); __game.fieldKit.toggleRecorder(t
 check('far from it (40 m+) everything works: torch on, recorder running', far.torch === 'ok' && far.light > 1 && far.rec, far);
 const edge = await page.evaluate(() => { const out = []; for (let z = 40; z >= 6; z -= 2) { at(z); out.push({ z, ...read() }); } return out; });
 const firstFlicker = edge.find((e) => e.torch === 'flicker'), firstFail = edge.find((e) => e.torch === 'failed');
-check('walking toward it, the torch flickers at the edge of the field, then dies close in', firstFlicker && firstFail && firstFlicker.z > firstFail.z && edge.filter((e) => e.torch === 'flicker').some((e) => e.light < 1),
+check('walking toward it, the torch flickers at the edge of the field, then dies close in', firstFlicker && firstFail && firstFlicker.z > firstFail.z && edge.filter((e) => e.torch === 'flicker').some((e) => e.light < far.light * 0.3),
   { flickerFrom: firstFlicker?.z, failAt: firstFail?.z, sample: edge.filter((_, i) => i % 3 === 0).map((e) => [e.z, e.torch, e.light]) });
 await page.screenshot({ path: `${out}/01-torch-dead-under-the-mothman.png` });
 const near = await page.evaluate(() => { const g = __game; at(4); g.nightVision.toggle(true); steps(5); return { ...read(), trace: g.interference.trace.slice(0, 6) }; });
@@ -73,9 +73,12 @@ await page.screenshot({ path: `${out}/02-paper-map-and-compass-still-work-under-
 await page.evaluate(() => __game.fieldMap.toggle(false));
 check('analogue tools keep working in the field: the film camera takes the picture, the paper map and compass open', analogue.photo?.result === 'HIT' && analogue.photo.subject === 'Mothman' && analogue.mapOpen && analogue.torch === 'failed', analogue);
 // Walk back out of range: everything returns.
-const back = await page.evaluate(() => { const g = __game; at(44); steps(120); g.nightVision.toggle(true); steps(5); const r = read(); g.nightVision.toggle(false); g.fieldKit.toggleRecorder(true);
-  return { ...r, recAgain: !!g.fieldKit.recording, cams: g.trailCams.cams.map((c) => !!c.jammed), trace: g.interference.trace.filter((e) => e.id === 'torch').map((e) => `${e.to}@${e.level}`) }; });
-check('walking out of range restores the devices: torch, night vision, recorder, trail camera', back.torch === 'ok' && back.light > 1 && back.nvg && back.recAgain && back.cams.every((j) => !j), back);
+const back = await page.evaluate(() => { const g = __game; at(44); steps(120); const camsWhileThere = g.trailCams.cams.map((c) => !!c.jammed);
+  g.mothman.mesh.position.set(60, 12, -45); steps(120);   // then it flies off
+ g.nightVision.toggle(true); steps(5); const r = read(); g.nightVision.toggle(false); g.fieldKit.toggleRecorder(true);
+  return { ...r, recAgain: !!g.fieldKit.recording, camsWhileThere, cams: g.trailCams.cams.map((c) => !!c.jammed), trace: g.interference.trace.filter((e) => e.id === 'torch').map((e) => `${e.to}@${e.level}`) }; });
+check('walking out of range restores your devices: torch, night vision, recorder', back.torch === 'ok' && back.light > 1 && back.nvg && back.recAgain, back);
+check('the trail camera under it stays dead while the Mothman is there, and works again once it flies off', back.camsWhileThere[0] === true && back.cams.every((j) => !j), { whileThere: back.camsWhileThere, after: back.cams });
 await page.evaluate(() => { at(44); });
 await page.screenshot({ path: `${out}/03-back-out-of-range-torch-restored.png` });
 
