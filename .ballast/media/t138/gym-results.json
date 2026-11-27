@@ -1,0 +1,276 @@
+{
+  "G05 calm": {
+    "digest": "a8b7caf7",
+    "events": 46,
+    "criteria": [
+      {
+        "id": "dry-exit",
+        "text": "The shore exit works without the boat (walk there on dry land)",
+        "status": "pass",
+        "detail": {
+          "reached": true
+        }
+      },
+      {
+        "id": "fuel-once",
+        "text": "Fuel goes down once: exactly the engine's burn for 10 s at full throttle",
+        "status": "pass",
+        "detail": {
+          "burned": 0.12,
+          "expected": 0.12
+        }
+      },
+      {
+        "id": "charge-once",
+        "text": "Battery charge goes down once per sonar ping (and the buoy logs it)",
+        "status": "pass",
+        "detail": {
+          "perPing": [
+            6,
+            6,
+            6
+          ],
+          "readings": 5
+        }
+      },
+      {
+        "id": "vibration",
+        "text": "The creature under the water homes in on engine vibration, and loses interest when the engine stops",
+        "status": "pass",
+        "detail": {
+          "startDistance": 28.8,
+          "after10sDriving": 0.8,
+          "engineOffState": "idle",
+          "bumps": 1
+        }
+      },
+      {
+        "id": "dependent-only",
+        "text": "A flat battery switches off only what it powers (sonar, GPS); torch, paper map and engine still work",
+        "status": "pass",
+        "detail": {
+          "sonar": false,
+          "gps": false,
+          "torch": true,
+          "paper map": true,
+          "engine": true
+        }
+      },
+      {
+        "id": "recharge",
+        "text": "The generator recharges the battery and the sonar works again",
+        "status": "pass",
+        "detail": {
+          "charge": 40,
+          "generatorFuel": 0.9,
+          "boatBackAt": {
+            "x": -0.7,
+            "z": 8.7
+          }
+        }
+      },
+      {
+        "id": "owned-states",
+        "text": "In deep water breath runs down, you soak and chill, and harm comes only through health (drowning, cold)",
+        "status": "pass",
+        "detail": {
+          "after8": {
+            "breath": 22,
+            "wet": 100,
+            "core": 36.53,
+            "health": 100
+          },
+          "healthAfter": 68,
+          "causes": [
+            "Drowning"
+          ]
+        }
+      },
+      {
+        "id": "recovery-route",
+        "text": "Every scripted fault has a visible cause and a way to recover (and the hut warms you)",
+        "status": "pass",
+        "detail": {
+          "faults": [
+            "battery-flat: Battery flat: the sonar and GPS are off / Charge it at the station generator, or navigate by the paper map",
+            "out-of-fuel: Out of fuel: the engine coughs and dies / Paddle back to the dock (slow), or refuel at the station",
+            "in-the-water: You're in deep, cold water: breath and warmth are going / Get to the shallows or the dock; the heated hut on the west shore is the recovery point"
+          ],
+          "paddlingWhenDry": {
+            "reboarded": true,
+            "engine": false,
+            "speed": 0.8
+          },
+          "aliveAtHut": true,
+          "health": 68,
+          "core": [
+            35.14,
+            35.47
+          ]
+        }
+      },
+      {
+        "id": "data-copy",
+        "text": "Data survives only as a valid copy (copied readings come home; uncopied ones are lost)",
+        "status": "pass",
+        "detail": {
+          "kept": 3,
+          "lost": 2
+        }
+      },
+      {
+        "id": "storm",
+        "text": "Storm variant: more fuel per second and the boat is pushed downwind",
+        "status": "not_evaluated",
+        "detail": {
+          "reason": "run with &storm to evaluate (the check does both)"
+        }
+      },
+      {
+        "id": "testers",
+        "text": "Testers can say what failed and how they recovered (power budget, time to warmth, extraction viability recorded)",
+        "status": "not_evaluated",
+        "detail": {
+          "reason": "needs human playtests (GDD 15.3)"
+        }
+      }
+    ]
+  },
+  "G05 storm": {
+    "digest": "c1576dfe",
+    "events": 47,
+    "criteria": [
+      {
+        "id": "dry-exit",
+        "text": "The shore exit works without the boat (walk there on dry land)",
+        "status": "pass",
+        "detail": {
+          "reached": true
+        }
+      },
+      {
+        "id": "fuel-once",
+        "text": "Fuel goes down once: exactly the engine's burn for 10 s at full throttle",
+        "status": "pass",
+        "detail": {
+          "burned": 0.18,
+          "expected": 0.18
+        }
+      },
+      {
+        "id": "charge-once",
+        "text": "Battery charge goes down once per sonar ping (and the buoy logs it)",
+        "status": "pass",
+        "detail": {
+          "perPing": [
+            6,
+            6,
+            6
+          ],
+          "readings": 5
+        }
+      },
+      {
+        "id": "vibration",
+        "text": "The creature under the water homes in on engine vibration, and loses interest when the engine stops",
+        "status": "pass",
+        "detail": {
+          "startDistance": 28.8,
+          "after10sDriving": 2.1,
+          "engineOffState": "idle",
+          "bumps": 1
+        }
+      },
+      {
+        "id": "dependent-only",
+        "text": "A flat battery switches off only what it powers (sonar, GPS); torch, paper map and engine still work",
+        "status": "pass",
+        "detail": {
+          "sonar": false,
+          "gps": false,
+          "torch": true,
+          "paper map": true,
+          "engine": true
+        }
+      },
+      {
+        "id": "recharge",
+        "text": "The generator recharges the battery and the sonar works again",
+        "status": "pass",
+        "detail": {
+          "charge": 40,
+          "generatorFuel": 0.9,
+          "boatBackAt": {
+            "x": 1.8,
+            "z": 9.3
+          }
+        }
+      },
+      {
+        "id": "owned-states",
+        "text": "In deep water breath runs down, you soak and chill, and harm comes only through health (drowning, cold)",
+        "status": "pass",
+        "detail": {
+          "after8": {
+            "breath": 22,
+            "wet": 100,
+            "core": 36.24,
+            "health": 100
+          },
+          "healthAfter": 68,
+          "causes": [
+            "Drowning"
+          ]
+        }
+      },
+      {
+        "id": "recovery-route",
+        "text": "Every scripted fault has a visible cause and a way to recover (and the hut warms you)",
+        "status": "pass",
+        "detail": {
+          "faults": [
+            "battery-flat: Battery flat: the sonar and GPS are off / Charge it at the station generator, or navigate by the paper map",
+            "out-of-fuel: Out of fuel: the engine coughs and dies / Paddle back to the dock (slow), or refuel at the station",
+            "in-the-water: You're in deep, cold water: breath and warmth are going / Get to the shallows or the dock; the heated hut on the west shore is the recovery point"
+          ],
+          "paddlingWhenDry": {
+            "reboarded": true,
+            "engine": false,
+            "speed": 0.8
+          },
+          "aliveAtHut": true,
+          "health": 68,
+          "core": [
+            34.94,
+            35.24
+          ]
+        }
+      },
+      {
+        "id": "data-copy",
+        "text": "Data survives only as a valid copy (copied readings come home; uncopied ones are lost)",
+        "status": "pass",
+        "detail": {
+          "kept": 3,
+          "lost": 2
+        }
+      },
+      {
+        "id": "storm",
+        "text": "Storm variant: more fuel per second and the boat is pushed downwind",
+        "status": "pass",
+        "detail": {
+          "burned": 0.18
+        }
+      },
+      {
+        "id": "testers",
+        "text": "Testers can say what failed and how they recovered (power budget, time to warmth, extraction viability recorded)",
+        "status": "not_evaluated",
+        "detail": {
+          "reason": "needs human playtests (GDD 15.3)"
+        }
+      }
+    ]
+  }
+}

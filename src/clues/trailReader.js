@@ -66,6 +66,7 @@ export class TrailReader {
     if (clue.type === 'deerTrack') return 'Small, neat hoof prints wandering off. Light-footed, whatever it was.';
     if (clue.type === 'foxTrack') return 'Tiny paw prints in a dead-straight line. Something small and quick.';
     if (clue.type === 'owlFeather') return 'A single soft feather. Nothing else nearby.';
+    if (clue.type === 'wingDust') return 'Scales, shed where something big sat a while. Look up.';
     const ahead = this.aheadOf(clue);
     return ahead ? clueHint(clue, ahead) : coldHint(clue);
   }

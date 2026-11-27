@@ -29,6 +29,7 @@ export const THERMO = {
   criticalDrain: 0.8,
   // Immersion on ordinary expeditions: cold water pulls heat far faster than the tutorial allows.
   immersionLethal: { shallow: 1.0, deep: 3.2 },
+  submergedChill: 0.8,      // extra pull on the equilibrium with your head under water (#139)
 };
 
 export class Thermoregulation {
@@ -49,6 +50,7 @@ export class Thermoregulation {
     this.wetness = 0;               // 0..100
     this.nearHeat = null;           // name of the heat source warming you, if any
     this.inWater = 'dry';
+    this.isSubmerged = () => false;   // set by water traversal (#139): under water, not just in it
   }
 
   /** 0 when comfortable, rising to 1 at the tutorial floor (other systems read this). */
@@ -74,7 +76,9 @@ export class Thermoregulation {
     this.nearHeat = heat?.name ?? null;
 
     // Wetness.
-    if (this.inWater === 'deep') this.wetness += THERMO.wetDeep * dt;
+    this.submerged = this.inWater === 'deep' && this.isSubmerged();
+    if (this.submerged) this.wetness = 100;                          // under: soaked through at once
+    else if (this.inWater === 'deep') this.wetness += THERMO.wetDeep * dt;
     else if (this.inWater === 'shallow') this.wetness += THERMO.wetShallow * dt;
     else {
       this.rainExposure = this.rain();
@@ -89,6 +93,7 @@ export class Thermoregulation {
     const airPull = Math.max(0, 18 - this.airTemp) / 18;            // 0 on a mild night, ~0.7 at 6 °C
     let eq = THERMO.target - 0.6 * airPull / Math.max(0.25, wetInsul);   // dry on a cold night: ~36.6, still comfortable
     if (this.inWater !== 'dry') eq -= this.lethal ? THERMO.immersionLethal[this.inWater] : this.inWater === 'deep' ? 1.6 : 0.8;
+    if (this.submerged) eq -= THERMO.submergedChill;                 // head under: the cold takes heat fastest
     if (this.player.sprinting) eq += 0.4;
     if (heat) eq = Math.max(eq, THERMO.target + 0.2);
     eq = Math.max(this.floor, Math.min(THERMO.ceiling, eq));

@@ -24,10 +24,12 @@ export const CAMP_KIT = {
   clearance: 1.6,              // no solid thing within this of the pitch spot
   fireNear: 5,                 // a fire within this of the tent warms the camp and sleep
   sleepSpeed: 8,               // world steps per step while asleep (8 × time)
+  dawnSpeed: 16,               // faster when sleeping through the night until dawn (#137)
   wakeAt: 5,                   // fatigue at which you wake rested
   wakeCreature: 25,            // a creature this close wakes you
   wakeCue: 60,                 // a knock / whoop / whistle within this wakes you
   wakeEnergy: 10,              // energy this low wakes you (hungry)
+  wakeThirst: 15,              // hydration this low wakes you (parched)
   quality: { tent: 0.6, fire: 0.25, dry: 0.15 },
 };
 
@@ -161,9 +163,18 @@ export class FieldCamp {
     return q.tent + (this.campFire ? q.fire : 0) + (t.wetness < 30 ? q.dry : 0);
   }
 
+  /**
+   * #137: what a sleep lasts for. 'rested' (default): until fatigue is gone. 'dawn' (overnight trips,
+   * GDD 6.5 "sleep until"): through the night until first light, unless something significant wakes
+   * you first: a creature noise or splash nearby (cue), a creature close, or a worsening condition.
+   * getClock: () => ({ dawned, elapsed, dawnSeconds }) from the night's clock.
+   */
+  get untilDawn() { return this.sleepUntil === 'dawn' && !!this.getClock; }
+
   sleep() {
     const f = this.survival.fatigue;
-    if (f.value <= CAMP_KIT.wakeAt + 5) { this.notify('You\'re not tired enough to sleep'); return false; }
+    if (this.untilDawn && this.getClock().dawned) { this.notify('It\'s already light: no point sleeping now'); return false; }
+    if (!this.untilDawn && f.value <= CAMP_KIT.wakeAt + 5) { this.notify('You\'re not tired enough to sleep'); return false; }
     const why = this.wakeReason();
     if (why) { this.notify(`Can't sleep: ${why}`); return false; }
     this.sleeping = true;
@@ -172,6 +183,8 @@ export class FieldCamp {
     const h = this.survival.health;
     this.current = { start: +this.time.toFixed(1), fatigueBefore: +f.value.toFixed(1), healthBefore: +(h?.value ?? 100).toFixed(1),
       coreBefore: +this.survival.thermo.core.toFixed(2), energyBefore: +this.survival.nutrition.energy.toFixed(1), quality: +f.quality.toFixed(2) };
+    this.current.until = this.untilDawn ? 'dawn' : 'rested';
+    this.current.clockBefore = this.getClock ? +this.getClock().elapsed.toFixed(1) : null;
     this.overlay.style.display = 'flex';
     return true;
   }
@@ -186,6 +199,7 @@ export class FieldCamp {
     if (h && h.value <= 15) return 'you\'re badly hurt';
     if (t.lethal && t.core < THERMO.hypothermiaSoon) return 'you\'re dangerously cold';
     if (s.nutrition.energy <= CAMP_KIT.wakeEnergy) return 'you\'re starving';
+    if (s.hydration?.enabled && s.hydration.value <= CAMP_KIT.wakeThirst) return 'you\'re parched: drink something (I)';   // #137: never sleep into harm (GDD 6.5)
     if (!this.insideTent) return 'you\'re not in the tent';
     return null;
   }
@@ -196,7 +210,8 @@ export class FieldCamp {
     const s = this.survival, f = s.fatigue;
     f.asleep = false;
     const entry = { ...this.current, end: +this.time.toFixed(1), fatigueAfter: +f.value.toFixed(1), healthAfter: +(s.health?.value ?? 100).toFixed(1),
-      coreAfter: +s.thermo.core.toFixed(2), energyAfter: +s.nutrition.energy.toFixed(1), woke: why };
+      coreAfter: +s.thermo.core.toFixed(2), energyAfter: +s.nutrition.energy.toFixed(1), woke: why,
+      clockAfter: this.getClock ? +this.getClock().elapsed.toFixed(1) : null };
     this.sleepLog.push(entry);
     this.overlay.style.display = 'none';
     const mins = Math.round((entry.end - entry.start) / 60);
@@ -210,7 +225,7 @@ export class FieldCamp {
   }
 
   /** How many world steps to run per sim step: sleep fast-forwards time. */
-  get timeScale() { return this.sleeping ? CAMP_KIT.sleepSpeed : 1; }
+  get timeScale() { return this.sleeping ? (this.current?.until === 'dawn' ? CAMP_KIT.dawnSpeed : CAMP_KIT.sleepSpeed) : 1; }
 
   update(dt) {
     this.time += dt;
@@ -224,6 +239,7 @@ export class FieldCamp {
       f.quality = this.sleepQuality();
       const why = this.wakeReason();
       if (why) this.wake(`woken: ${why}`);
+      else if (this.current?.until === 'dawn') { if (this.getClock().dawned) this.wake('first light'); else this.renderOverlay(); }
       else if (f.value <= CAMP_KIT.wakeAt) this.wake('rested');
       else this.renderOverlay();
     }
@@ -239,7 +255,11 @@ export class FieldCamp {
 
   renderOverlay() {
     const s = this.survival, f = s.fatigue;
-    const text = `ASLEEP  ·  time passing ×${CAMP_KIT.sleepSpeed}\n\nFatigue ${Math.round(f.value)}   Body ${s.thermo.core.toFixed(1)}°C   Energy ${Math.round(s.nutrition.energy)}\n` +
+    const c = this.current?.until === 'dawn' && this.getClock ? this.getClock() : null;
+    const left = c ? Math.max(0, c.dawnSeconds - c.elapsed) : 0;
+    const head = c ? `ASLEEP UNTIL DAWN  ·  time passing ×${CAMP_KIT.dawnSpeed}  ·  first light in ${Math.ceil(left / 60)} min\nAnything close, a splash or a call, will wake you`
+      : `ASLEEP  ·  time passing ×${CAMP_KIT.sleepSpeed}`;
+    const text = `${head}\n\nFatigue ${Math.round(f.value)}   Body ${s.thermo.core.toFixed(1)}°C   Energy ${Math.round(s.nutrition.energy)}\n` +
       `Sleep quality ${Math.round(f.quality * 100)}%${this.campFire ? ' (fire)' : ''}${s.thermo.wetness >= 30 ? ' (wet clothes)' : ''}\n\nQ to get up`;
     if (this.overlay.textContent !== text) this.overlay.textContent = text;
   }

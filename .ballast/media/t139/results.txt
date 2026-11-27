@@ -1,0 +1,12 @@
+PASS the land exit works without the boat (the road out, and round the shore trail from the north bay) {"road":true,"fromNorth":true,"trailLegs":36,"deepSteps":0,"boatUsed":false,"at":[13,44.3]}
+PASS board at the dock, start the outboard, drive out (fuel burns; you stay dry) {"onDock":"dry","boarded":true,"engine":true,"out":{"z":-35,"speed":5},"fuelUsed":0.12,"maxHeel":0.81,"state":"aboard","seatedY":0.35,"mode":"aboard","wet":0}
+PASS a hard turn at full speed heels the boat hard but it holds in calm water {"onDock":"dry","boarded":true,"engine":true,"out":{"z":-35,"speed":5},"fuelUsed":0.12,"maxHeel":0.81,"state":"aboard","seatedY":0.35,"mode":"aboard","wet":0}
+PASS a bump during a hard turn capsizes the boat and throws you into deep water {"state":"capsized","mode":"swimming","surface":"deep","showBreath":false,"breath":100,"hudBreath":"none","why":"bumped from below"}
+PASS swimming at the surface: no breath meter, breath stays full {"state":"capsized","mode":"swimming","surface":"deep","showBreath":false,"breath":100,"hudBreath":"none","why":"bumped from below"}
+PASS diving: the breath bar appears only under water and runs down {"mode":"under","showBreath":true,"breath":76,"hudBreath":"block","tint":"block","wet":100,"eqSwim":33.41,"eqUnder":33,"submerged":true}
+PASS immersion drives wetness and cold: soaked through, and colder under than at the surface {"mode":"under","showBreath":true,"breath":76,"hudBreath":"block","tint":"block","wet":100,"eqSwim":33.41,"eqUnder":33,"submerged":true}
+PASS out of air: drowning hurts through health only; surfacing stops it and the breath bar goes away {"drowning":true,"lost":18.1,"causes":["Drowning"],"afterSurface":{"mode":"swimming","breath":100,"drowning":false,"hud":"none"}}
+PASS hold E beside the upturned hull to right it, climb back in, motor home and step onto the dock {"righted":"adrift","boarded":true,"engine":true,"arrived":true,"how":"stepped ashore","surface":"dry","capsizes":1}
+PASS no page errors (calm) []
+PASS storm: a hard turn at speed in the waves capsizes the boat {"state":"capsized","after":9.4,"why":"a wave caught it heeled over","mode":"swimming","rain":1}
+PASS no page errors (storm) []

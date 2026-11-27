@@ -1,0 +1,66 @@
+{
+  "n1": {
+    "slots": [
+      "tent",
+      "fireKit",
+      "bait",
+      "trailCamera"
+    ],
+    "mode": "dawn",
+    "pitched": true,
+    "tent": {
+      "x": -36,
+      "z": 6.9
+    },
+    "lit": true,
+    "fires": 1,
+    "campFire": true,
+    "camp": "Cedar Cove"
+  },
+  "sleep1": {
+    "ok": true,
+    "sleeping": true,
+    "timeScale": 16
+  },
+  "woke1": {
+    "start": 7.6,
+    "fatigueBefore": 30.4,
+    "healthBefore": 100,
+    "coreBefore": 36.98,
+    "energyBefore": 84.6,
+    "quality": 1,
+    "until": "dawn",
+    "clockBefore": 7.6,
+    "end": 900,
+    "fatigueAfter": 0,
+    "healthAfter": 100,
+    "coreAfter": 37.2,
+    "energyAfter": 64.7,
+    "woke": "first light",
+    "clockAfter": 900,
+    "healthCauses": [],
+    "hydration": 46.2,
+    "dawned": true,
+    "elapsed": 900,
+    "dawnAt": 900
+  },
+  "woke2": {
+    "midway": {
+      "sleeping": true,
+      "dawned": false
+    },
+    "sleeping": false,
+    "woke": "woken: a splash out in the bay nearby",
+    "dawned": false,
+    "distance": 42.4
+  },
+  "far": {
+    "stillAsleep": true
+  },
+  "parched": {
+    "woke": "woken: you're parched: drink something (I)",
+    "hydration": 15,
+    "health": 100,
+    "dawned": false
+  }
+}

@@ -151,6 +151,13 @@ export class Viewmodel {
     dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
     this.sway.x += (THREE.MathUtils.clamp(dyaw * 2.2, -0.05, 0.05) - this.sway.x) * Math.min(1, dt * 8);
     const breathe = Math.sin(this.t * 1.6) * 0.004;
+    // Dread (#131): a tremor in your hands, on the held tools only (the view itself never shakes from
+    // it; in VR the head camera is untouched too). tremor 0..1 is set from dreadFeedback each frame.
+    const tr = this.tremor ?? 0;
+    const shakeX = tr * 0.006 * (Math.sin(this.t * 23.1) + 0.6 * Math.sin(this.t * 37.7));
+    const shakeY = tr * 0.005 * (Math.sin(this.t * 29.3 + 1.3) + 0.5 * Math.sin(this.t * 41.9));
+    const shakeR = tr * 0.035 * Math.sin(this.t * 19.7 + 0.4);
+    this.tremorOffset = { x: shakeX, y: shakeY, r: shakeR };
     const bobY = Math.abs(Math.sin(this.bobPhase)) * 0.012 * moving;
     const bobX = Math.sin(this.bobPhase) * 0.008 * moving;
 
@@ -162,8 +169,8 @@ export class Viewmodel {
     this.rightThumb.position.y = -0.005 * Math.sin(this.click * Math.PI);   // thumb presses the switch
     this.bounce.intensity = on ? 0.55 : 0;
     const r = this.rightRest;
-    this.right.position.set(r.x + bobX - this.sway.x, r.y + breathe - bobY, r.z);
-    this.right.rotation.set(0.04 + breathe * 2, -0.06 + this.sway.x * 2, 0.55 + bobX * 2);   // rolled so the back of the glove faces you
+    this.right.position.set(r.x + bobX - this.sway.x + shakeX, r.y + breathe - bobY + shakeY, r.z);
+    this.right.rotation.set(0.04 + breathe * 2 + shakeR, -0.06 + this.sway.x * 2 + shakeR * 0.6, 0.55 + bobX * 2);   // rolled so the back of the glove faces you
     this.right.visible = !this.photo?.raised && !this.nightVision?.on;
     // The beam comes out of the torch's lens (so it doesn't light up your own glove), aimed ahead.
     this.right.updateMatrix();
@@ -171,7 +178,8 @@ export class Viewmodel {
     this.flashlight.light.position.copy(this._lens);
 
     // Left hand idles with the same breath and bob (the photo camera moves its parent group).
-    this.left.position.set(bobX * 0.8 - this.sway.x * 0.7, breathe * 1.2 - bobY * 0.8, 0);
+    this.left.position.set(bobX * 0.8 - this.sway.x * 0.7 - shakeX * 0.9, breathe * 1.2 - bobY * 0.8 + shakeY * 1.1, 0);
+    this.left.rotation.z = -shakeR * 0.8;
 
     // Goggles: down over the eyes while night vision is on.
     const lowering = performance.now() < this.lowerUntil || this.lowering;

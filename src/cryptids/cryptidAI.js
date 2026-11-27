@@ -14,10 +14,12 @@ import { groundAt } from '../maps/ground.js';
 const STATE_TINT = {
   warn: new THREE.Color(0xd0702a),
   shadow: new THREE.Color(0x5a4a3a),
+  stalk: new THREE.Color(0x4a3e34),
   observe: new THREE.Color(0xb08a3a),
   flee: new THREE.Color(0xc0392b),
   aggress: new THREE.Color(0xe0581a),
 };
+const _v = new THREE.Vector3();
 
 // Shared cryptid brain. With senses (L1) it runs a behaviour state machine -
 // Roam / Investigate / Observe / Flee / Aggress - driven by what it hears and sees
@@ -96,7 +98,7 @@ export class CryptidAI {
     // the noise it's checking out; you, a little, as it becomes aware of you.
     if (this.mesh.userData.body3) {
       const look = (this.mesh.userData.look ??= { target: new THREE.Vector3(), weight: 0 });
-      const watching = ['observe', 'warn', 'aggress', 'shadow'].includes(this.state);
+      const watching = ['observe', 'warn', 'aggress', 'shadow', 'stalk'].includes(this.state);
       if (p && (watching || this.state === 'roam' || this.state === 'flee')) {
         look.target.set(p.x, (p.y ?? 0) + 1.5, p.z);
         look.weight = watching ? 1 : this.state === 'flee' ? 0.35 : Math.min(0.8, (this.perception?.awareness ?? 0) * 1.2);
@@ -210,6 +212,76 @@ export class CryptidAI {
       const s = this.agent.grid.sample(want.x, want.z, 4);
       if (s) this.agent.setDestination(s.x, s.z);
     }
+    return 'running';
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Stalking (#115): instead of bolting the moment it spots you, it keeps you in sight from a
+  // distance and circles, reading what you do:
+  //   pressure (your light on it, facing it, rushing it, being loud) -> it RETREATS: widens the
+  //     ring at speed, slipping back out of the light;
+  //   you still, quiet, looking away (or it has lost sight of you) -> it CLOSES: creeps in, a
+  //     metre at a time, toward its closest stalking distance;
+  //   otherwise it CIRCLES you at its distance, swapping direction now and then.
+  // It only knows where you are while it has detected you; otherwise it works from where it last
+  // saw or heard you, and gives up after a while (lost contact). Too close, cornered or angry:
+  // the brain hands over to warn / charge / flee as before.
+  // cfg: { stalkMin, stalkMax, stalkApproach, stalkTime, stalkLose }
+  enterStalk(why = 'watching you', cfg = {}) {
+    const p = this.perception?.lastSeen ?? this.getPlayerPosition?.() ?? { x: this.agent.x + 1, z: this.agent.z };
+    const d = Math.hypot(this.agent.x - p.x, this.agent.z - p.z);
+    this.setState('stalk', why);
+    this.stalk = { r: Math.max(cfg.stalkMin ?? 14, Math.min(cfg.stalkMax ?? 30, d)), angle: Math.atan2(this.agent.z - p.z, this.agent.x - p.x),
+      dir: this.rand() < 0.5 ? -1 : 1, replan: 0, flip: 8 + this.rand() * 8, mode: null, lostFor: 0, pressure: 0 };
+    (this.stalkLog ??= []).push({ t: +this.clock.toFixed(2), mode: 'start', why, dist: +d.toFixed(1) });
+  }
+
+  tickStalk(dt, p, cfg = {}) {
+    const s = this.stalk, pc = this.perception;
+    const min = cfg.stalkMin ?? 14, max = cfg.stalkMax ?? 30;
+    // What it knows of where you are: you, while it has detected you; otherwise its last sighting.
+    const target = pc?.detected ? p : (pc?.lastSeen ?? pc?.lastHeard);
+    if (!target) { this.enterRoam('lost you'); return 'ok'; }
+    if (!pc?.detected) {
+      s.lostFor += dt;
+      if (s.lostFor > (cfg.stalkLose ?? 20)) { this.stalkLog.push({ t: +this.clock.toFixed(2), mode: 'lost-contact' }); this.enterRoam('lost contact'); return 'ok'; }
+    } else s.lostFor = 0;
+    if (this.stateTime > (cfg.stalkTime ?? 90)) { this.stalkLog.push({ t: +this.clock.toFixed(2), mode: 'gave-up' }); this.enterRoam('lost interest'); return 'ok'; }
+
+    // Read what you're doing.
+    const toX = this.agent.x - target.x, toZ = this.agent.z - target.z, d = Math.hypot(toX, toZ) || 1;
+    let facing = false;
+    if (pc?.detected && pc.camera) {
+      pc.camera.getWorldDirection(_v);
+      const fl = Math.hypot(_v.x, _v.z) || 1;
+      facing = (_v.x * toX + _v.z * toZ) / (fl * d) > Math.cos(0.6);
+    }
+    const pl = pc?.player, vel = pl?.velocity;
+    const beam = (pc?.beamLevel ?? 0) > 0;
+    const rushing = !!(pc?.detected && vel && (vel.x * toX + vel.z * toZ) / d > 2.2);
+    const loud = !!(pc?.detected && (pl?.noise ?? 0) > 0.6);
+    const still = !vel || Math.hypot(vel.x, vel.z) < 0.4;
+    s.pressure = (beam ? 1 : 0) + (facing ? 0.6 : 0) + (rushing ? 1 : 0) + (loud ? 0.4 : 0);
+    const mode = s.pressure >= 1 ? 'retreat' : (!facing && (still || !pc?.detected)) ? 'close' : 'circle';
+    if (mode !== s.mode) {
+      s.mode = mode;
+      this.stalkLog.push({ t: +this.clock.toFixed(2), mode, dist: +d.toFixed(1), beam, facing, rushing, loud });
+      if (this.stalkLog.length > 200) this.stalkLog.shift();
+      this.emit('stalk', { mode, distance: d });
+    }
+    // Ring distance and drift round you.
+    if (mode === 'retreat') s.r = Math.min(max, Math.max(s.r, d) + 6 * dt);
+    else if (mode === 'close') s.r = Math.max(min, Math.min(s.r, d) - (cfg.stalkApproach ?? 1.2) * dt);
+    if ((s.flip -= dt) <= 0) { s.dir = -s.dir; s.flip = 8 + this.rand() * 8; }
+    s.angle += s.dir * (mode === 'retreat' ? 0.18 : mode === 'circle' ? 0.12 : 0.05) * dt;
+    this.agent.speed = this.profile.roamSpeed * (mode === 'retreat' ? 1.8 : mode === 'close' ? 0.55 : 1.0);
+    if ((s.replan -= dt) <= 0 || !this.agent.hasPath) {
+      s.replan = 0.8;
+      const want = { x: target.x + Math.cos(s.angle) * s.r, z: target.z + Math.sin(s.angle) * s.r };
+      const at = this.agent.grid.sample(want.x, want.z, 5);
+      if (at) this.agent.setDestination(at.x, at.z);
+    }
+    if (!this.agent.hasPath || this.agent.currentSpeed < 0.2) this.faceToward(target.x, target.z, dt, 2.5);   // stopped: it watches you
     return 'running';
   }
 

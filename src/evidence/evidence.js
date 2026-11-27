@@ -24,6 +24,7 @@ export const EVIDENCE = {
     disturbancePhoto: { id: 'EV04', name: 'Disturbance photo', base: 8, from: 'scratch', how: 'photo' },
     hairSample: { id: 'EV02', name: 'Hair sample', base: 15, from: 'hair', how: 'pouch' },
     featherSample: { id: 'EV02', name: 'Feather sample', base: 15, from: 'owlFeather', how: 'pouch' },
+    scaleSample: { id: 'EV02', name: 'Scale sample', base: 15, from: 'wingDust', how: 'pouch' },   // #94 Mothman wing dust
     biologicalSample: { id: 'EV06', name: 'Droppings sample', base: 30, from: 'scat', how: 'vial' },
     footprintCast: { id: 'EV05', name: 'Footprint cast', base: 20, from: 'footprint', how: 'cast' },
     audioRecording: { id: 'EV07', name: 'Acoustic recording', base: 20, from: 'sound', how: 'recorder' },   // F05 field recorder (#87)
@@ -106,13 +107,15 @@ export class EvidenceKit {
   }
 
   /** X: bag a hair tuft, or start casting a footprint. */
-  collect() {
+  collect(target = null) {
     if (this.casting) { this.notify('Wait for the cast to set'); return null; }
-    const c = this.aimed();
+    if (this.handling) { this.notify('Your hands are shaking: still getting it into the pouch'); return null; }
+    const c = target ?? this.aimed();
     if (!c) { this.notify('Nothing to collect here: aim at a hair tuft or a footprint'); return null; }
     if (c.type === 'hair') {
       if (this.has(c.id, 'hairSample')) { this.notify('Already bagged'); return null; }
       if (this.pouches <= 0) { this.notify('No sample pouches left'); return null; }
+      if (this.deferred(c)) return null;
       this.pouches--;
       const item = this.add('hairSample', c);
       c.object.visible = false;                        // you took it
@@ -122,6 +125,7 @@ export class EvidenceKit {
     if (c.type === 'scat') {
       if (this.has(c.id, 'biologicalSample')) { this.notify('Already sampled'); return null; }
       if (this.sampleVials <= 0) { this.notify('No sample vials left'); return null; }
+      if (this.deferred(c)) return null;
       this.sampleVials--;
       const item = this.add('biologicalSample', c);
       this.notify(`Droppings sample in a vial (${this.sampleVials} vials left)`);
@@ -130,10 +134,20 @@ export class EvidenceKit {
     if (c.type === 'owlFeather') {
       if (this.has(c.id, 'featherSample')) { this.notify('Already bagged'); return null; }
       if (this.pouches <= 0) { this.notify('No sample pouches left'); return null; }
+      if (this.deferred(c)) return null;
       this.pouches--;
       const item = this.add('featherSample', c);
       c.object.visible = false;
       this.notify(`Feather bagged (${this.pouches} pouches left)`);
+      return item;
+    }
+    if (c.type === 'wingDust') {
+      if (this.has(c.id, 'scaleSample')) { this.notify('Already bagged'); return null; }
+      if (this.pouches <= 0) { this.notify('No sample pouches left'); return null; }
+      if (this.deferred(c)) return null;
+      this.pouches--;
+      const item = this.add('scaleSample', c);
+      this.notify(`Scales scraped into a pouch (${this.pouches} pouches left)`);
       return item;
     }
     if (c.type === 'deerTrack' || c.type === 'foxTrack') { this.notify('Prints this small won\'t hold a cast: photograph them'); return null; }
@@ -141,7 +155,7 @@ export class EvidenceKit {
       if (this.has(c.id, 'footprintCast')) { this.notify('Already cast'); return null; }
       if (this.castingKits <= 0) { this.notify('No casting kits left: photograph it instead'); return null; }
       this.castingKits--;
-      this.casting = { clue: c, left: EVIDENCE.castTime };
+      this.casting = { clue: c, left: EVIDENCE.castTime * (this.getEffects?.().taskSlow ?? 1) };   // dread (#132): shaking hands, slower
       this.notify('Pouring a cast… stay close while it sets');
       return null;
     }
@@ -159,7 +173,7 @@ export class EvidenceKit {
   photographed(entry = null, photo = null) {
     const c = this.aimed(EVIDENCE.photoReach);
     if (!c) return null;
-    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather') ? 'disturbance' : null;
+    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather' || c.type === 'wingDust') ? 'disturbance' : null;
     if (!kind) return null;
     let quality = null, rec = null;
     if (photo && entry) {
@@ -183,7 +197,24 @@ export class EvidenceKit {
     return item;
   }
 
+  /**
+   * Dread (#132): with shaking hands, bagging a sample takes a moment of fumbling (none when calm).
+   * Returns true if the bagging was deferred; it completes in update() if you stay close.
+   */
+  deferred(c) {
+    const d = this.getEffects?.().handleDelay ?? 0;
+    if (d <= 0 || this._now) return false;
+    this.handling = { clue: c, left: d, total: d };
+    this.notify(`Your hands are shaking: fumbling it into the pouch… (${d.toFixed(1)} s)`);
+    return true;
+  }
+
   update(dt) {
+    if (this.handling) {
+      const h = this.handling, eye = this.camera.position;
+      if (Math.hypot(h.clue.x - eye.x, h.clue.z - eye.z) > EVIDENCE.reach + 1.5) { this.handling = null; this.notify('You moved away: you didn\'t get it'); }
+      else if ((h.left -= dt) <= 0) { this.handling = null; this._now = true; this.collect(h.clue); this._now = false; }
+    }
     this.time += dt;
     const near = this.aimed(EVIDENCE.photoReach);
     if (near) this.observed.add(near.id);

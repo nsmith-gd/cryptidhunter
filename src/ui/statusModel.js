@@ -132,6 +132,23 @@ export class StatusModel {
       }
     }
 
+    // D05 Dread (#114, #131): listed only while it affects you (the same threshold as the label,
+    // the tremor and the breathing), and only with effects that are really happening right now.
+    // Never a meter: no number, no bar.
+    const dr = this.dread;
+    const fb = dr?.feedback;
+    if (fb?.on) {
+      // Every effect named here is really applied at this level (dreadEffects / #132).
+      const effects = ['hands unsteady: photos blur more, slower to cast, bag samples and unfold the map',
+        'breathing loud: anything close can hear you', 'stamina recovers slower', 'fear comes quicker', 'the fog feels closer'];
+      if (dr.stage >= 2) effects.push('it is getting bolder');
+      if (dr.stage >= 3) effects.push('your torch stutters');
+      add({ id: 'dread', stage: 'now', severity: dr.value >= 75 ? 2 : dr.value >= 50 ? 1 : 0, name: `${fb.label.split(':')[0]} (dread)`,
+        cause: dr.depth() > 0.35 ? 'Deep in the woods, a long time out' : 'A long time out in the dark',
+        effect: effects.join(', ').replace(/^./, (c) => c.toUpperCase()),
+        fix: 'Get somewhere lit and safe: the van, the cabin, your tent, a lamp or a fire' });
+    }
+
     if (p.exhausted) {
       add({ id: 'winded', stage: 'now', severity: 1, name: 'Winded', cause: 'Sprinted until out of breath',
         effect: "Can't sprint until you catch your breath", fix: 'Walk or stand still to recover' });
@@ -203,7 +220,8 @@ export class StatusModel {
 
   /** Compact HUD lines: { id, level, text } (consolidated root causes, worded stage). */
   hudWarnings(max = 4) {
-    return this.conditions().slice(0, max).map((c) => ({
+    // Dread has its own short label on screen (#131): not repeated in the HUD warning list.
+    return this.conditions().filter((c) => c.id !== 'dread').slice(0, max).map((c) => ({
       id: `${c.id}-${c.stage}`, level: c.stage === 'soon' ? Math.max(1, c.severity) : c.severity,
       text: `${c.stage === 'soon' ? 'SOON' : 'NOW'} · ${c.cause}: ${c.effect.charAt(0).toLowerCase()}${c.effect.slice(1)}. ${c.fix}`,
     }));

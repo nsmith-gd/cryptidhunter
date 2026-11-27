@@ -53,14 +53,17 @@ export class Survival {
 
   update(dt) {
     this.thermo.update(dt);
-    this.nutrition.update(dt);
-    this.hydration.update(dt);
+    // Asleep you're at rest (#137): hunger and thirst run at 40% (a night's sleep shouldn't dry you out).
+    const rest = this.fatigue.asleep ? 0.4 : 1;
+    this.nutrition.update(dt * rest);
+    this.hydration.update(dt * rest);
     this.fatigue.update(dt);
     // Critical cold (ordinary expeditions): the shared health path, after the warnings (#89).
     this.health.exposure('Hypothermia', THERMO.criticalDrain, dt, this.thermo.critical);
     this.health.update(dt);
     const hunger = this.nutrition.hungerDeficit * 0.5, thirst = this.hydration.thirstDeficit * 0.5, cold = this.thermo.coldDeficit * 0.6;
-    this.player.recoveryScale = Math.max(0.25, 1 - hunger - thirst - cold);   // GDD 2.8 stamina_recovery
+    // GDD 2.8 stamina_recovery; dread (#132) is one more penalty inside the same 0.25 floor.
+    this.player.recoveryScale = Math.max(0.25, 1 - hunger - thirst - cold - (this.dreadPenalty ?? 0));
     // Derived capability (GDD 2.8): wounds and cold slow you and cap your stamina; never below the floors.
     const h = this.health;
     this.player.injuryPenalty = Math.max(0, (70 - h.value) / 70) * 0.35 + (h.bleeding.some((c) => c.severity === 'heavy') ? 0.1 : 0);

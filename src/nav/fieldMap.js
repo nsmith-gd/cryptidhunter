@@ -26,7 +26,11 @@ export class FieldMap {
   toggle(want = !this.held) {
     this.held = want;
     if (want) this.opens++;
-    this.el.style.display = want ? 'flex' : 'none';
+    // Dread (#132): with shaking hands the map takes a moment to unfold (none when calm).
+    const delay = want ? (this.getUnfoldDelay?.() ?? 0) : 0;
+    this.unfolding = delay > 0 ? delay : 0;
+    this.el.style.display = want && !this.unfolding ? 'flex' : 'none';
+    if (this.unfolding) this.notify?.(`Your hands are shaking: unfolding the map… (${delay.toFixed(1)} s)`);
     this.player.readingMap = want;
     const banner = document.getElementById('trail-compass');
     if (banner) banner.style.display = want ? '' : 'none';
@@ -160,7 +164,14 @@ export class FieldMap {
     g.font = 'bold 9px monospace'; g.textAlign = 'center'; g.fillStyle = '#2a2018'; g.fillText(`${deg}°`, c, c + 18);
   }
 
-  update() {
-    if (this.held) this.drawCompass();
+  update(dt = 0) {
+    if (this.unfolding > 0 && (this.unfolding -= dt) <= 0) {
+      this.unfolding = 0;
+      if (this.held) this.el.style.display = 'flex';
+    }
+    if (this.held && !this.unfolding) this.drawCompass();
   }
+
+  /** The map is up and readable (unfolded). */
+  get readable() { return this.held && !this.unfolding; }
 }
