@@ -44,3 +44,161 @@ test('inferred from a trace counts less than seen', () => {
   a.observe('food', 0, 0, 'seen'); b.observe('food', 0, 0, 'trace');
   assert.ok(a.anticipate(0, 0).confidence > b.anticipate(0, 0).confidence);
 });
+
+// ---- #143 trails ---------------------------------------------------------------------------------
+import { ScentTracker } from '../src/cryptids/scent.js';
+
+// A wounded walk: a blood drop every 4 m along an L (east 30 m, then north 30 m), one every 3 s.
+function lTrail(field, { from = 0, to = 15, wetX = null } = {}) {
+  const pts = [];
+  for (let i = 0; i <= 7; i++) pts.push({ x: i * 4, z: 0 });
+  for (let i = 1; i <= 7; i++) pts.push({ x: 28, z: -i * 4 });
+  for (const [i, p] of pts.entries()) {
+    if (i < from || i > to) continue;
+    field.emit('blood', p.x, p.z, { strength: 0.5, source: 'player' });
+    field.update(3);
+  }
+  return pts;
+}
+const walk = (tr, pos, steps = 2000, speed = 3, dt = 0.1) => {
+  const trail = [];
+  for (let i = 0; i < steps && tr.state !== 'lost'; i++) {
+    tr.update(pos.x, pos.z, dt);
+    const w = tr.waypoint();
+    if (w) { const d = Math.hypot(w.x - pos.x, w.z - pos.z), k = Math.min(1, (speed * dt) / (d || 1)); pos.x += (w.x - pos.x) * k; pos.z += (w.z - pos.z) * k; trail.push({ ...pos }); }
+  }
+  return trail;
+};
+
+test('trail: each trace leads to the nearest fresher one; the fresh end leads nowhere', () => {
+  const f = new ScentField({ wind: { x: 1, z: 0, speed: 1 } });
+  lTrail(f);
+  const first = f.traces[0];
+  const seq = [first];
+  for (let t = f.trailNext(first); t; t = f.trailNext(t)) seq.push(t);
+  assert.equal(seq.length, f.traces.length);
+  assert.ok(seq.every((t, i) => i === 0 || t.born > seq[i - 1].born));
+});
+
+test('a tracker that strikes the old end follows the actual route, round the corner, not a beeline', () => {
+  const f = new ScentField({ wind: { x: -1, z: 0, speed: 1 } });   // wind blows west, toward the creature
+  const pts = lTrail(f);
+  const tr = new ScentTracker(f);
+  const pos = { x: -6, z: 0 };                                      // just west of where the trail starts
+  const path = walk(tr, pos);
+  assert.ok(tr.path.length >= 12, `checked ${tr.path.length} drops`);
+  const corner = pts[7];
+  assert.ok(path.some((p) => Math.hypot(p.x - corner.x, p.z - corner.z) < 1.6), 'went round the corner');
+  assert.ok(Math.hypot(pos.x - pts.at(-1).x, pos.z - pts.at(-1).z) < 2, 'ended at the fresh end');
+  assert.equal(tr.state, 'lost');                                   // nothing fresher: it casts about and gives up
+});
+
+test('a break in the trail (bandaged, then bleeding again later, 12 m on) stops the tracker at the break', () => {
+  const f = new ScentField({ wind: { x: -1, z: 0, speed: 1 } });
+  lTrail(f, { to: 6 });
+  f.update(10);
+  f.emit('blood', 28, -16, { strength: 0.5 }); f.update(3); f.emit('blood', 28, -20, { strength: 0.5 });
+  const tr = new ScentTracker(f);
+  const pos = { x: -6, z: 0 };
+  walk(tr, pos);
+  assert.ok(Math.hypot(pos.x - 24, pos.z) < 2, `stopped at the break, at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}`);
+  assert.ok(tr.log.some((e) => /trail ends/.test(e.what)));
+});
+
+test('scent landing in water is carried off: wading across a creek breaks the trail', () => {
+  const f = new ScentField({ isWet: (x) => x > 10 && x < 20 });
+  lTrail(f);
+  assert.ok(f.traces.every((t) => !(t.x > 10 && t.x < 20)));
+  assert.ok(f.log.some((e) => e.washed));
+  assert.equal(f.trailNext(f.traces.find((t) => t.x === 8)), null);   // 8 -> 20: 12 m gap
+});
+
+test('a carcass keeps smelling while it lies there; removing it stops new scent', () => {
+  const f = new ScentField();
+  const id = f.addSource({ kind: 'carcass', x: 5, z: 5, every: 30 });
+  f.update(300);
+  assert.ok(f.traces.some((t) => t.kind === 'carcass' && f.strengthOf(t) > 0.8));
+  f.removeSource(id);
+  f.update(3000);
+  assert.ok(!f.traces.some((t) => t.kind === 'carcass' && f.strengthOf(t) > 0.5));
+});
+
+test('nothing in the world, nothing to follow: sealed food in a pack is invisible to the tracker', () => {
+  const f = new ScentField();
+  const tr = new ScentTracker(f);
+  const pack = { food: 3, sealed: true };                            // the tracker has no way to read this
+  for (let i = 0; i < 100; i++) tr.update(0, 0, 0.5);
+  assert.equal(tr.state, 'idle');
+  assert.ok(pack.food === 3);
+});
+
+// ---- #151 routine memory: witnessed routes and camps -------------------------------------------
+
+// Walk a route past it while it watches (one sample every 3 s, 5 m per sample).
+const walkSeen = (m, pts) => { for (const p of pts) { m.sampleSeen(p); m.update(ROUTINE.every); } };
+const routeA = [0, 1, 2, 3, 4, 5].map((i) => ({ x: i * 5, z: 0 }));          // east along the creek
+const routeB = [0, 1, 2, 3, 4, 5].map((i) => ({ x: 0, z: -i * 5 }));         // north up the ridge
+
+test('it learns the legs of a route it watched you walk; again raises confidence (bounded at 1)', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA);
+  const once = m.predictNext(10, 0);
+  walkSeen(m, routeA); walkSeen(m, routeA); walkSeen(m, routeA); walkSeen(m, routeA);
+  const often = m.predictNext(10, 0);
+  assert.ok(once && Math.abs(once.x - 15) < 2 && Math.abs(once.z) < 2, JSON.stringify(once));
+  assert.ok(often.confidence > once.confidence && often.confidence <= 1);
+});
+
+test('it cannot anticipate a route it never saw you use', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA); walkSeen(m, routeA);
+  assert.equal(m.predictNext(0, -10), null);                                  // on route B: nothing
+  assert.ok(m.predictNext(5, 0));                                             // on route A: yes
+});
+
+test('it waits only on a route it has watched you use twice or more', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA);
+  assert.equal(m.ambushSpot(), null);
+  walkSeen(m, routeA);
+  const a = m.ambushSpot();
+  assert.ok(a && a.count >= 2 && Math.abs(a.z) < 2 && a.x >= 0 && a.x <= 25, JSON.stringify(a));
+});
+
+test('route memories fade and are forgotten', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA); walkSeen(m, routeA);
+  const c0 = m.predictNext(5, 0).confidence;
+  m.update(ROUTINE.leg.ttl / 2);
+  const c1 = m.predictNext(5, 0, 0).confidence;
+  m.update(ROUTINE.leg.ttl);
+  assert.ok(c1 < c0);
+  assert.equal(m.predictNext(5, 0, 0), null);
+  assert.equal(m.legs.length, 0);
+});
+
+test('a gap in watching (it lost sight of you) makes no leg across it', () => {
+  const m = new RoutineMemory();
+  m.sampleSeen({ x: 0, z: 0 }); m.update(30);                                 // 30 s unseen
+  m.sampleSeen({ x: 40, z: 0 });
+  assert.equal(m.legs.length, 0);
+});
+
+test('camps it saw are remembered (longer than a route sample), bounded, and fade', () => {
+  const m = new RoutineMemory();
+  m.observeCamp(12, 12, 'tent'); m.observeCamp(12.5, 12, 'tent');
+  const c = m.anticipate(12, 12);
+  assert.equal(c.kind, 'camp'); assert.equal(c.what, 'tent'); assert.ok(c.confidence <= 1);
+  m.update(ROUTINE.ttl.seen + 1);
+  assert.ok(m.anticipate(12, 12));                                             // still there after a route spot would be gone
+  m.update(ROUTINE.ttl.camp);
+  assert.equal(m.anticipate(12, 12), null);
+});
+
+test('a second walk sampled out of step with the first still counts as the same route', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA);
+  walkSeen(m, routeA.map((p) => ({ x: p.x + 2.5, z: p.z + 0.4 })));          // same path, half a leg later, a little off the line
+  const a = m.ambushSpot();
+  assert.ok(a && a.count >= 2, JSON.stringify(m.legs.map((g) => g.count)));
+});

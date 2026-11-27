@@ -1,0 +1,87 @@
+{
+ "gym": "G06",
+ "seed": 606,
+ "criteria": [
+  {
+   "id": "no-false-coverage",
+   "text": "An unpowered or occluded camera provides no coverage",
+   "status": "pass",
+   "detail": {
+    "powered": [
+     "B"
+    ],
+    "unpowered": [],
+    "behindRock": []
+   }
+  },
+  {
+   "id": "watched-corridors",
+   "text": "Hidebehind never advances through a watched, connected corridor (full overlapping coverage: no intrusion, no advance onto a watched stretch)",
+   "status": "pass",
+   "detail": {
+    "moves": 9,
+    "ontoWatched": 0,
+    "reached": [
+     0,
+     -22
+    ]
+   }
+  },
+  {
+   "id": "rest",
+   "text": "With full powered coverage you can sleep the night through: no intrusion, no wake-up (no forced sleeplessness loop)",
+   "status": "pass",
+   "detail": {
+    "slept": true,
+    "woke": "rested",
+    "fatigue": [
+     70,
+     5
+    ],
+    "intruded": null
+   }
+  },
+  {
+   "id": "warning-recoverable",
+   "text": "Removing a node opens a gap it uses; the perimeter alarm warns before any intrusion, and restoring coverage stops it (recoverable)",
+   "status": "pass",
+   "detail": {
+    "warnedAfter": 16.9,
+    "posAtWarn": [
+     0,
+     5
+    ],
+    "intruded": null,
+    "corridor": "centre"
+   }
+  },
+  {
+   "id": "power-fail",
+   "text": "When the power fails the cameras give no coverage; the alarm still warns before the intrusion",
+   "status": "pass",
+   "detail": {
+    "warned": 261.8,
+    "intruded": 325
+   }
+  },
+  {
+   "id": "dogman",
+   "text": "Dogman cannot learn an unobserved route; changing routine has a measurable effect",
+   "status": "not_evaluated",
+   "detail": {
+    "reason": "run the Dogman mode: ?map=g06&proxy=dogman"
+   }
+  },
+  {
+   "id": "testers",
+   "text": "4/5 testers can identify a coverage failure and its remedy",
+   "status": "not_evaluated",
+   "detail": {
+    "reason": "needs human testers"
+   }
+  }
+ ],
+ "digest": "2050f1d9",
+ "events": 49,
+ "ticks": 19501
+}

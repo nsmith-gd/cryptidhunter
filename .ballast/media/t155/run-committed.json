@@ -1,0 +1,63 @@
+{
+ "gym": "G09",
+ "seed": 909,
+ "criteria": [
+  {
+   "id": "commitment",
+   "text": "The final commitment takes a warning and then a deliberate second step at the stones",
+   "status": "pass",
+   "detail": {
+    "first": "warned",
+    "second": "committed"
+   }
+  },
+  {
+   "id": "changed-return",
+   "text": "On the return, landmarks have really changed and calls come from where nothing is; the paper map stays truthful",
+   "status": "pass",
+   "detail": {
+    "changed": [
+     "the base lantern is out",
+     "the tent has moved"
+    ],
+    "mimicry": [
+     {
+      "t": 20,
+      "from": {
+       "x": -15.3,
+       "z": 6.3
+      },
+      "heard": "your own voice calling your name",
+      "truth": "nothing there"
+     }
+    ],
+    "mapUnchanged": true,
+    "glimpsed": "unseen"
+   }
+  },
+  {
+   "id": "authored-end",
+   "text": "At the last extraction approach the authored encounter interrupts the departure and it cuts to black: a disappearance, not a death",
+   "status": "pass",
+   "detail": {
+    "outcome": "disappeared"
+   }
+  },
+  {
+   "id": "no-new-mechanic",
+   "text": "No new final mechanic: the finale uses wading, the base cache, the map and the ordinary exit",
+   "status": "pass",
+   "detail": {
+    "used": [
+     "wading (surfaceAt)",
+     "finite cache",
+     "paper map",
+     "trailhead exit"
+    ]
+   }
+  }
+ ],
+ "digest": "f86de3b5",
+ "events": 13,
+ "ticks": 3253
+}

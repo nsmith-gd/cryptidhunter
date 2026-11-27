@@ -17,14 +17,19 @@ import { buildTestMap } from './testMap.js';
 import { buildGymMap } from './maps/gymG00.js';
 import { buildGymG02, buildGymG03, buildGymG04, GYM_SEEDS } from './maps/gymScenes.js';
 import { GymHarness } from './gym/gymKit.js';
-import { GYM_RUNS } from './gym/gymRuns.js';
+import { GYM_RUNS, runG09Committed, runG09Death } from './gym/gymRuns.js';
 import { buildGymG05 } from './gym/g05.js';
+import { buildGymG07 } from './gym/g07.js';   // G07 capture gym (#150)
+import { buildGymG06 } from './gym/g06.js';   // G06 observation network gym (#152)
+import { buildGymG09 } from './gym/g09.js';   // G09 finale rehearsal fixture (#155)
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildOroMedonteMap } from './maps/oroMedonte.js';
 import { DaylightCycle } from './maps/daylight.js';
 import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
+import { buildOzarkMap } from './maps/ozark.js';   // L07 greybox (#144)
+import { buildPointPleasantMap } from './maps/pointPleasant.js';   // L08 greybox (#146)
 import { Igopogo, heardAt } from './cryptids/igopogo.js';
 import { buildTimiskamingMap } from './maps/timiskaming.js';   // L05 greybox (#139)
 import { createWaterTraversal } from './water/index.js';         // boat, swimming, breath (#139)
@@ -45,6 +50,9 @@ import { ClueTrails } from './clues/clueTrail.js';
 import { FieldKit } from './gear/fieldKit.js';
 import { Equipment, WEAR } from './gear/condition.js';
 import { ScentField, SCENT_WORLD } from './cryptids/scent.js';
+import { HowlerProxy } from './cryptids/howlerProxy.js';
+import { DogmanProxy } from './cryptids/dogmanProxy.js';   // #151 routine-learning proxy
+import { InterferenceField, INTERFERENCE } from './power/interference.js';
 import { showEquipmentPanel } from './gear/equipmentPanel.js';
 import { FieldCamp } from './survival/fieldCamp.js';
 import { Weather } from './survival/weather.js';
@@ -104,7 +112,7 @@ const keyRemap = new KeyRemap();
 
 // One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
 // Gyms (#108) have a fixed default seed, so the fixture is the same every time.
-const gymRun = ['g02', 'g03', 'g04', 'g05'].includes(new URLSearchParams(location.search).get('map'));
+const gymRun = ['g02', 'g03', 'g04', 'g05', 'g06', 'g07', 'g09'].includes(new URLSearchParams(location.search).get('map'));
 setSeed(Number(new URLSearchParams(location.search).get('seed')) || GYM_SEEDS[new URLSearchParams(location.search).get('map')] || randomSeed());
 console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
 
@@ -138,9 +146,9 @@ const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Cam
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
-  simcoe: buildSimcoeMap,   // simcoe: L03 greybox (#135)
+  simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
-  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05,
+  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05, g06: buildGymG06, g07: buildGymG07, g09: buildGymG09,
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
@@ -269,9 +277,11 @@ const daylight = map.daylight && night && !todConfig ? new DaylightCycle({ night
 // Forest atmosphere: ground mist + midground and background fog curtains (?noatmos turns it off).
 const atmosphere = mapId === 'forest' && !new URLSearchParams(location.search).has('noatmos')
   ? new Atmosphere({ scene, camera, half: bounds, keepClear: map.keepClear, hazeColor: night?.cfg.skyHorizon, glowColor: night?.cfg.moonGlow }) : null;
-const mothman = new Mothman(scene, player, flashlight, { camera, level: null, onEvent: (t, e) => cryptidEvent(t, e) });
+const mothman = new Mothman(scene, player, flashlight, { camera, level: null, onEvent: (t, e) => cryptidEvent(t, e),
+  perches: map.mothmanPerches ?? null, corridors: map.mothmanCorridors ?? null });   // #146: perches and flight corridors from the map
 const chupacabra = new Chupacabra(scene, player, camera, colliders, { flashlight, onEvent: (t, e) => cryptidEvent(t, e) });
 mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
+if (map.mothman) mothman.mesh.visible = true;   // #146: the Mothman's own map
 const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
@@ -319,7 +329,9 @@ const noiseRing = new NoiseRing(scene, player);
 // Scent traces (#107): food you open and blood from a bleeding wound leave real traces the wind
 // carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
 // east at 1.5 m/s (?wind=x,z,speed overrides for tests). Carcasses use the same field (emit 'carcass').
-const scent = new ScentField();
+const scent = new ScentField({ isWet: (x, z) => { const w = map.surfaceAt?.(x, z, 0); return w === 'shallow' || w === 'deep'; } });   // #143: water carries scent off
+// Carcasses on the map (#144, the Ozarks) give off scent all night (#143).
+for (const c of map.carcasses ?? []) scent.addSource({ kind: 'carcass', x: c.x, z: c.z, every: 60, source: c.name });
 { const w = new URLSearchParams(location.search).get('wind')?.split(',').map(Number); if (w?.length === 3) scent.setWind({ x: w[0], z: w[1], speed: w[2] }); }
 SCENT_WORLD.field = scent;
 {
@@ -452,6 +464,14 @@ dread.audio = () => dreadAudio;   // checks: the breathing/heartbeat the player 
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
+// Scent follower (#143): ?howler (or the map's howler spawn) brings a greybox predator that hunts by
+// nose alone, following real scent trails (blood, food, carcasses) through the world.
+const howlerAt = map.spawns?.howler ?? (new URLSearchParams(location.search).has('howler') ? { x: player.position.x - 20, z: player.position.z - 20 } : null);
+const howler = howlerAt ? new HowlerProxy({ scene, field: scent, x: howlerAt.x, z: howlerAt.z }) : null;
+// Routine learner (#151): ?dogman (or the map's dogman spawn) brings a greybox predator that remembers
+// the routes and camps it has watched you use, and waits on a route it has seen you take twice.
+const dogmanAt = map.spawns?.dogman ?? (new URLSearchParams(location.search).has('dogman') ? { x: player.position.x + 25, z: player.position.z - 25 } : null);
+const dogman = dogmanAt ? new DogmanProxy({ scene, colliders, x: dogmanAt.x, z: dogmanAt.z }) : null;
 // Igopogo (#136, L03 Lake Simcoe): a proxy in the lake that surfaces on a seeded cycle and dives
 // when the shore is noisy (you, a fire, pitching a tent). It never leaves the water.
 const igopogo = map.surfacing ? new Igopogo({ scene, zones: map.surfacing, seed: getSeed(), waterY: map.waterHeight ?? 0 }) : null;
@@ -496,6 +516,7 @@ const photo = new PhotoCamera({
       center: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z) + c.profile.height * 0.6, c.agent.z),
       base: new THREE.Vector3(c.agent.x, groundAt(c.agent.x, c.agent.z), c.agent.z), height: c.profile.height })),
     ...(igopogo?.subject() ? [igopogo.subject()] : []),
+    ...(map.mothman && !sandbox ? [{ name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() }] : []),   // #146
     ...(sandbox ? [
       { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
       { name: 'Chupacabra', object3d: chupacabra.mesh, radius: 0.5, center: chupacabra.position.clone() },
@@ -598,6 +619,33 @@ const equipmentPanel = showEquipmentPanel(equipment, { canAct: () => hunt.stage 
 // Field wear (#106): per shot, per minute of torch, per km walked; wading soaks the shoes; raising
 // the camera while wading dips it into the water (the photos already on its card are kept).
 const wearState = { shots: photo.log.length, last: player.position.clone(), dunkCooldown: 0 };
+// Electrical interference (#145, GDD 5.3/5.4 L08): powered devices near the Mothman flicker and
+// fail; walk out of range and they come back. The film camera and the paper map and compass are
+// analogue: never affected. Only devices inside the field are touched.
+const interference = new InterferenceField({ sources: () => (mothman.mesh.visible ? [mothman.mesh.position] : []) });
+const deviceSay = { torch: ['Your torch flickers.', 'Your torch dies. The bulb is fine, the light just stops.', 'Your torch comes back on.'],
+  nightVision: ['The night vision fizzes with static.', 'Night vision: nothing but static.', 'The night vision clears.'],
+  recorder: ['The recorder hisses.', 'The recorder has died mid-take.', 'The recorder powers back up.'] };
+function updateInterference(dt) {
+  const P = player.position, me = { x: P.x, y: P.y + 1.4, z: P.z };
+  const devices = [{ id: 'torch', kind: 'torch', ...me }, { id: 'nvg', kind: 'nightVision', ...me }, { id: 'recorder', kind: 'recorder', ...me },
+    ...trailCams.cams.map((c) => ({ id: `cam${c.id}`, kind: 'trailCam', x: c.group.position.x, y: c.group.position.y, z: c.group.position.z, ref: c })),
+    ...audioLures.lures.map((l, i) => ({ id: `lure${i}`, kind: 'audioLure', x: l.x, y: 0.5, z: l.z, ref: l }))];
+  const before = new Map([...interference.state].map(([k, v]) => [k, v.status]));
+  const st = interference.update(dt, devices);
+  for (const d of devices) {
+    const s = st.get(d.id), was = before.get(d.id) ?? 'ok';
+    if (d.ref) { d.ref.jammed = s === 'failed' || (s === 'flicker' && !interference.flickerOn(d.id, interference.state.get(d.id).level)); continue; }
+    const say = deviceSay[d.kind];
+    if (say && s !== was) photo.toast(s === 'flicker' && was === 'ok' ? say[0] : s === 'failed' ? say[1] : s === 'ok' ? say[2] : say[0]);
+  }
+  const torch = st.get('torch');
+  if (torch === 'failed') flashlight.output = 0;
+  else if (torch === 'flicker') flashlight.output *= interference.flickerOn('torch', interference.state.get('torch').level) ? 1 : 0.05;
+  nightVision.jammed = st.get('nvg') === 'failed';
+  if (nightVision.jammed && nightVision.on) nightVision.toggle(false);
+  if (st.get('recorder') === 'failed' && fieldKit?.recording) fieldKit.recording = false;
+}
 function updateWear(dt) {
   photo.clarity = equipment.cameraClarity; flashlight.output = equipment.torchOutput;
   if (hunt.stage !== 'search' && hunt.stage !== 'extract') { wearState.last.copy(player.position); return; }
@@ -802,6 +850,7 @@ function simulateOnce(dt, extra = false) {
   lake?.update(dt);                          // boat seats you; swim / dive / breath (#139), before survival reads it
   power?.update(dt);                         // packs, devices, fuel, generator (#140)
   updateWear(dt);
+  updateInterference(dt);
   survival.update(dt);
   terrainInjury?.update(dt);
   // Daylight follows the trip clock (sim time), not the frame rate (#129).
@@ -815,6 +864,9 @@ function simulateOnce(dt, extra = false) {
   batteries.update(dt);
   bait.update(dt);
   cryptids.update(dt);
+  howler?.update(dt);
+  dogman?.update(dt, { player, camps: [...(fieldCamp?.tent ? [{ x: fieldCamp.tent.x, z: fieldCamp.tent.z, what: 'tent' }] : []),
+    ...(fieldKit?.fires ?? []).map((f) => ({ x: f.x, z: f.z, what: 'fire' }))] });
   if (igopogo) {
     const P = player.position;
     igopogo.update(hunt.elapsed, dt, (zone) => Math.max(
@@ -827,6 +879,7 @@ function simulateOnce(dt, extra = false) {
   clues.update(dt);
   evidence.update(dt);
   journal.update(dt);
+  if (map.mothman && !sandbox) mothman.update(dt);
   if (sandbox) {
     mothman.update(dt);
     chupacabra.update(dt);
@@ -935,12 +988,13 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {
   gymHarness = new GymHarness({ game: window.__game, map, seed: getSeed(), blind: new URLSearchParams(location.search).has('blind') });
   window.__game.gymHarness = gymHarness;
-  window.__gym = { harness: gymHarness, run: () => GYM_RUNS[map.gym](window.__game, gymHarness), reset: () => gymHarness.reset() };
+  window.__gym = { harness: gymHarness, run: () => GYM_RUNS[map.gym](window.__game, gymHarness), reset: () => gymHarness.reset(),
+    runCommitted: () => runG09Committed(window.__game, gymHarness), runDeath: () => runG09Death(window.__game, gymHarness) };   // G09's other halves (#155)
   gymHarness.onRun = () => { const r = window.__gym.run(); console.info('[gym]', r); };
 }

@@ -18,7 +18,7 @@ export const MAP_CHOICES = [
     blurb: 'Boardwalks over black water and the old bridge. Something circles overhead.' },
 ];
 
-export const TARGET_BY_MAP = { test: 'Bigfoot', forest: 'Bigfoot', swamp: 'Mothman', oromedonte: 'Sidehill Gouger', simcoe: 'Igopogo', l05: 'Mugwump' };   // simcoe: L03 greybox, ?map=simcoe (#135)
+export const TARGET_BY_MAP = { test: 'Bigfoot', forest: 'Bigfoot', swamp: 'Mothman', oromedonte: 'Sidehill Gouger', simcoe: 'Igopogo', l05: 'Mugwump', ozark: 'Ozark Howler', pointpleasant: 'Mothman' };   // simcoe: L03 greybox, ?map=simcoe (#135)
 
 /** What the unlock rule reads from base camp. */
 export function unlockContext(camp) {

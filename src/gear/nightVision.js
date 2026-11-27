@@ -53,6 +53,7 @@ export class NightVision {
   }
 
   toggle(want = !this.on) {
+    if (want && this.jammed) { this.notify('Night vision: nothing but static.'); return; }   // electrical interference (#145)
     if (want && this.flashlight.battery <= 0) { this.notify('Night vision: battery is dead. Swap one in with R.'); return; }
     this.on = want;
     const fov = want ? NVG.fov : this.nakedFov;

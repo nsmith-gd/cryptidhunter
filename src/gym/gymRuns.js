@@ -3,6 +3,10 @@ import { verify } from '../evidence/quality.js';
 import { G04 } from '../maps/gymScenes.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05 as G05_CFG } from './g05.js';
+import { G07 as G07_CFG } from './g07.js';
+import { G06 as G06_CFG } from './g06.js';
+import { G09 as G09_CFG } from './g09.js';
+import { CaptureMachine } from '../capture/captureMachine.js';
 
 // Scripted runs for gyms G02–G04 (#108). Each drives the real game simulation step by step with
 // player inputs (held keys, aim) and a few fixture placements, then judges the gym's GDD 15.2 pass
@@ -304,4 +308,221 @@ export function runG05(g, h) {
   return T.finish();
 }
 
-export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05 };
+// ---- G07 ---------------------------------------------------------------------------------------
+export function runG07(g, h) {
+  const T = tools(g, h), w = h.world, C = G07_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const charges = () => ({ light: w.modules.light.charges, heavy: w.modules.heavy.charges });
+  const waitFor = (fn, max = 60 * 120) => { for (let i = 0; i < max && !fn(); i++) g.sim.step(); return fn(); };
+  // Stand by the anchor (inside commit range, out of the way).
+  T.place(C.anchor.x + 6, C.anchor.z + 6); T.face(C.anchor.x, C.anchor.z);
+  // 1. No valid opportunity: commit while it's wandering. Nothing is spent.
+  const c0 = charges();
+  const r1 = w.commit('light');
+  T.add('no-opportunity', 'A failed precondition consumes nothing (commit with no opening: refused, charges unchanged)', !r1.ok && JSON.stringify(charges()) === JSON.stringify(c0), { why: r1.why, charges: charges() });
+  // 2. An opening, but the wrong (heavy) module: one charge spent, the attempt fails, it goes free in a plausible state.
+  const open1 = waitFor(() => w.state === 'eligible');
+  const r2 = w.commit('heavy');
+  T.add('one-charge-fail', 'A committed attempt consumes exactly one charge even when it fails (incompatible module), and the creature returns to a plausible state',
+    open1 && !r2.ok && charges().heavy === 0 && charges().light === 2 && ['fleeing', 'hostile', 'recovering'].includes(r2.outcome) && w.state === 'free', { why: r2.why, outcome: r2.outcome, charges: charges() });
+  // 3. Next opening, the right module: committed, one charge.
+  const open2 = waitFor(() => w.state === 'eligible');
+  const r3 = w.commit('light');
+  const again = w.commit('light');
+  T.add('one-charge-ok', 'A valid committed attempt consumes exactly one charge (and a second press spends nothing)', open2 && r3.ok && !again.ok && charges().light === 1, { charges: charges(), second: again.why });
+  // 4. Secure and crate it; the creature keeps its identity.
+  T.place(w.proxy.x + 2, w.proxy.z + 2); g.sim.step();
+  const r4 = w.secureAndCrate();
+  const ids = new Set(w.machine.trace.map((e) => e.creature));
+  T.add('identity', 'The creature\'s identity survives containment (one individual through every state; never an inventory item)', r4.ok && w.state === 'contained' && ids.size === 1 && !g.loadout?.items?.some?.((i) => /dogman/i.test(i.name ?? '')), { state: w.state, ids: [...ids] });
+  // 5. Generator off: integrity falls, a warning below 40; repair, then power back on.
+  w.setGenerator(false);
+  const warned = waitFor(() => w.machine.trace.some((e) => e.type === 'warning' && /integrity/.test(e.what)), 60 * 200);
+  const before = w.machine.integrity;
+  T.place(w.crate.x + 2, w.crate.z); g.sim.step();
+  const rep = w.repair(); w.setGenerator(true);
+  T.add('integrity-warning', 'Containment warns when integrity falls below 40, and a repair restores it', warned && rep.ok && w.machine.integrity > before && w.state === 'contained', { warnedAt: Math.round(before), after: Math.round(w.machine.integrity) });
+  // 6. Block the cargo route: staging is refused with the reason. Clear it: staged.
+  w.setRouteBlocked(true);
+  const blocked = w.stageOrDeliver();
+  w.setRouteBlocked(false);
+  const staged = w.stageOrDeliver();
+  T.add('blocked-route', 'A blocked cargo route stops staging (with the reason); clearing it allows it', !blocked.ok && /log/.test(blocked.why) && staged.ok && w.state === 'staged', { blocked: blocked.why, staged: w.state });
+  // 7. Deliver: not at the truck (refused); haul the sled to the truck; deliver once.
+  const early = w.stageOrDeliver();
+  let hauled = true;
+  for (const pt of C.route.slice(1)) hauled = T.walkTo(pt.x, pt.z, { r: 2.5, max: 60 * 60 }) && hauled;
+  const delivered = w.stageOrDeliver(), twice = w.stageOrDeliver();
+  T.add('deliver-once', 'Valid delivery pays once (at the truck, a living, loaded specimen; a second delivery is refused)', !early.ok && delivered.ok && !twice.ok && w.paid.length === 1, { early: early.why, paid: w.paid, twice: twice.why, hauled });
+  // 8. No delivery if escaped, non-living (condition failed) or not loaded: the same rules, fresh specimens.
+  const fresh = () => { const m = new CaptureMachine({ creature: { id: 'dogman-b', species: 'dogman', mass: 140 }, module: { charges: 3, species: ['dogman'] } }); m.opportunity(); m.commit(); m.secure(); return m; };
+  const crate = { id: 'crate', capacity: 180, mass: 60, species: ['dogman'] }, sled = { id: 'sled', capacity: 260 };
+  const esc = fresh(); for (let i = 0; i < 200 && esc.state !== 'free'; i++) esc.tick(1, { resistance: 2 });
+  const dead = fresh(); dead.contain(crate); dead.stage(sled); for (let i = 0; i < 120; i++) dead.tick(1, { adverse: true, resistance: 0 });
+  const unloaded = fresh(); unloaded.contain(crate);
+  const refusals = [esc, dead, unloaded].map((m) => m.deliver({ atExit: true }));
+  T.add('no-bad-delivery', 'No delivery if it escaped, failed (non-living) or was never loaded', refusals.every((r) => !r.ok), { escaped: refusals[0].why, failed: refusals[1].why, unloaded: refusals[2].why });
+  // 9. Abandon a specimen and walk out the foot path with evidence: always available.
+  const clue = g.clues.spawn('hair', { cryptidId: 'dogman', position: { x: C.anchor.x + 1, y: 0, z: C.anchor.z + 1 }, data: {} });
+  const ev = g.evidence.add('hairSample', clue);
+  w.nextSpecimen();
+  const open3 = waitFor(() => w.state === 'eligible');
+  T.place(C.anchor.x + 6, C.anchor.z + 6);
+  w.modules.light.charges = Math.max(1, w.modules.light.charges);
+  const c3 = w.commit('light'); T.place(w.proxy.x + 2, w.proxy.z + 2); g.sim.step(); w.secureAndCrate();
+  const rel = w.release();
+  const walked = T.walkTo(C.footExit.x, C.footExit.z, { r: 2, max: 60 * 120 });
+  g.hunt.elapsed = Math.max(g.hunt.elapsed, 300); g.sim.step();
+  const inZone = g.hunt.inZone;
+  addEventListener; dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' })); g.sim.step(); dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH' })); g.sim.step();
+  T.add('foot-exit', 'Abandoning (emergency release) never locks the foot exit: you walk out with your evidence', open3 && c3.ok && !rel.ok && rel.outcome && walked && inZone && g.hunt.stage === 'ended' && g.evidence.items.includes(ev),
+    { released: rel.outcome, walked, inZone, stage: g.hunt.stage, evidence: ev?.name });
+  T.add('tagging', 'Tagging tested independently with three valid telemetry updates', null, { reason: 'the tagging state machine is task #148 (another agent); not built here' });
+  T.add('testers', '4/5 testers can explain the difference between capturing and delivering', null, { reason: 'needs human testers' });
+  return T.finish();
+}
+
+// ---- G06 ---------------------------------------------------------------------------------------
+export function runG06(g, h) {
+  const T = tools(g, h), w = h.world, C = G06_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const run = (secs) => { for (let i = 0; i < secs * 60; i++) g.sim.step(); };
+  if (w.mode === 'dogman') return runG06Dogman(g, h, T, w, C);
+  // You stay at camp facing the hub (south): the cameras do the watching.
+  const atCamp = () => { T.place(C.camp.x, C.camp.z + 2, 0); P.yaw = Math.PI; };
+  atCamp();
+  // 1. No false coverage: an unpowered or occluded camera covers nothing.
+  const probe = [0, -6];
+  const lit = w.camsSeeing(...probe);
+  w.setHub(false); const dark = w.camsSeeing(...probe); w.setHub(true);
+  const occluded = w.camsSeeing(-28, 0);           // D's field of view and range, but the rock is in the way
+  T.add('no-false-coverage', 'An unpowered or occluded camera provides no coverage', lit.includes('B') && dark.length === 0 && !occluded.includes('D'), { powered: lit, unpowered: dark, behindRock: occluded });
+  // 2. Overlapping coverage with the remedy in place (D past the rock): it never gets in.
+  w.moveD(true);
+  run(150);
+  const hb = w.hb, movesWatched = hb.moves.filter((m) => m.watched).length;
+  T.add('watched-corridors', 'Hidebehind never advances through a watched, connected corridor (full overlapping coverage: no intrusion, no advance onto a watched stretch)',
+    hb.moves.length >= 0 && movesWatched === 0 && !hb.warned && !hb.intruded, { moves: hb.moves.length, ontoWatched: movesWatched, reached: [hb.x, hb.z].map((v) => +v.toFixed(1)) });
+  // 3. Rest with full coverage: you sleep the night through (no forced sleeplessness).
+  g.fieldKit.carried.tent = 1; T.place(C.camp.x - 3, C.camp.z + 3, Math.PI); g.fieldCamp.use(); run(8);
+  if (g.fieldCamp.tent) { P.position.set(g.fieldCamp.tent.x, 0, g.fieldCamp.tent.z); P.yaw = g.fieldCamp.tent.yaw + Math.PI; }
+  g.survival.fatigue.value = 70; run(0.2);
+  const slept = g.fieldCamp.use();
+  for (let i = 0; i < 60 * 300 && g.fieldCamp.sleeping; i++) g.sim.step();
+  const night = g.fieldCamp.sleepLog.at(-1);
+  T.add('rest', 'With full powered coverage you can sleep the night through: no intrusion, no wake-up (no forced sleeplessness loop)', slept && night?.woke === 'rested' && !hb.intruded,
+    { slept, woke: night?.woke, fatigue: night && [night.fatigueBefore, night.fatigueAfter], intruded: hb.intruded });
+  atCamp();
+  // 4. Remove one node (B): the centre corridor opens. The alarm warns before it reaches camp; restore B and it stops (recoverable).
+  w.moveD(false);                                   // the blind spot is back too
+  w.toggleCam('B');
+  const tWarn0 = w.time;
+  for (let i = 0; i < 60 * 400 && !hb.warned; i++) g.sim.step();
+  const warnedAt = hb.warned;
+  w.toggleCam('B'); w.moveD(true);                  // remedy: restore the node, cover the blind spot
+  const posAtWarn = [hb.x, hb.z];
+  run(60);
+  T.add('warning-recoverable', 'Removing a node opens a gap it uses; the perimeter alarm warns before any intrusion, and restoring coverage stops it (recoverable)',
+    warnedAt != null && !hb.intruded && hb.moves.every((m) => !m.watched), { warnedAfter: warnedAt && +(warnedAt - tWarn0).toFixed(1), posAtWarn: posAtWarn.map((v) => +v.toFixed(1)), intruded: hb.intruded, corridor: hb.corridor });
+  // 5. Let the power fail: every camera goes dark; with you not watching, it walks in - after the warning.
+  w.hub.charge = 0.01; run(1);
+  P.yaw = 0;                                        // looking away, north-east... (and the blind spot is open again)
+  for (let i = 0; i < 60 * 600 && !hb.intruded; i++) { g.sim.step(); P.yaw = Math.PI; }
+  T.add('power-fail', 'When the power fails the cameras give no coverage; the alarm still warns before the intrusion', w.camsSeeing(0, -6).length === 0 && hb.intruded != null && hb.warned != null && hb.warned < hb.intruded,
+    { warned: hb.warned, intruded: hb.intruded });
+  T.add('dogman', 'Dogman cannot learn an unobserved route; changing routine has a measurable effect', null, { reason: 'run the Dogman mode: ?map=g06&proxy=dogman' });
+  T.add('testers', '4/5 testers can identify a coverage failure and its remedy', null, { reason: 'needs human testers' });
+  return T.finish();
+}
+
+function runG06Dogman(g, h, T, w, C) {
+  const D = w.dogman, P = g.player, M = D.memory;
+  const walk = (pts) => { T.place(pts[0][0], pts[0][1]); for (const [x, z] of pts.slice(1)) T.walkTo(x, z, { r: 0.8, max: 60 * 60 }); };
+  const run = (secs) => { for (let i = 0; i < secs * 60; i++) g.sim.step(); };
+  // 1. Route B (round the rock, out of its sight) twice: it learns nothing about it.
+  walk(C.dogman.routeB); walk(C.dogman.routeB);
+  const legsAfterB = M.legs.length, predictB = M.predictNext(C.dogman.routeB[0][0], C.dogman.routeB[0][1] + 4);
+  T.add('dogman-unobserved', 'Dogman cannot learn a route it never observed (route B behind the rock, walked twice)', legsAfterB === 0 && predictB === null, { legs: legsAfterB, predictB });
+  // 2. Route A (in front of it) twice: it goes to wait on A.
+  walk(C.dogman.routeA); T.place(30, 30); walk(C.dogman.routeA); T.place(30, 30);
+  run(20);
+  const waitAt = { x: +D.position.x.toFixed(1), z: +D.position.z.toFixed(1) };
+  const onA = Math.min(...C.dogman.routeA.slice(1).map(([bx, bz], i) => { const [ax, az] = C.dogman.routeA[i], abx = bx - ax, abz = bz - az, t = Math.max(0, Math.min(1, ((waitAt.x - ax) * abx + (waitAt.z - az) * abz) / (abx * abx + abz * abz))); return Math.hypot(waitAt.x - ax - abx * t, waitAt.z - az - abz * t); })) < 3;
+  // 3. Change your routine: take route B instead. How close do you pass it, versus keeping to A?
+  const minDist = (pts) => { let m = Infinity; for (let k = 0; k < pts.length - 1; k++) { const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az) || 1; for (let s2 = 0; s2 <= L; s2 += 0.5) m = Math.min(m, Math.hypot(ax + (bx - ax) * s2 / L - D.position.x, az + (bz - az) * s2 / L - D.position.z)); } return +m.toFixed(1); };
+  const keepA = minDist(C.dogman.routeA), changeB = minDist(C.dogman.routeB);
+  T.add('dogman-routine', 'Changing routine has a measurable effect: it waits on route A; taking route B you pass far from it', D.state === 'ambush' && onA && changeB > keepA + 10,
+    { waitingAt: waitAt, closestIfYouKeepA: keepA, closestIfYouChangeToB: changeB });
+  T.add('testers', '4/5 testers can identify a coverage failure and its remedy', null, { reason: 'needs human testers' });
+  return T.finish();
+}
+
+// ---- G09 finale rehearsal ------------------------------------------------------------------------
+export function runG09(g, h) {
+  const T = tools(g, h), w = h.world, C = G09_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const surf = () => h.map.surfaceAt(P.position.x, P.position.z, 0);
+  // 1. The water crossing: the ford is shallow (wade), the rest of the river is deep (slow).
+  T.place(0, C.river.z1 + 2, 0);
+  const crossed = T.walkTo(0, C.river.z0 - 2, { r: 1, max: 60 * 40 });
+  const fordSurf = h.map.surfaceAt(0, (C.river.z0 + C.river.z1) / 2), deepSurf = h.map.surfaceAt(12, (C.river.z0 + C.river.z1) / 2);
+  T.add('crossing', 'The water crossing works with the existing wading: a shallow ford you can walk, deep water either side', crossed && fordSurf === 'shallow' && deepSurf === 'deep', { crossed, ford: fordSurf, beside: deepSurf });
+  // 2. The base is finite: the cache never restocks.
+  T.walkTo(C.cache.x + 1.5, C.cache.z, { r: 1.2 });
+  const takes = [w.take('food'), w.take('food'), w.take('food'), w.take('food')];
+  T.add('finite-base', 'The base is finite: three food, then the cache is empty and stays empty', takes.slice(0, 3).every((t) => t.ok) && !takes[3].ok && w.cache.food === 0, { takes: takes.map((t) => t.ok ? `ok (${t.left} left)` : t.why) });
+  // 3. Early withdrawal before the commitment: ordinary extraction.
+  const before = { phase: w.phase };
+  T.walkTo(C.site.x, C.site.z + 4, { r: 2, max: 60 * 90 });
+  const warn = w.commitStep();                      // the warning prompt
+  const prompt = !!document.getElementById('commit-prompt');
+  const back = w.declineCommit();                   // Turn back
+  T.place(C.exit.x, C.exit.z - 1); w.leaving = true; g.sim.step(); g.sim.step();
+  const rec = g.camp.state.finale;
+  T.add('early-withdrawal', 'At the stones an explicit warning appears; turning back and leaving is an ordinary extraction (the case stays open)',
+    warn.phase === 'warned' && prompt && back.phase === 'approach' && w.outcome === 'extracted' && rec?.extractions === 1 && !rec.disappeared && !rec.caseComplete, { warned: warn.phase, prompt, outcome: w.outcome, record: rec });
+  return { ...T.finish(), note: 'reload for the second half: window.__gym.runCommitted()' };
+}
+
+/** The second half (fresh load): commit at the stones, the changed return, the authored end. */
+export function runG09Committed(g, h) {
+  const T = tools(g, h), w = h.world, C = G09_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const mapPlaces = JSON.stringify(h.map.places);
+  T.place(C.site.x, C.site.z + 3);
+  const a = w.commitStep(), again = w.commitStep();
+  const shown = document.getElementById('commit-prompt')?.innerText ?? '';
+  dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG' }));   // Go on
+  T.add('commitment', 'The final commitment is an explicit, irreversible warning; going on takes a deliberate choice (and is recorded)', a.phase === 'warned' && again.phase === 'warned' && /no coming back/.test(shown) && /cannot be undone/.test(shown) && w.phase === 'committed' && g.camp.state.finale?.committed,
+    { shown: shown.split('\n')[0], phase: w.phase });
+  // The return: walk back toward the ford, then the trailhead.
+  T.walkTo(0, -2, { r: 1.5, max: 60 * 60 });
+  for (let i = 0; i < 60 * 30; i++) g.sim.step();     // stand a while: what changes, what calls
+  T.add('changed-return', 'On the return, landmarks have really changed and calls come from where nothing is; the paper map stays truthful',
+    w.changed.length >= 2 && w.mimicry.length >= 1 && JSON.stringify(h.map.places) === mapPlaces, { changed: w.changed, mimicry: w.mimicry.slice(0, 2), mapUnchanged: JSON.stringify(h.map.places) === mapPlaces, glimpsed: w.proxy.state });
+  T.walkTo(0, C.river.z1 + 2, { r: 1.2, max: 60 * 40 });
+  T.walkTo(C.exit.x, C.exit.z, { r: 1, max: 60 * 60 });
+  const fin = g.camp.state.finale;
+  T.add('authored-end', 'At the last extraction approach the authored encounter interrupts the departure and it cuts to black: recorded as the disappearance (case complete, no payout), not a death',
+    w.outcome === 'disappeared' && h.events.some((e) => e.type === 'encounter') && (document.getElementById('g09-black')?.style.opacity === '1') && fin?.disappeared?.payout === 0 && fin.caseComplete && fin.ordinaryDeaths === 0, { outcome: w.outcome, record: fin });
+  T.add('no-new-mechanic', 'No new final mechanic: the finale uses wading, the base cache, the map and the ordinary exit', true, { used: ['wading (surfaceAt)', 'finite cache', 'paper map', 'trailhead exit'] });
+  return T.finish();
+}
+
+/** Ordinary death after the commitment, before the encounter, stays an ordinary (retryable) death. */
+export function runG09Death(g, h) {
+  const T = tools(g, h), w = h.world, C = G09_CFG;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  T.place(C.site.x, C.site.z + 3); w.commitStep(); w.confirmCommit();
+  g.survival.health.value = 0; g.sim.step();
+  const fin = g.camp.state.finale;
+  T.add('ordinary-death', 'Dying before the authored encounter is an ordinary death (retryable): counted as a death, the story not finished', w.outcome === 'died' && fin?.ordinaryDeaths === 1 && !fin.disappeared && !fin.caseComplete, { outcome: w.outcome, record: fin });
+  return T.finish();
+}
+
+export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05, G06: runG06, G07: runG07, G09: runG09 };

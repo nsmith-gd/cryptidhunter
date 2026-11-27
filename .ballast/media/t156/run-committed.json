@@ -1,0 +1,86 @@
+{
+ "gym": "G09",
+ "seed": 909,
+ "criteria": [
+  {
+   "id": "commitment",
+   "text": "The final commitment is an explicit, irreversible warning; going on takes a deliberate choice (and is recorded)",
+   "status": "pass",
+   "detail": {
+    "shown": "Past this point there may be no coming back",
+    "phase": "committed"
+   }
+  },
+  {
+   "id": "changed-return",
+   "text": "On the return, landmarks have really changed and calls come from where nothing is; the paper map stays truthful",
+   "status": "pass",
+   "detail": {
+    "changed": [
+     "the base lantern is out",
+     "the tent has moved"
+    ],
+    "mimicry": [
+     {
+      "t": 20,
+      "from": {
+       "x": -15.3,
+       "z": 6.3
+      },
+      "heard": "your own voice calling your name",
+      "truth": "nothing there"
+     }
+    ],
+    "mapUnchanged": true,
+    "glimpsed": "unseen"
+   }
+  },
+  {
+   "id": "authored-end",
+   "text": "At the last extraction approach the authored encounter interrupts the departure and it cuts to black: recorded as the disappearance (case complete, no payout), not a death",
+   "status": "pass",
+   "detail": {
+    "outcome": "disappeared",
+    "record": {
+     "committed": true,
+     "disappeared": {
+      "attemptId": "A1",
+      "at": 50.1,
+      "payout": 0
+     },
+     "attempts": [
+      {
+       "attemptId": "A1",
+       "event": "committed",
+       "at": 0
+      },
+      {
+       "attemptId": "A1",
+       "event": "disappeared",
+       "at": 50.1
+      }
+     ],
+     "ordinaryDeaths": 0,
+     "extractions": 0,
+     "caseComplete": true
+    }
+   }
+  },
+  {
+   "id": "no-new-mechanic",
+   "text": "No new final mechanic: the finale uses wading, the base cache, the map and the ordinary exit",
+   "status": "pass",
+   "detail": {
+    "used": [
+     "wading (surfaceAt)",
+     "finite cache",
+     "paper map",
+     "trailhead exit"
+    ]
+   }
+  }
+ ],
+ "digest": "6787d319",
+ "events": 15,
+ "ticks": 3253
+}

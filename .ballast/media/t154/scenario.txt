@@ -1,0 +1,26 @@
+== The Grafton site: a 1,800 kg crate to move out by the heavy cargo route
+     0 s  start · cargo OPEN · foot OPEN · vibrating: generator
+    30 s  winch started · vibrating: generator, winch
+    60 s  a 2,200 kg load? the cargo winch can't take 2200 kg (limit 2000 kg)
+    90 s  creature strikes the shelter: integrity 65, nothing else touched (0 affected)
+   120 s  creature strikes the running generator: integrity 30
+   150 s  again: generator broken · offline because of it: winch, lights · cargo closed (the cargo winch is without power) · foot OPEN
+   180 s  generator repaired and restarted · cargo OPEN · foot OPEN
+   240 s  flood · cargo closed (flood water over the cargo track) · foot OPEN · foot exits: foot
+   300 s  cargo bridge swept away · cargo closed (flood water over the cargo track) · foot OPEN · foot exits still: foot
+
+== Trace
+    30 s  started   {"asset":"winch"}
+    90 s  damage    {"asset":"shelter","amount":35,"cause":"the creature","integrity":65}
+   120 s  damage    {"asset":"generator","amount":70,"cause":"the creature, drawn by the vibration","integrity":30}
+   120 s  warning   {"asset":"generator","integrity":30}
+   150 s  damage    {"asset":"generator","amount":40,"cause":"the creature","integrity":0}
+   150 s  broken    {"asset":"generator","cause":"the creature"}
+   150 s  offline   {"asset":"winch","because":"generator"}
+   150 s  offline   {"asset":"lights","because":"generator"}
+   180 s  repair    {"asset":"generator","integrity":100}
+   180 s  started   {"asset":"generator"}
+   180 s  started   {"asset":"winch"}
+   240 s  blocked   {"route":"cargo","why":"flood water over the cargo track"}
+   300 s  damage    {"asset":"bridge","amount":100,"cause":"flood debris","integrity":0}
+   300 s  broken    {"asset":"bridge","cause":"flood debris"}
