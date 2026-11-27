@@ -1,0 +1,39 @@
+{
+ "gym": "G06",
+ "seed": 606,
+ "criteria": [
+  {
+   "id": "dogman-unobserved",
+   "text": "Dogman cannot learn a route it never observed (route B behind the rock, walked twice)",
+   "status": "pass",
+   "detail": {
+    "legs": 0,
+    "predictB": null
+   }
+  },
+  {
+   "id": "dogman-routine",
+   "text": "Changing routine has a measurable effect: it waits on route A; taking route B you pass far from it",
+   "status": "pass",
+   "detail": {
+    "waitingAt": {
+     "x": 0.2,
+     "z": 11.5
+    },
+    "closestIfYouKeepA": 0.5,
+    "closestIfYouChangeToB": 24.4
+   }
+  },
+  {
+   "id": "testers",
+   "text": "4/5 testers can identify a coverage failure and its remedy",
+   "status": "not_evaluated",
+   "detail": {
+    "reason": "needs human testers"
+   }
+  }
+ ],
+ "digest": "9d5d4ae9",
+ "events": 4,
+ "ticks": 3670
+}
