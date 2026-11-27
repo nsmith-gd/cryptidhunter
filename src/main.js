@@ -17,10 +17,11 @@ import { buildTestMap } from './testMap.js';
 import { buildGymMap } from './maps/gymG00.js';
 import { buildGymG02, buildGymG03, buildGymG04, GYM_SEEDS } from './maps/gymScenes.js';
 import { GymHarness } from './gym/gymKit.js';
-import { GYM_RUNS } from './gym/gymRuns.js';
+import { GYM_RUNS, runG09Committed, runG09Death } from './gym/gymRuns.js';
 import { buildGymG05 } from './gym/g05.js';
 import { buildGymG07 } from './gym/g07.js';   // G07 capture gym (#150)
 import { buildGymG06 } from './gym/g06.js';   // G06 observation network gym (#152)
+import { buildGymG09 } from './gym/g09.js';   // G09 finale rehearsal fixture (#155)
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildOroMedonteMap } from './maps/oroMedonte.js';
@@ -111,7 +112,7 @@ const keyRemap = new KeyRemap();
 
 // One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
 // Gyms (#108) have a fixed default seed, so the fixture is the same every time.
-const gymRun = ['g02', 'g03', 'g04', 'g05', 'g06', 'g07'].includes(new URLSearchParams(location.search).get('map'));
+const gymRun = ['g02', 'g03', 'g04', 'g05', 'g06', 'g07', 'g09'].includes(new URLSearchParams(location.search).get('map'));
 setSeed(Number(new URLSearchParams(location.search).get('seed')) || GYM_SEEDS[new URLSearchParams(location.search).get('map')] || randomSeed());
 console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
 
@@ -147,7 +148,7 @@ const equipment = new Equipment(camp);
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
   simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
-  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05, g06: buildGymG06, g07: buildGymG07,
+  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05, g06: buildGymG06, g07: buildGymG07, g09: buildGymG09,
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
@@ -980,6 +981,7 @@ window.__game = { dogman, interference, howler, daylight, terrainInjury, igopogo
 if (GYM_RUNS[map.gym]) {
   gymHarness = new GymHarness({ game: window.__game, map, seed: getSeed(), blind: new URLSearchParams(location.search).has('blind') });
   window.__game.gymHarness = gymHarness;
-  window.__gym = { harness: gymHarness, run: () => GYM_RUNS[map.gym](window.__game, gymHarness), reset: () => gymHarness.reset() };
+  window.__gym = { harness: gymHarness, run: () => GYM_RUNS[map.gym](window.__game, gymHarness), reset: () => gymHarness.reset(),
+    runCommitted: () => runG09Committed(window.__game, gymHarness), runDeath: () => runG09Death(window.__game, gymHarness) };   // G09's other halves (#155)
   gymHarness.onRun = () => { const r = window.__gym.run(); console.info('[gym]', r); };
 }
