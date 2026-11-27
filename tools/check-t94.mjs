@@ -94,9 +94,9 @@ const exam = await page.evaluate(() => { const g = __game; const r = g.clueFinde
 await page.screenshot({ path: `${out}/02-examine-high-claw-marks.png` });
 check('you can examine Mothman\'s high claw marks from the boardwalk (journal entry)', exam.ok, { scratch, exam });
 // 2. Photograph and bag wing dust on the bridge.
-await page.evaluate(() => { const g = __game, c = g.clues.clues.find((k) => k.type === 'wingDust'); window.__dust = c; __lookAtClue(c); __light(true); });
+await page.evaluate(() => { const g = __game, c = g.clues.clues.find((k) => k.type === 'wingDust' && k.y < 1); window.__dust = c; __lookAtClue(c); __light(true); });
 const dustShot = await snap();
-await page.screenshot({ path: `${out}/03-wing-dust-on-the-bridge.png` });
+await page.screenshot({ path: `${out}/03-wing-dust-on-a-perch-platform.png` });
 await page.evaluate(() => { const g = __game, c = __dust; __look(c.x + 1.2, c.y, c.z, c.x, c.y, c.z); });
 await page.waitForTimeout(500);
 const bag = await page.evaluate(() => { const r = __game.evidence.collect(); return r && { type: r.type, name: r.name }; });
