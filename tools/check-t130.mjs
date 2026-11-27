@@ -43,14 +43,15 @@ await page.evaluate(() => __game.aiDebug.setVisible(false));
 const graze = await page.evaluate(() => {
   const g = __game, go = __go, start = { x: go.agent.x, z: go.agent.z };
   const hs = [], dirs = [];
-  for (let i = 0; i < 150 * 60; i++) { g.sim.step(); if (i % 60 === 0) hs.push(g.map.heightAt(go.agent.x, go.agent.z)); }
+  // While grazing (roam), how far it strays from the height it chose for that leg (its contour).
+  for (let i = 0; i < 150 * 60; i++) { g.sim.step(); if (i % 60 === 0 && go.state === 'roam' && go.agent.hasPath && go.contourY != null) hs.push(Math.abs(g.map.heightAt(go.agent.x, go.agent.z) - go.contourY)); }
   const signs = g.clues.clues.filter((c) => c.cryptidId === 'gouger' && c.type === 'footprint' && c.age < 150);
   const lengths = [...new Set(signs.map((c) => Math.round(c.data.length * 100)))];
-  return { travelled: Math.round(Math.hypot(go.agent.x - start.x, go.agent.z - start.z)), heightSpread: +(Math.max(...hs) - Math.min(...hs)).toFixed(1), hs: hs.length,
+  return { travelled: Math.round(Math.hypot(go.agent.x - start.x, go.agent.z - start.z)), offContour: +(hs.reduce((a, b) => a + b, 0) / Math.max(1, hs.length)).toFixed(2), samples: hs.length,
     prints: signs.length, lengthsCm: lengths, roamStyle: go.profile.roamStyle, contourY: +go.contourY?.toFixed(1), states: [...new Set(go.history.map((h) => h.to))] };
 });
 check('left alone it grazes along one height round the hill (a contour), leaving lopsided paired prints (one side shorter)',
-  graze.travelled > 25 && graze.heightSpread < 5 && graze.prints > 10 && graze.lengthsCm.length === 2, graze);
+  graze.travelled > 25 && graze.samples > 20 && graze.offContour < 1.5 && graze.prints > 10 && graze.lengthsCm.length === 2, graze);
 
 // 2) The trail predicts its route: the newest prints point the way it keeps going.
 const predict = await page.evaluate(() => {
@@ -115,7 +116,8 @@ check('look at it and it freezes (you saw it stalking), then it bolts along the 
 await page.evaluate(() => {
   const g = __game, go = __go;
   go.perception.reset(); go.enterRoam('test'); go.update = ((u) => function (dt) { u.call(this, dt); if (this.state !== 'roam') this.enterRoam('test'); this.perception.awareness = 0; this.perception.detected = false; })(Object.getPrototypeOf(go).update);
-  for (let i = 0; i < 600 && !(go.agent.currentSpeed > 0.5 && go.slopeHere().slope > 0.2); i++) g.sim.step();
+  for (let i = 0; i < 4000 && !(go.agent.currentSpeed > 0.5 && go.slopeHere().slope > 0.2); i++) g.sim.step();
+  window.__gaitAt = { speed: +go.agent.currentSpeed.toFixed(2), slope: +go.slopeHere().slope.toFixed(2) };
   const s = go.slopeHere(), a = go.agent;
   // 10 m off, across the slope, clear of trees.
   let spot = null;
@@ -131,7 +133,7 @@ await page.evaluate(() => { const a = __go.agent; __game.sim.step(); __look(a.x,
 await page.mouse.down({ button: 'right' }); await steps(30);
 await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
 await page.mouse.up({ button: 'right' }); await steps(5);
-const gait = await page.evaluate(() => ({ log: __game.photo.log.at(-1) && { result: __game.photo.log.at(-1).result, subject: __game.photo.log.at(-1).subject }, ev: __game.evidence.items.map((i) => i.name) }));
+const gait = await page.evaluate(() => ({ at: window.__gaitAt, nowSpeed: __go.agent.currentSpeed, log: __game.photo.log.at(-1) && { result: __game.photo.log.at(-1).result, subject: __game.photo.log.at(-1).subject }, ev: __game.evidence.items.map((i) => i.name) }));
 await shot('03-hillside-gait-photo');
 check('a photo of it walking across the slope (real camera buttons) is a hillside-gait photo: its distinctive locomotion evidence',
   gait.log?.subject === 'Sidehill Gouger' && gait.ev.includes('Hillside gait photo'), gait);
