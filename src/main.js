@@ -331,7 +331,12 @@ function cryptidEvent(type, e) {
   if (cryptidEvents.length > 50) cryptidEvents.shift();
   const where = (x, z) => { const d = Math.hypot(x - player.position.x, z - player.position.z); return `${d.toFixed(0)} m away`; };
   if (type === 'whoop') fieldKit?.hear({ kind: 'whoop', x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: e.cryptid.profile.id, name: e.name });
-  if (['whoop', 'rock', 'roar', 'hiss', 'screech'].includes(type) && e.cryptid?.agent) fieldCamp?.cue({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, what: `a ${type}` });
+  // A significant cue wakes you if you're asleep nearby (#104, #137, GDD 6.5): any creature sound or
+  // event with a place (a call, a splash, a surfacing), not its quiet moment-to-moment moves.
+  if (!['stalk', 'perched', 'emerging'].includes(type)) {
+    const at = e.cryptid?.agent ?? (Number.isFinite(e.x) ? e : null);
+    if (at) fieldCamp?.cue({ x: at.x, z: at.z, what: e.what ?? `a ${type}` });
+  }
   if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: true }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
   if (type === 'rock') { fear.scare(e.distance < 3 ? 22 : 12, 'rock'); photo.toast(`A rock slams into the ground ${e.distance.toFixed(0)} m from you. Back off.`); }
   if (type === 'rock-hit') { equipment.impact(); fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
@@ -518,6 +523,16 @@ survival.hydration.tablets = camp.state.gear.purTablets ?? 0;
 survival.hydration.onTablet = () => { camp.state.gear.purTablets = Math.max(0, (camp.state.gear.purTablets ?? 0) - 1); camp.save(); };
 loadout.extraPack = () => (survival.hydration.hasCanteen ? { canteen: 1, canteenWater: survival.hydration.canteen.litres } : {});
 photo.onLoweredClick = () => loadout.use();
+// The night's clock for 'sleep until dawn' (#137).
+fieldCamp.getClock = () => ({ dawned: hunt.dawned, elapsed: hunt.elapsed, dawnSeconds: HUNT.dawnSeconds });
+// Level 3 (the first overnight trip, GDD 1.5 L03): it introduces sleep and campcraft, so the tent and
+// fire kit come with the trip and sit in your first slots, and sleep lasts until dawn or a cue.
+if (map.level === 3) {
+  fieldCamp.sleepUntil = 'dawn';
+  loadout.owned.tent = Math.max(loadout.owned.tent ?? 0, 1); loadout.owned.fireKit = Math.max(loadout.owned.fireKit ?? 0, 6);
+  fieldKit.carried.tent = Math.max(fieldKit.carried.tent ?? 0, 1); fieldKit.carried.fireKit = Math.max(fieldKit.carried.fireKit ?? 0, 6);
+  loadout.setSlots(['tent', 'fireKit', ...loadout.slots.filter((id) => id !== 'tent' && id !== 'fireKit')].slice(0, 4), loadout.pack);
+}
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
   onChange: ({ slots, pack, water }) => {
     if (hunt.stage !== 'briefing') return;         // packing happens before you set off
