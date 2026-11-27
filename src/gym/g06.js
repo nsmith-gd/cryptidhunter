@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DogmanProxy } from '../cryptids/dogmanProxy.js';
+import { CoverageGraph } from '../security/coverage.js';   // #153: the shared coverage rules
 
 // Gym G06: observation network and adaptive threat (GDD §15.2 G06; task #152). Greybox, ?map=g06
 // (&proxy=dogman for the Dogman mode). A camp in dense woods; three cover corridors come at it from
@@ -46,7 +47,6 @@ export const G06 = {
   dogman: { at: { x: 0, z: 5 }, routeA: [[-6, 12], [6, 12], [6, 23], [-6, 23], [-6, 12]], routeB: [[-28, -12], [-28, 0], [-24, 10]] },   // A: across the camp clearing in its view; B: behind the rock
 };
 
-const _ray = new THREE.Ray(), _hit = new THREE.Vector3(), V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 export function buildGymG06(scene) {
   const colliders = [];
@@ -95,6 +95,8 @@ export class G06World {
     this.time = 0;
     this.hub = { charge: G06.hub0, on: true };
     this.cams = G06.cameras.map((c) => ({ ...c, removed: false, heading: Math.atan2(c.aim[0] - c.x, c.aim[1] - c.z) }));
+    for (const c of this.cams) Object.assign(c, { y: 2.1, fov: G06.sight.camCone, range: G06.sight.cam });
+    this.coverage = new CoverageGraph({ nodes: this.cams, occluders: map.colliders ?? [], powered: () => this.hub.on && this.hub.charge > 0 });
     const mat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 });
     for (const c of this.cams) {
       const g = new THREE.Group(); g.name = `g06-camera-${c.id}`;
@@ -114,37 +116,18 @@ export class G06World {
   }
 
   log(type, data = {}) { this.trace('security', type, data); }
-  clear(a, b) {
-    const dir = b.clone().sub(a), len = dir.length(); _ray.set(a, dir.normalize());
-    for (const bx of this.map.colliders ?? []) if (!bx.containsPoint(a) && _ray.intersectBox(bx, _hit) && _hit.distanceTo(a) < len - 0.4) return false;
-    return true;
+  camLive(c) { return this.coverage.live(c); }
+  /** Which camera ids see (x, z) at head height. Unpowered, removed or occluded cameras see nothing. */
+  camsSeeing(x, z) { return this.coverage.camerasSeeing({ x, y: 1.4, z }); }
+  /** You, as an observer: awake, your view cone and range. */
+  observers() {
+    const g = this.g, p = g.player.position, yaw = g.player.yaw;
+    return [{ x: p.x, y: p.y + 1.6, z: p.z, forward: { x: -Math.sin(yaw), z: -Math.cos(yaw) }, fov: G06.sight.youCone, range: G06.sight.you, awake: !g.fieldCamp?.sleeping }];
   }
-  camLive(c) { return !c.removed && this.hub.on && this.hub.charge > 0; }
-  /** Which camera ids see (x, z) (head height); '' = none. Unpowered, removed or occluded cameras see nothing. */
-  camsSeeing(x, z) {
-    const out = [];
-    for (const c of this.cams) {
-      if (!this.camLive(c)) continue;
-      const dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz);
-      if (d > G06.sight.cam) continue;
-      const fx = Math.sin(c.heading), fz = Math.cos(c.heading);
-      if ((fx * dx + fz * dz) / Math.max(d, 1e-6) < Math.cos(G06.sight.camCone)) continue;
-      if (this.clear(V(c.x, 2.1, c.z), V(x, 1.4, z))) out.push(c.id);
-    }
-    return out;
-  }
-  youSee(x, z) {
-    const g = this.g, p = g.player.position;
-    if (g.fieldCamp?.sleeping) return false;                      // asleep: no direct vision
-    const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz);
-    if (d > G06.sight.you) return false;
-    const yaw = g.player.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
-    if (d > 2 && (fx * dx + fz * dz) / d < Math.cos(G06.sight.youCone)) return false;
-    return this.clear(V(p.x, p.y + 1.6, p.z), V(x, 1.4, z));
-  }
-  watched(x, z) { return this.youSee(x, z) || this.camsSeeing(x, z).length > 0; }
+  youSee(x, z) { return this.coverage.observerSees(this.observers()[0], { x, y: 1.4, z }); }
+  watched(x, z) { return this.coverage.watched({ x, y: 1.4, z }, this.observers()); }
   /** A stretch of corridor is watched if any point along it is. */
-  stretchWatched(a, b) { for (let t = 0; t <= 1.0001; t += 0.25) if (this.watched(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return true; return false; }
+  stretchWatched(a, b) { return this.coverage.edgeWatched({ x: a[0], z: a[1] }, { x: b[0], z: b[1] }, this.observers()); }
 
   placeHb() { const h = this.hb; h.mesh.position.set(h.x, 1.45, h.z); }
 
