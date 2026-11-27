@@ -25,6 +25,7 @@ await new Promise((r) => setTimeout(r, 2500));
 const launchArgs = ['--use-gl=angle', '--use-angle=swiftshader'];
 const browser = await chromium.launch({ args: launchArgs });
 const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
+page.setDefaultTimeout(120000);   // software rendering in CI containers can take seconds per frame
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 const results = [];
