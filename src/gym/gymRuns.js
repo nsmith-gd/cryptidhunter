@@ -418,7 +418,7 @@ export function runG06(g, h) {
   w.moveD(false);                                   // the blind spot is back too
   w.toggleCam('B');
   const tWarn0 = w.time;
-  for (let i = 0; i < 60 * 240 && !hb.warned; i++) g.sim.step();
+  for (let i = 0; i < 60 * 400 && !hb.warned; i++) g.sim.step();
   const warnedAt = hb.warned;
   w.toggleCam('B'); w.moveD(true);                  // remedy: restore the node, cover the blind spot
   const posAtWarn = [hb.x, hb.z];
@@ -428,7 +428,7 @@ export function runG06(g, h) {
   // 5. Let the power fail: every camera goes dark; with you not watching, it walks in - after the warning.
   w.hub.charge = 0.01; run(1);
   P.yaw = 0;                                        // looking away, north-east... (and the blind spot is open again)
-  for (let i = 0; i < 60 * 300 && !hb.intruded; i++) { g.sim.step(); P.yaw = Math.PI; }
+  for (let i = 0; i < 60 * 600 && !hb.intruded; i++) { g.sim.step(); P.yaw = Math.PI; }
   T.add('power-fail', 'When the power fails the cameras give no coverage; the alarm still warns before the intrusion', w.camsSeeing(0, -6).length === 0 && hb.intruded != null && hb.warned != null && hb.warned < hb.intruded,
     { warned: hb.warned, intruded: hb.intruded });
   T.add('dogman', 'Dogman cannot learn an unobserved route; changing routine has a measurable effect', null, { reason: 'run the Dogman mode: ?map=g06&proxy=dogman' });

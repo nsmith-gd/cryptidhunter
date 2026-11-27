@@ -22,10 +22,10 @@ export const G06 = {
   camp: { x: 0, z: 18 },
   hub: { x: 3, z: 20 },
   perimeter: 13,                   // alarm ring radius round the camp
-  intrude: 3,                      // metres from the camp centre: an intrusion
+  intrude: 4,                      // metres from the camp centre: an intrusion
   start: { x: 0, z: 24 },
   hidebehindSpeed: 1.6,
-  sight: { you: 32, youCone: THREE.MathUtils.degToRad(55), cam: 30, camCone: THREE.MathUtils.degToRad(32) },
+  sight: { you: 32, youCone: THREE.MathUtils.degToRad(55), cam: 30, camCone: THREE.MathUtils.degToRad(16) },   // narrow: each camera covers its own corridor
   hub0: 100, drainPerCamPerSec: 0.05,
   // Corridors of cover (north to south), joined along the north edge (connected cover).
   corridors: {
@@ -43,7 +43,7 @@ export const G06 = {
   remedyD: { x: -26, z: 20, aim: [-27, -8] },             // the anchor past the rock: covers the alternate route
   rock: { x: -21, z: 9, w: 6, d: 10, h: 4 },
   // Dogman mode: where it watches from, the route it sees you walk, and the alternate route.
-  dogman: { at: { x: 0, z: -8 }, routeA: [[-10, 8], [10, 8]], routeB: [[-26, -6], [-26, 10]] },
+  dogman: { at: { x: 0, z: 5 }, routeA: [[-6, 15], [6, 15]], routeB: [[-28, -12], [-28, 0], [-24, 10]] },   // A: across the camp clearing in its view; B: behind the rock
 };
 
 const _ray = new THREE.Ray(), _hit = new THREE.Vector3(), V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -162,7 +162,10 @@ export class G06World {
       h.wait += dt;
       const watchedNow = this.stretchWatched(path[h.i], next);
       if (!watchedNow) { h.state = 'moving'; h.moves.push({ t: +this.time.toFixed(1), corridor: h.corridor, from: path[h.i], to: next, watched: false }); this.log('hidebehind-advance', { corridor: h.corridor, to: next }); }
-      else if (h.i === 0 && h.wait > 8) {                       // at the north edge: slip along to another corridor (connected cover)
+      else if (h.i > 0 && h.wait > 12 && !this.stretchWatched(path[h.i], path[h.i - 1])) {   // a dead end: back out along the same cover
+        h.i--; h.x = path[h.i][0]; h.z = path[h.i][1]; h.wait = 0;
+        this.log('hidebehind-backs-off', { corridor: h.corridor, to: path[h.i] });
+      } else if (h.i === 0 && h.wait > 8) {                       // at the north edge: slip along to another corridor (connected cover)
         const names = Object.keys(C), nextName = names[(names.indexOf(h.corridor) + 1) % names.length];
         h.corridor = nextName; h.x = C[nextName][0][0]; h.z = C[nextName][0][1]; h.wait = 0;
         this.log('hidebehind-shift', { corridor: nextName });
