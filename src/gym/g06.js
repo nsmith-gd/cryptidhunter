@@ -43,7 +43,7 @@ export const G06 = {
   remedyD: { x: -26, z: 20, aim: [-27, -8] },             // the anchor past the rock: covers the alternate route
   rock: { x: -21, z: 9, w: 6, d: 10, h: 4 },
   // Dogman mode: where it watches from, the route it sees you walk, and the alternate route.
-  dogman: { at: { x: 0, z: 5 }, routeA: [[-6, 15], [6, 15]], routeB: [[-28, -12], [-28, 0], [-24, 10]] },   // A: across the camp clearing in its view; B: behind the rock
+  dogman: { at: { x: 0, z: 5 }, routeA: [[-6, 12], [6, 12], [6, 23], [-6, 23], [-6, 12]], routeB: [[-28, -12], [-28, 0], [-24, 10]] },   // A: across the camp clearing in its view; B: behind the rock
 };
 
 const _ray = new THREE.Ray(), _hit = new THREE.Vector3(), V = (x, y, z) => new THREE.Vector3(x, y, z);
