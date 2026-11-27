@@ -4,6 +4,7 @@ import { G04 } from '../maps/gymScenes.js';
 import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05 as G05_CFG } from './g05.js';
 import { G07 as G07_CFG } from './g07.js';
+import { G06 as G06_CFG } from './g06.js';
 import { CaptureMachine } from '../capture/captureMachine.js';
 
 // Scripted runs for gyms G02–G04 (#108). Each drives the real game simulation step by step with
@@ -381,4 +382,80 @@ export function runG07(g, h) {
   return T.finish();
 }
 
-export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05, G07: runG07 };
+// ---- G06 ---------------------------------------------------------------------------------------
+export function runG06(g, h) {
+  const T = tools(g, h), w = h.world, C = G06_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const run = (secs) => { for (let i = 0; i < secs * 60; i++) g.sim.step(); };
+  if (w.mode === 'dogman') return runG06Dogman(g, h, T, w, C);
+  // You stay at camp facing the hub (south): the cameras do the watching.
+  const atCamp = () => { T.place(C.camp.x, C.camp.z + 2, 0); P.yaw = Math.PI; };
+  atCamp();
+  // 1. No false coverage: an unpowered or occluded camera covers nothing.
+  const probe = [0, -6];
+  const lit = w.camsSeeing(...probe);
+  w.setHub(false); const dark = w.camsSeeing(...probe); w.setHub(true);
+  const occluded = w.camsSeeing(-28, 0);           // D's field of view and range, but the rock is in the way
+  T.add('no-false-coverage', 'An unpowered or occluded camera provides no coverage', lit.includes('B') && dark.length === 0 && !occluded.includes('D'), { powered: lit, unpowered: dark, behindRock: occluded });
+  // 2. Overlapping coverage with the remedy in place (D past the rock): it never gets in.
+  w.moveD(true);
+  run(150);
+  const hb = w.hb, movesWatched = hb.moves.filter((m) => m.watched).length;
+  T.add('watched-corridors', 'Hidebehind never advances through a watched, connected corridor (full overlapping coverage: no intrusion, no advance onto a watched stretch)',
+    hb.moves.length >= 0 && movesWatched === 0 && !hb.warned && !hb.intruded, { moves: hb.moves.length, ontoWatched: movesWatched, reached: [hb.x, hb.z].map((v) => +v.toFixed(1)) });
+  // 3. Rest with full coverage: you sleep the night through (no forced sleeplessness).
+  g.fieldKit.carried.tent = 1; T.place(C.camp.x - 3, C.camp.z + 3, Math.PI); g.fieldCamp.use(); run(8);
+  if (g.fieldCamp.tent) { P.position.set(g.fieldCamp.tent.x, 0, g.fieldCamp.tent.z); P.yaw = g.fieldCamp.tent.yaw + Math.PI; }
+  g.survival.fatigue.value = 70; run(0.2);
+  const slept = g.fieldCamp.use();
+  for (let i = 0; i < 60 * 300 && g.fieldCamp.sleeping; i++) g.sim.step();
+  const night = g.fieldCamp.sleepLog.at(-1);
+  T.add('rest', 'With full powered coverage you can sleep the night through: no intrusion, no wake-up (no forced sleeplessness loop)', slept && night?.woke === 'rested' && !hb.intruded,
+    { slept, woke: night?.woke, fatigue: night && [night.fatigueBefore, night.fatigueAfter], intruded: hb.intruded });
+  atCamp();
+  // 4. Remove one node (B): the centre corridor opens. The alarm warns before it reaches camp; restore B and it stops (recoverable).
+  w.moveD(false);                                   // the blind spot is back too
+  w.toggleCam('B');
+  const tWarn0 = w.time;
+  for (let i = 0; i < 60 * 240 && !hb.warned; i++) g.sim.step();
+  const warnedAt = hb.warned;
+  w.toggleCam('B'); w.moveD(true);                  // remedy: restore the node, cover the blind spot
+  const posAtWarn = [hb.x, hb.z];
+  run(60);
+  T.add('warning-recoverable', 'Removing a node opens a gap it uses; the perimeter alarm warns before any intrusion, and restoring coverage stops it (recoverable)',
+    warnedAt != null && !hb.intruded && hb.moves.every((m) => !m.watched), { warnedAfter: warnedAt && +(warnedAt - tWarn0).toFixed(1), posAtWarn: posAtWarn.map((v) => +v.toFixed(1)), intruded: hb.intruded, corridor: hb.corridor });
+  // 5. Let the power fail: every camera goes dark; with you not watching, it walks in - after the warning.
+  w.hub.charge = 0.01; run(1);
+  P.yaw = 0;                                        // looking away, north-east... (and the blind spot is open again)
+  for (let i = 0; i < 60 * 300 && !hb.intruded; i++) { g.sim.step(); P.yaw = Math.PI; }
+  T.add('power-fail', 'When the power fails the cameras give no coverage; the alarm still warns before the intrusion', w.camsSeeing(0, -6).length === 0 && hb.intruded != null && hb.warned != null && hb.warned < hb.intruded,
+    { warned: hb.warned, intruded: hb.intruded });
+  T.add('dogman', 'Dogman cannot learn an unobserved route; changing routine has a measurable effect', null, { reason: 'run the Dogman mode: ?map=g06&proxy=dogman' });
+  T.add('testers', '4/5 testers can identify a coverage failure and its remedy', null, { reason: 'needs human testers' });
+  return T.finish();
+}
+
+function runG06Dogman(g, h, T, w, C) {
+  const D = w.dogman, P = g.player, M = D.memory;
+  const walk = (pts) => { T.place(pts[0][0], pts[0][1]); for (const [x, z] of pts.slice(1)) T.walkTo(x, z, { r: 0.8, max: 60 * 60 }); };
+  const run = (secs) => { for (let i = 0; i < secs * 60; i++) g.sim.step(); };
+  // 1. Route B (round the rock, out of its sight) twice: it learns nothing about it.
+  walk(C.dogman.routeB); walk(C.dogman.routeB);
+  const legsAfterB = M.legs.length, predictB = M.predictNext(C.dogman.routeB[0][0], C.dogman.routeB[0][1] + 4);
+  T.add('dogman-unobserved', 'Dogman cannot learn a route it never observed (route B behind the rock, walked twice)', legsAfterB === 0 && predictB === null, { legs: legsAfterB, predictB });
+  // 2. Route A (in front of it) twice: it goes to wait on A.
+  walk(C.dogman.routeA); T.place(30, 30); walk(C.dogman.routeA); T.place(30, 30);
+  run(20);
+  const waitAt = { x: +D.position.x.toFixed(1), z: +D.position.z.toFixed(1) };
+  const onA = Math.abs(waitAt.z - C.dogman.routeA[0][1]) < 3;
+  // 3. Change your routine: take route B instead. How close do you pass it, versus keeping to A?
+  const minDist = (pts) => { let m = Infinity; T.place(pts[0][0], pts[0][1]); for (const [x, z] of pts.slice(1)) { const dx = x - P.position.x, dz = z - P.position.z, L = Math.hypot(dx, dz); for (let s = 0; s <= L; s += 0.5) m = Math.min(m, Math.hypot(P.position.x + dx * s / L - D.position.x, P.position.z + dz * s / L - D.position.z)); } return +m.toFixed(1); };
+  const keepA = minDist(C.dogman.routeA), changeB = minDist(C.dogman.routeB);
+  T.add('dogman-routine', 'Changing routine has a measurable effect: it waits on route A; taking route B you pass far from it', D.state === 'ambush' && onA && changeB > keepA + 10,
+    { waitingAt: waitAt, closestIfYouKeepA: keepA, closestIfYouChangeToB: changeB });
+  T.add('testers', '4/5 testers can identify a coverage failure and its remedy', null, { reason: 'needs human testers' });
+  return T.finish();
+}
+
+export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05, G06: runG06, G07: runG07 };
