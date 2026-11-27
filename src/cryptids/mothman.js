@@ -33,7 +33,7 @@ export const MOTHMAN_TIERS = {
 };
 
 export class Mothman {
-  constructor(scene, player, flashlight, { camera = null, level = null, onEvent = null, perches = null } = {}) {
+  constructor(scene, player, flashlight, { camera = null, level = null, onEvent = null, perches = null, corridors = null } = {}) {
     this.name = 'Mothman';
     this.player = player;
     this.flashlight = flashlight;
@@ -50,6 +50,8 @@ export class Mothman {
     this.dark = 0;                   // seconds the light has been off
     this.photographed = false;
     this.perches = perches ?? this.makePerches();
+    this.corridors = corridors;      // (#146) flight lines it travels when it isn't drawn to you: [[Vector3...]]
+    this.leg = { line: 0, i: 0, dir: 1 };
     this.perch = null;
     this.vel = new THREE.Vector3();
 
@@ -155,7 +157,25 @@ export class Mothman {
     else this.mesh.position.lerp(want, 1 - Math.exp(-4 * this.dt));
   }
 
-  tickCircle() { this.setState('circle'); this.orbit(); return RUN; }
+  tickCircle() {
+    this.setState('circle');
+    if (this.corridors?.length && this.lure < 0.3) this.patrol(); else this.orbit();
+    return RUN;
+  }
+
+  /** Travel a corridor (#146): fly waypoint to waypoint along it, turn at the ends, then switch lines. */
+  patrol() {
+    const L = this.leg, line = this.corridors[L.line % this.corridors.length];
+    const target = line[L.i];
+    if (!this.placed) { this.mesh.position.copy(target); this.placed = true; }
+    if (this.moveToward(target, MOTHMAN.flySpeed * 0.7)) {
+      L.i += L.dir;
+      if (L.i >= line.length || L.i < 0) {
+        L.dir = -L.dir; L.i += 2 * L.dir;
+        if (L.dir > 0) { L.line = (L.line + 1) % this.corridors.length; L.i = 0; }
+      }
+    }
+  }
   tickDrawn() { this.setState('drawn'); this.perch = null; this.orbit(); return RUN; }
 
   tickPerch() {

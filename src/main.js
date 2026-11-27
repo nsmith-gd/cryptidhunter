@@ -26,6 +26,7 @@ import { DaylightCycle } from './maps/daylight.js';
 import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
 import { buildOzarkMap } from './maps/ozark.js';   // L07 greybox (#144)
+import { buildPointPleasantMap } from './maps/pointPleasant.js';   // L08 greybox (#146)
 import { Igopogo, heardAt } from './cryptids/igopogo.js';
 import { buildTimiskamingMap } from './maps/timiskaming.js';   // L05 greybox (#139)
 import { createWaterTraversal } from './water/index.js';         // boat, swimming, breath (#139)
@@ -141,7 +142,7 @@ const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Cam
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
-  simcoe: buildSimcoeMap, ozark: buildOzarkMap,   // simcoe: L03 greybox (#135)
+  simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
   g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05,
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
@@ -272,9 +273,11 @@ const daylight = map.daylight && night && !todConfig ? new DaylightCycle({ night
 // Forest atmosphere: ground mist + midground and background fog curtains (?noatmos turns it off).
 const atmosphere = mapId === 'forest' && !new URLSearchParams(location.search).has('noatmos')
   ? new Atmosphere({ scene, camera, half: bounds, keepClear: map.keepClear, hazeColor: night?.cfg.skyHorizon, glowColor: night?.cfg.moonGlow }) : null;
-const mothman = new Mothman(scene, player, flashlight, { camera, level: null, onEvent: (t, e) => cryptidEvent(t, e) });
+const mothman = new Mothman(scene, player, flashlight, { camera, level: null, onEvent: (t, e) => cryptidEvent(t, e),
+  perches: map.mothmanPerches ?? null, corridors: map.mothmanCorridors ?? null });   // #146: perches and flight corridors from the map
 const chupacabra = new Chupacabra(scene, player, camera, colliders, { flashlight, onEvent: (t, e) => cryptidEvent(t, e) });
 mothman.mesh.visible = chupacabra.mesh.visible = sandbox;
+if (map.mothman) mothman.mesh.visible = true;   // #146: the Mothman's own map
 const batteries = new BatteryPickups(scene, player, flashlight);
 // G drops bait; cryptids that smell it come to investigate.
 const bait = new BaitManager(scene, player, input);
@@ -499,6 +502,7 @@ const photo = new PhotoCamera({
       center: new THREE.Vector3(c.agent.x, c.profile.height * 0.6, c.agent.z),
       base: new THREE.Vector3(c.agent.x, 0, c.agent.z), height: c.profile.height })),
     ...(igopogo?.subject() ? [igopogo.subject()] : []),
+    ...(map.mothman && !sandbox ? [{ name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() }] : []),   // #146
     ...(sandbox ? [
       { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
       { name: 'Chupacabra', object3d: chupacabra.mesh, radius: 0.5, center: chupacabra.position.clone() },
@@ -852,6 +856,7 @@ function simulateOnce(dt, extra = false) {
   clues.update(dt);
   evidence.update(dt);
   journal.update(dt);
+  if (map.mothman && !sandbox) mothman.update(dt);
   if (sandbox) {
     mothman.update(dt);
     chupacabra.update(dt);
