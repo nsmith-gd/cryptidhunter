@@ -6,10 +6,12 @@ import { utilityBrain } from './brains/utilityBrain.js';
 import { genericBrain } from './brains/genericBrain.js';
 import { bigfootBrain } from './brains/bigfootBrain.js';
 import { buildBigfootModel } from './bigfootModel.js';
+import { buildChupacabraModel } from './chupacabraModel.js';
 import { PROFILES } from './profiles.js';
 
 registerBrain('utility', utilityBrain);
 registerBrain('generic', genericBrain);      // the older fixed-priority tree, kept for comparison
 registerBrain('bigfoot', bigfootBrain);      // Bigfoot's signature warn-and-charge rules
 registerModel('bigfoot', buildBigfootModel);
+registerModel('chupacabra', buildChupacabraModel);   // #93 sculpted, skinned body (its behaviour is chupacabra.js)
 for (const p of Object.values(PROFILES)) if (p.id !== 'unknown') registerSpecies(p);

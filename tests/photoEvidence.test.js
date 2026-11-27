@@ -22,7 +22,7 @@ test('a well-lit, steady, whole, close creature photo scores high and has no pro
 test('each real problem lowers its own component and is named in the preview', () => {
   const base = creatureQuality({ shot: goodShot, light: 0.9, steadiness: 1 });
   const dark = creatureQuality({ shot: goodShot, light: 0.1, steadiness: 1 });
-  assert.ok(dark.C < base.C && dark.I < base.I && dark.K === base.K && dark.Q < base.Q - 25);   // too dark to make out features
+  assert.ok(dark.C < base.C && dark.I < base.I && dark.K < base.K && dark.Q < 40)   // #99: an unlit body records little coverage;   // too dark to make out features
   assert.match(dark.problems.join(), /Too dark/);
   const blur = creatureQuality({ shot: goodShot, light: 0.9, steadiness: 0.4 });
   assert.ok(blur.C < base.C); assert.match(blur.problems.join(), /Blurred/);

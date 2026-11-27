@@ -677,3 +677,44 @@ export function bigfootFace2Texture() {
     }
   }, { seed: 311 });
 }
+
+// --- Chupacabra (#93) ------------------------------------------------------------------------
+// Hairless, leathery hide, 32 x 32: grey-green with darker olive mottling, pebbled scale dots
+// and a few pale old scars. variant 1 is the paler, pinker underbelly with visible rib creases.
+const CHUPA_HIDE = ['#141611', '#1f231a', '#2b3024', '#373d2e', '#454b38', '#566048', '#6b7558'];
+const CHUPA_BELLY = ['#2a1f1c', '#3d2e29', '#523e36', '#665044', '#7a6252', '#8e7462'];
+export function chupaHideTexture(variant = 0) {
+  return pixelTexture(`chupaHide${variant}`, 32, 32, (g, px, r, w, h) => {
+    const pal = variant === 1 ? CHUPA_BELLY : CHUPA_HIDE;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[2 + Math.floor(r() * 1.6)]);
+    for (let b = 0; b < 9; b++) {                               // dark mottled blotches
+      const cx = r() * w, cy = r() * h, rr = 2 + r() * 3;
+      for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) if (x * x + y * y < rr * rr * (0.7 + r() * 0.5)) px(Math.round(cx + x), Math.round(cy + y), pal[1]);
+    }
+    for (let i = 0; i < 70; i++) {                              // pebbled scales: lit top, dark under
+      const x = Math.floor(r() * w), y = Math.floor(r() * h);
+      px(x, y, pal[4]); px(x, y + 1, pal[0]);
+    }
+    if (variant === 1) for (let y = 3; y < h; y += 6) for (let x = 0; x < w; x++) if (r() < 0.8) px(x, y, pal[0]);   // rib creases
+    for (let s = 0; s < 2; s++) {                               // old scars
+      let x = Math.floor(r() * w), y = Math.floor(r() * h);
+      for (let k = 0; k < 7; k++) { px(x, y, pal[5]); x++; if (r() < 0.5) y++; }
+    }
+  }, { seed: 931 + variant });
+}
+// Head, 32 x 32: darker hide, deep sockets and a lip line of bare pink gum. Projected per facet.
+export function chupaHeadTexture() {
+  return pixelTexture('chupaHead', 32, 32, (g, px, r, w, h) => {
+    const pal = CHUPA_HIDE;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[2 + Math.floor(r() * 2)]);
+    for (let i = 0; i < 50; i++) { const x = Math.floor(r() * w), y = Math.floor(r() * h); px(x, y, pal[5]); px(x, y + 1, pal[0]); }
+    for (let y = 0; y < h; y += 4) for (let x = 0; x < w; x++) if (r() < 0.35) px(x, y, pal[0]);   // wrinkled brow folds
+  }, { seed: 951 });
+}
+// Spines and claws, 8 x 16: bone-pale at the base going to dried-blood red-black at the tip.
+export function chupaSpineTexture() {
+  return pixelTexture('chupaSpine', 8, 16, (g, px, r, w, h) => {
+    const pal = ['#c8b894', '#a89070', '#8a5a44', '#6a2a22', '#3a1210', '#1c0a08'];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) px(x, y, pal[Math.min(5, Math.floor((y / h) * 6 + r() * 0.8))]);
+  }, { seed: 961 });
+}

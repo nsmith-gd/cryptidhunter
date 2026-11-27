@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { DECAL_OFFSET } from '../maps/terrainPainter.js';
+import { verificationLines } from './camp.js';
 
 // A Night's Hunt: briefing -> search & track -> photograph the target -> return to the van and
 // choose to leave (H) -> results. A 15-minute night clock runs: at dawn the cryptid leaves the
@@ -320,7 +321,11 @@ export class HuntLoop {
     lines.push('', '§', 'CLUES');
     lines.push(pad('Found', `${r.clues}${r.clueTypes ? `  (${r.clueTypes})` : ''}`));
     if (r.verdict) lines.push(pad('Journal verdict', r.verdict));
-    if (r.evidence.length) {   // physical evidence sold at base camp (#73)
+    if (r.verification.length) {   // HQ verification (#99): every entry, its grade and why
+      lines.push('', 'HQ VERIFICATION');
+      for (const v of verificationLines(r.verification)) lines.push(v);
+      if (r.ceiling?.clipped) lines.push(`  Attempt ceiling $${r.ceiling.T} reached: $${r.ceiling.clipped} over the cap not paid`);
+    } else if (r.evidence.length) {   // physical evidence sold at base camp (#73)
       lines.push('', 'EVIDENCE');
       for (const e of r.evidence) lines.push(`  ${e.name} (${e.cryptid})${e.novelty < 1 ? ', repeat' : ''}: $${e.value}`);
     }
@@ -375,6 +380,8 @@ export class HuntLoop {
       clueTypes: Object.entries(counts).map(([k, n]) => `${k} ×${n}`).join(', '),
       verdict: v?.likely?.name ?? null,
       evidence: s?.evidenceSold ?? [],
+      verification: s?.verification ?? [],
+      ceiling: s?.ceiling ?? null,
       money: s ? { photoValue: s.earned - (s.bonus ?? 0) - (s.evidenceSold ?? []).reduce((a, e) => a + e.value, 0),
         evidenceValue: (s.evidenceSold ?? []).reduce((a, e) => a + e.value, 0), bonus: s.bonus ?? 0, earned: s.earned, total: s.moneyAfter } : null,
       seconds: Math.floor(this.elapsed),

@@ -25,7 +25,9 @@ import { SaveService } from '../save/saveService.js';
 import { addAttempt, emptyResearch, dossierLine, researchLines, buyersFor } from '../research/dossier.js';
 import { MAP_CHOICES, unlockContext, isUnlocked } from './mapSelect.js';
 import { BountyBoard } from './bounties.js';
-import { valueEvidence } from '../evidence/evidence.js';
+import { valueEvidence, EVIDENCE, SETTLEMENT } from '../evidence/evidence.js';
+import { emptyEntitlements, settleEntitlements } from '../evidence/entitlements.js';
+import { appraise, PAYOUT } from '../evidence/quality.js';
 import { Ledger, ECONOMY, cents, formatCAD } from '../economy/ledger.js';
 import { classifyOutcome } from './expedition.js';
 
@@ -95,9 +97,9 @@ export class Camp {
    * it meets pay their bonus once. Adds the money and saves.
    * photos: [{ subject|cryptid, score }] (the camera's records today; #51's album later).
    */
-  sellPhotos(photos, target, { extraRate = 0, attemptId = null, settle = true } = {}) {
+  sellPhotos(photos, target, { extraRate = 0, attemptId = null, settle = true, valued = null } = {}) {
     const aid = attemptId ?? this.newAttemptId();
-    const { total: base, sold } = Camp.valuePhotos(photos, target);
+    const { total: base, sold } = valued ?? Camp.valuePhotos(photos, target);   // #99: HQ-graded offers when given
     const extra = Math.round(base * extraRate);
     const { bonus: bountyBonus, paid: bounties } = this.bounties.applySale(sold);
     const total = base + extra + bountyBonus;
@@ -139,21 +141,62 @@ export class Camp {
    * photos: every HIT taken this hunt ({ subject, score }). gearLeft: what you still carry.
    * Only a hunt you drove home from (complete / abandoned) keeps its photos.
    */
-  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null, charges = [], leftBehind = [], research = null, mapId = null }) {
+  settleHunt({ outcome, photos, gearLeft, target, dawnBonus = 0, evidence = [], attemptId = null, charges = [], leftBehind = [], research = null, mapId = null, records = null }) {
     const aid = attemptId ?? this.newAttemptId();
     const keptPhotos = outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency';
     // Physical evidence (#73): what you drove home with sells at base value × novelty; otherwise it's lost.
-    const evidenceSold = keptPhotos ? valueEvidence(evidence) : [];
+    // HQ verification (#99): when the camera's evidence records come home, every entry is graded
+    // and checked for authenticity, and offers follow GDD 4.7 (T x 0.01 x B x M x N).
+    const verification = keptPhotos && records ? appraise({ records, target, T: PAYOUT.maxByMap[mapId] ?? PAYOUT.maxByMap.forest,
+      items: evidence.map((i) => ({ ...i, B: EVIDENCE.types[i.type]?.base ?? 0 })) }) : [];
+    // Entitlements (#100): each type x event is paid once across your career; a better grade pays
+    // only the increment; new events pay at novelty 1 / 0.5 / 0.25; everything this attempt pays,
+    // bonuses included, is clipped to the level ceiling T.
+    let sale, evidenceSold, ceiling = null;
+    if (records && keptPhotos) {
+      const cfg = { ...SETTLEMENT, T: SETTLEMENT.ceilingByMap[mapId] ?? SETTLEMENT.ceilingByMap.forest };
+      const entries = verification.map((v) => ({ id: `${v.kind}:${v.id}`, type: v.type, species: v.subject, eventId: v.eventId, B: v.B, M: v.M, grade: v.grade }));
+      const book = this.state.entitlements ?? emptyEntitlements();
+      const apply = (r) => { const by = new Map(r.lines.map((l) => [l.id, l])); verification.forEach((v, i) => Object.assign(v, { value: by.get(entries[i].id).value, entitlement: by.get(entries[i].id).kind, novelty: by.get(entries[i].id).N, clip: by.get(entries[i].id).clip ?? 0 })); };
+      const soldOf = () => {
+        const bySubject = new Map();
+        for (const v of verification.filter((x) => x.kind === 'photo' && x.value > 0)) {
+          const e = bySubject.get(v.subject) ?? { subject: v.subject, score: Math.max(0, ...photos.filter((p) => p.subject === v.subject).map((p) => p.score ?? 0)), value: 0, grade: v.gradeName };
+          e.value += v.value; bySubject.set(v.subject, e);
+        }
+        return [...bySubject.values()];
+      };
+      apply(settleEntitlements(book, entries, { attemptId: aid, cfg }));       // evidence first, to price the bonuses
+      const photoBase = soldOf().reduce((a, x) => a + x.value, 0);
+      const { paid } = this.bounties.applySale(soldOf());
+      const bonusIn = [...(dawnBonus && photoBase ? [{ id: `bonus:${aid}:dawn`, memo: 'Home before dawn', value: Math.round(photoBase * dawnBonus) }] : []),
+        ...paid.map((b) => ({ id: `bounty:${b.id}`, memo: `Bounty: ${b.title}`, value: b.bonus, b }))];
+      const ent = settleEntitlements(book, entries, { attemptId: aid, cfg, bonuses: bonusIn });
+      apply(ent);
+      this.state.entitlements = ent.ledger;
+      const bonusLines = ent.lines.filter((l) => l.kind === 'bonus');
+      const bonusOf = (id) => bonusLines.find((l) => l.id === id);
+      const sold = soldOf();
+      const extra = bonusOf(`bonus:${aid}:dawn`)?.value ?? 0;
+      const bounties = paid.map((b) => ({ ...b, bonus: bonusOf(`bounty:${b.id}`).value }));
+      const bountyBonus = bounties.reduce((a, b) => a + b.bonus, 0);
+      sale = { extra, sold, bountyBonus, bounties, total: sold.reduce((a, x) => a + x.value, 0) + extra + bountyBonus,
+        records: sold.map((p) => ({ id: `photo:${aid}:${p.subject}`, cents: cents(p.value), memo: `${p.subject} photo` })),
+        bonuses: bonusIn.map((b) => ({ id: b.id, cents: cents(bonusOf(b.id).value), memo: b.memo })).filter((b) => b.cents > 0) };
+      ceiling = { T: cfg.T, paid: ent.total, clipped: ent.clipped };
+      evidenceSold = verification.filter((x) => x.kind === 'item').map((x) => ({ ...evidence.find((i) => i.id === x.id), ...x, cryptid: x.subject }));
+    } else {
+      evidenceSold = keptPhotos ? valueEvidence(evidence) : [];
+      sale = keptPhotos ? this.sellPhotos(photos, target, { extraRate: dawnBonus, attemptId: aid, settle: false })
+        : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0, records: [], bonuses: [] };
+    }
     const evidenceValue = evidenceSold.reduce((a, e) => a + e.value, 0);
     for (const e of evidence) e.stage = keptPhotos ? 'sold' : 'lost';
-    // Sell what you brought home: score value, the home-before-dawn bonus, then bounties (#45).
-    const sale = keptPhotos ? this.sellPhotos(photos, target, { extraRate: dawnBonus, attemptId: aid, settle: false })
-      : { extra: 0, sold: [], bountyBonus: 0, bounties: [], total: 0, records: [], bonuses: [] };
     // One settlement per attempt in the ledger: nothing is paid for records you didn't drive home.
     const evRecords = evidenceSold.map((e) => ({ id: `ev:${aid}:${e.id}`, cents: cents(e.value), memo: e.name }));
     const settlement = this.ledger.settleAttempt(aid, { records: [...evRecords, ...sale.records], bonuses: sale.bonuses, extracted: keptPhotos, charges });
     const outcomeClass = classifyOutcome({ huntOutcome: outcome, targetPhoto: keptPhotos && sale.sold.some((p) => p.subject === target),
-      evidence: evidenceSold.length, photos: sale.sold.length });
+      evidence: evidenceSold.filter((e) => e.value > 0).length, photos: sale.sold.length });
     const { sold, bounties, bountyBonus } = sale;
     const bonus = sale.extra;
     const total = sale.total + evidenceValue;
@@ -180,7 +223,9 @@ export class Camp {
         opening: settlement.opening, closing: settlement.closing, duplicate: !!settlement.duplicate },
       leftBehind,
       photosTaken: photos.length, photosLost: keptPhotos ? 0 : photos.length,
-      evidenceSold: evidenceSold.map((e) => ({ name: e.name, cryptid: e.cryptid, value: e.value, novelty: e.novelty })),
+      evidenceSold: evidenceSold.map((e) => ({ name: e.name, cryptid: e.cryptid, value: e.value, novelty: e.novelty, grade: e.gradeName, verdict: e.verdict, reason: e.reason })),
+      verification: verification.map((v) => ({ name: v.name, subject: v.subject, verdict: v.verdict, grade: v.grade, gradeName: v.gradeName, reason: v.reason, value: v.value, novelty: v.novelty, entitlement: v.entitlement, clip: v.clip })),
+      ceiling,
       evidenceLost: keptPhotos ? 0 : evidence.length,
       sold, bonus, bounties, bountyBonus, earned: total, moneyAfter: this.state.money, gear: { ...this.state.gear }, repGain, reputation: this.state.reputation, research: researchResult,
     };
@@ -207,9 +252,11 @@ export function huntSummary(h) {
   const lost = lostParts.length ? `${lostParts.join(' and ')} lost` : '';
   const why = { caught: 'Caught', dawn: 'Dawn broke', complete: 'Made it out', abandoned: 'Headed home', emergency: 'Evacuated' }[h.outcome] ?? h.outcome;
   const money = h.earned > 0 ? `+$${h.earned}` : 'no new earnings ($0)';
-  return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
-    ...(h.evidenceSold ?? []).map((e) => `  ${e.name} (${e.cryptid})${e.novelty < 1 ? ', repeat' : ''}: $${e.value}`),
+  return [`${why}${lost ? ` — ${lost}` : ''}: ${money}.`, ...(h.verification?.length ? verificationLines(h.verification)
+      : [...h.sold.map((s) => `  ${s.subject} photo, score ${s.score}: $${s.value}`),
+        ...(h.evidenceSold ?? []).map((e) => `  ${e.name} (${e.cryptid})${e.novelty < 1 ? ', repeat' : ''}: $${e.value}`)]),
     ...(h.bonus ? [`  Home before dawn: +$${h.bonus}`] : []),
+    ...(h.ceiling?.clipped ? [`  Attempt ceiling $${h.ceiling.T} reached: $${h.ceiling.clipped} over the cap not paid`] : []),
     ...(h.bounties ?? []).map((b) => `  Bounty claimed: ${b.title} (score ${b.minScore}+): +$${b.bonus}`), ...researchLines(h.research)].join('\n');
 }
 
@@ -246,4 +293,15 @@ export function showCampPanel(camp, root = document.querySelector('#overlay > di
 
 function safeStorage() {
   try { return globalThis.localStorage ?? null; } catch { return null; }
+}
+
+/** HQ verification lines (#99): every entry with its grade, verdict and reason, and what it paid. */
+export function verificationLines(list) {
+  return list.map((v) => {
+    const head = v.verdict === 'rejected' ? 'REJECTED' : `${v.gradeName}${v.verdict === 'ambiguous' ? ' (ambiguous)' : ''}`;
+    const clip = v.clip ? ` (ceiling: $${v.clip} not paid)` : '';
+    const paid = v.entitlement === 'duplicate' ? 'duplicate: $0' : v.entitlement === 'upgrade' ? `upgrade: +$${v.value}${clip}`
+      : v.value > 0 || v.clip ? `$${v.value}${v.novelty < 1 ? ` (new event x${v.novelty})` : ''}${clip}` : '$0';
+    return `  ${v.name}, ${v.subject}: ${head}, ${v.reason}: ${paid}`;
+  });
 }

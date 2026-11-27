@@ -10,7 +10,11 @@ export const CLUE_TYPES = Object.freeze({
   // #84 (GDD 4.2): disturbance and biological traces, and an ordinary-animal false lead.
   branch: { label: 'Snapped branch', lifetime: 600, fadeFraction: 0.2 },    // EV04 environmental disturbance
   scat: { label: 'Droppings', lifetime: 900, fadeFraction: 0.2 },           // EV06 biological sample
-  deerTrack: { label: 'Deer tracks', lifetime: 1e9, fadeFraction: 0, falseLead: true },  // GDD 4.4: ordinary animal sign
+  // Ordinary-animal sign (GDD 4.4/4.5, #99): real false leads. Labelled by what you see, never by
+  // what made them; the true source is a hidden tag that only HQ verification reads.
+  deerTrack: { label: 'Hoof prints', lifetime: 1e9, fadeFraction: 0, falseLead: true },
+  foxTrack: { label: 'Paw prints', lifetime: 1e9, fadeFraction: 0, falseLead: true },
+  owlFeather: { label: 'Feather', lifetime: 1e9, fadeFraction: 0, falseLead: true },
 });
 
 // Shared geometry (one per kind); materials are per clue so each can fade on its own.
@@ -133,4 +137,36 @@ export function buildDeerTrack() {
   return g;
 }
 
-export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack };
+/** A fox's print: four small oval toes over a heart-shaped pad, about 5 cm long (a neat single line). */
+export function buildFoxTrack() {
+  const g = new THREE.Group();
+  const m = mat(0x140d07);
+  const pad = new THREE.Mesh(unitDisc, m);
+  pad.rotation.x = -Math.PI / 2; pad.scale.set(0.026, 0.022, 1); pad.position.set(0, 0.012, 0.008);
+  g.add(pad);
+  for (const [x, z] of [[-0.016, -0.012], [0.016, -0.012], [-0.007, -0.026], [0.007, -0.026]]) {
+    const toe = new THREE.Mesh(unitDisc, m);
+    toe.rotation.x = -Math.PI / 2; toe.scale.set(0.009, 0.012, 1); toe.position.set(x, 0.012, z);
+    g.add(toe);
+  }
+  return g;
+}
+
+/** A great horned owl's flight feather: long, soft, barred brown and cream, lying on the litter. */
+export function buildOwlFeather() {
+  const g = new THREE.Group();
+  const light = mat(0xc9b48a, { emissive: 0x1a140a }), dark = mat(0x5a4128, { emissive: 0x0e0905 });
+  for (let i = 0; i < 7; i++) {
+    const band = new THREE.Mesh(unitDisc, i % 2 ? dark : light);
+    band.rotation.x = -Math.PI / 2;
+    const t = i / 6, w = 0.05 * Math.sin(Math.PI * (0.15 + 0.8 * t));
+    band.scale.set(w, 0.03, 1); band.position.set(0, 0.014 + i * 0.0005, -0.09 + i * 0.03);
+    g.add(band);
+  }
+  const quill = new THREE.Mesh(strand, mat(0xe8dcc0));
+  quill.scale.z = 0.24; quill.position.y = 0.017; g.add(quill);
+  g.rotation.y = 0.7;
+  return g;
+}
+
+export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack, foxTrack: buildFoxTrack, owlFeather: buildOwlFeather };
