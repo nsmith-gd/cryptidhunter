@@ -9,9 +9,9 @@ import { Health, HEALTH } from './health.js';
 // Z eats.
 
 export class Survival {
-  constructor({ player, input, map, heatSources, food }) {
+  constructor({ player, input, map, heatSources, food, lethalCold = false }) {
     this.player = player;
-    this.thermo = new Thermoregulation({ player, airTemp: map.environment?.airTemp ?? 6, heatSources, surfaceAt: map.surfaceAt });
+    this.thermo = new Thermoregulation({ player, airTemp: map.environment?.airTemp ?? 6, heatSources, surfaceAt: map.surfaceAt, lethal: lethalCold });
     this.nutrition = new Nutrition({ player, food, getCold: () => this.thermo.coldDeficit });
     // S08: the only damage path. onDeath is set by the hunt (health 0 ends it).
     this.health = new Health({ onDeath: (cause) => this.onDeath?.(cause) });
@@ -39,6 +39,8 @@ export class Survival {
   update(dt) {
     this.thermo.update(dt);
     this.nutrition.update(dt);
+    // Critical cold (ordinary expeditions): the shared health path, after the warnings (#89).
+    this.health.exposure('Hypothermia', THERMO.criticalDrain, dt, this.thermo.critical);
     this.health.update(dt);
     const hunger = this.nutrition.hungerDeficit * 0.5, cold = this.thermo.coldDeficit * 0.6;
     this.player.recoveryScale = Math.max(0.25, 1 - hunger - cold);

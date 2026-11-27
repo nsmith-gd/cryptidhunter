@@ -328,7 +328,10 @@ export class HuntLoop {
       lines.push(pad('Expenses (trip)', $(-d.expense)));
       if (d.charges || d.waived) lines.push(pad('Emergency charges', `${$(-d.charges)}${d.waived ? ` (${$(d.waived)} waived)` : ''}`));
       lines.push(pad('Losses', d.losses.length ? d.losses.join(', ') : 'none'));
-      lines.push(pad('Closing cash', $(d.closing)));
+      // Between-trip recovery (#89, GDD 9.3): coming home hurt costs a visible share of the trip.
+      const rec = this.recovery;
+      if (rec) lines.push(pad('Injury recovery', `${$(-rec.cents)} (${rec.severity} injury${rec.cents < rec.quoted ? `, ${$(rec.quoted - rec.cents)} waived` : ''})`));
+      lines.push(pad('Closing cash', $(d.closing - (rec?.cents ?? 0))));
     }
     // Research dossier (#101): milestones from this trip's field notes, and the career total.
     const res = this.settlement?.entry?.research;
