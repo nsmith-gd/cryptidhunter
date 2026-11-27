@@ -79,6 +79,9 @@ const c0 = await camp();
 check('night 1 opens at base camp with $250, the prep screen and nothing charged yet', c0.cash === 25000 && /EXPEDITION PREP/.test(c0.prep) && c0.overlay && c0.stage === 'briefing', { cash: c0.cash, intro, stage: c0.stage });
 await commit();
 await calm();
+await page.keyboard.press('KeyH'); await steps(2);
+const early = await page.evaluate(() => __game.hunt.hud.textContent);
+check('pressing H away from the van explains where the van is instead of doing nothing', /The van is \d+ m away/.test(early) && (await page.evaluate(() => __game.hunt.stage)) === 'search', early);
 // Find a clue and examine it, photograph Bigfoot (real E and camera buttons).
 const clue = await page.evaluate(() => {
   const g = __game, c = g.clues.clues.filter((q) => !q.found && q.y < 0.5)[0];
@@ -159,6 +162,20 @@ const c4 = await camp();
 await shot('10-base-camp-after-four-nights');
 check('after four nights: four hunts logged, four trips charged once each, every attempt settled, ledger consistent',
   c4.hunts === 4 && c4.open === 0 && c4.audit && (await page.evaluate(() => __game.camp.ledger.tx.filter((t) => t.kind === 'trip').length)) === 4, { hunts: c4.hunts, cash: c4.cash });
+
+// ---------------- Night 5: the other hunting ground ----------------
+await page.goto(URL.replace('map=forest', 'map=swamp'));
+await loadCamp();
+const s0 = await camp();
+check('night 5 in Black Water Swamp also starts at base camp with the same career', s0.hunts === 4 && /EXPEDITION PREP · Black Water Swamp/.test(s0.prep), { prep: s0.prep.split('\n')[0] });
+await commit();
+await page.evaluate(() => __game.hunt.onPhoto({ subject: __game.hunt.target, distance: 12, score: 55, source: 'handheld camera' }));
+await steps(2);
+await toVan();
+await driveOut();
+const r5 = await page.evaluate(() => ({ title: __game.hunt.endTitle.textContent, cls: __game.camp.lastHunt?.outcomeClass, target: __game.hunt.target }));
+await shot('11-swamp-results');
+check('a swamp night plays through to the results screen too', /HUNT COMPLETE/.test(r5.title) && r5.cls === 'successful', r5);
 
 check('no page errors across the whole session', errors.length === 0, errors);
 await browser.close();
