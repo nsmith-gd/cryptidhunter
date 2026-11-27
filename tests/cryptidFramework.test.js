@@ -43,7 +43,9 @@ test('stimulus memory: a heard cue is remembered with distance-based uncertainty
 
 test('awareness stages climb and fall: unaware -> suspicious/investigating -> identified/engaged -> lost -> reset -> unaware', () => {
   const { player, m, run } = world();
-  const g = m.spawn(getSpecies('gouger'), 0, -10);
+  // The shared ladder, on a Gouger that doesn't stalk (this 60 m field keeps you inside its stalking range).
+  const base = getSpecies('gouger');
+  const g = m.spawn(makeProfile({ ...base, id: 'gougerNoStalk', stalk: null, actions: base.actions.filter((a) => a !== 'stalk') }), 0, -10);
   player.position.set(25, 0, 25);
   run(g, 1);
   assert.equal(g.stage, 'unaware');
