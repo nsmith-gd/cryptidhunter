@@ -131,3 +131,66 @@ test('nothing in the world, nothing to follow: sealed food in a pack is invisibl
   assert.equal(tr.state, 'idle');
   assert.ok(pack.food === 3);
 });
+
+// ---- #151 routine memory: witnessed routes and camps -------------------------------------------
+
+// Walk a route past it while it watches (one sample every 3 s, 5 m per sample).
+const walkSeen = (m, pts) => { for (const p of pts) { m.sampleSeen(p); m.update(ROUTINE.every); } };
+const routeA = [0, 1, 2, 3, 4, 5].map((i) => ({ x: i * 5, z: 0 }));          // east along the creek
+const routeB = [0, 1, 2, 3, 4, 5].map((i) => ({ x: 0, z: -i * 5 }));         // north up the ridge
+
+test('it learns the legs of a route it watched you walk; again raises confidence (bounded at 1)', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA);
+  const once = m.predictNext(10, 0);
+  walkSeen(m, routeA); walkSeen(m, routeA); walkSeen(m, routeA); walkSeen(m, routeA);
+  const often = m.predictNext(10, 0);
+  assert.ok(once && Math.abs(once.x - 15) < 2 && Math.abs(once.z) < 2, JSON.stringify(once));
+  assert.ok(often.confidence > once.confidence && often.confidence <= 1);
+});
+
+test('it cannot anticipate a route it never saw you use', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA); walkSeen(m, routeA);
+  assert.equal(m.predictNext(0, -10), null);                                  // on route B: nothing
+  assert.ok(m.predictNext(5, 0));                                             // on route A: yes
+});
+
+test('it waits only on a route it has watched you use twice or more', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA);
+  assert.equal(m.ambushSpot(), null);
+  walkSeen(m, routeA);
+  const a = m.ambushSpot();
+  assert.ok(a && a.count >= 2 && Math.abs(a.z) < 2 && a.x >= 0 && a.x <= 25, JSON.stringify(a));
+});
+
+test('route memories fade and are forgotten', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA); walkSeen(m, routeA);
+  const c0 = m.predictNext(5, 0).confidence;
+  m.update(ROUTINE.leg.ttl / 2);
+  const c1 = m.predictNext(5, 0, 0).confidence;
+  m.update(ROUTINE.leg.ttl);
+  assert.ok(c1 < c0);
+  assert.equal(m.predictNext(5, 0, 0), null);
+  assert.equal(m.legs.length, 0);
+});
+
+test('a gap in watching (it lost sight of you) makes no leg across it', () => {
+  const m = new RoutineMemory();
+  m.sampleSeen({ x: 0, z: 0 }); m.update(30);                                 // 30 s unseen
+  m.sampleSeen({ x: 40, z: 0 });
+  assert.equal(m.legs.length, 0);
+});
+
+test('camps it saw are remembered (longer than a route sample), bounded, and fade', () => {
+  const m = new RoutineMemory();
+  m.observeCamp(12, 12, 'tent'); m.observeCamp(12.5, 12, 'tent');
+  const c = m.anticipate(12, 12);
+  assert.equal(c.kind, 'camp'); assert.equal(c.what, 'tent'); assert.ok(c.confidence <= 1);
+  m.update(ROUTINE.ttl.seen + 1);
+  assert.ok(m.anticipate(12, 12));                                             // still there after a route spot would be gone
+  m.update(ROUTINE.ttl.camp);
+  assert.equal(m.anticipate(12, 12), null);
+});
