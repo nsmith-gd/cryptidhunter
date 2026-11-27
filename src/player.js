@@ -153,8 +153,8 @@ export class Player {
     return Math.max(0, this.noise * (1 - d / this.noiseRadius));
   }
 
-  /** GDD 2.8: stamina_capacity = base * max(0.50, 1 - fatigue - injury) (no fatigue system yet). */
-  get staminaCap() { return Math.max(0.5, 1 - this.injuryPenalty); }
+  /** GDD 2.8: stamina_capacity = base * max(0.50, 1 - fatigue - injury) (fatigue: S09, #104). */
+  get staminaCap() { return Math.max(0.5, 1 - (this.fatiguePenalty ?? 0) - this.injuryPenalty); }
 
   updateStamina(dt, moving) {
     if (this.stamina > this.staminaCap) this.stamina = this.staminaCap;

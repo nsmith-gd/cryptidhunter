@@ -16,6 +16,7 @@ export const THERMO = {
   approach: 1 / 90,         // fraction of the gap to equilibrium closed per second (slow body response)
   wetShallow: 9,            // wetness per second wading
   wetDeep: 22,              // per second in deep water
+  wetRain: 2.2,             // per second out in heavy rain (#104)
   dryAir: 0.35,             // per second drying in night air
   dryWarm: 4,               // per second by a fire / indoors
   insulation: 1.0,          // everyday jacket (B01): the L01 kit
@@ -35,7 +36,8 @@ export class Thermoregulation {
    * airTemp: night air °C for this map. heatSources: () => [{ x, z, r?, name }] (fire, cabin, tent, van).
    * surfaceAt: (x, z, y) => 'dry' | 'shallow' | 'deep'.
    */
-  constructor({ player, airTemp = 6, heatSources = () => [], surfaceAt = null, insulation = THERMO.insulation, lethal = false }) {
+  constructor({ player, airTemp = 6, heatSources = () => [], surfaceAt = null, insulation = THERMO.insulation, lethal = false, rain = () => 0 }) {
+    this.rain = rain;              // () => 0..1 rain reaching you (weather, #104); shelter makes it 0
     this.lethal = lethal;          // ordinary expedition: critical cold can hurt you (not the tutorial)
     this.floor = lethal ? THERMO.lethalFloor : THERMO.floor;
     this.player = player;
@@ -74,7 +76,11 @@ export class Thermoregulation {
     // Wetness.
     if (this.inWater === 'deep') this.wetness += THERMO.wetDeep * dt;
     else if (this.inWater === 'shallow') this.wetness += THERMO.wetShallow * dt;
-    else this.wetness -= (heat ? THERMO.dryWarm : THERMO.dryAir) * dt;
+    else {
+      this.rainExposure = this.rain();
+      if (this.rainExposure > 0) this.wetness += THERMO.wetRain * this.rainExposure * dt;   // out in the rain: soaking
+      else this.wetness -= (heat ? THERMO.dryWarm : THERMO.dryAir) * dt;
+    }
     this.wetness = Math.max(0, Math.min(100, this.wetness));
 
     // Equilibrium temperature: cold air pulls you down, insulation (worse when wet) holds it,
@@ -100,6 +106,7 @@ export class Thermoregulation {
     if (this.critical) w.push({ id: 'hypothermia', level: 2, text: 'HYPOTHERMIC: you are losing health. Get out of the water and somewhere warm now' });
     else if (this.lethal && this.core < THERMO.hypothermiaSoon) w.push({ id: 'hypothermia', level: 2, text: 'Dangerously cold: soon you\'ll start losing health. Get warm now' });
     if (this.wetness >= 30 && !this.nearHeat) w.push({ id: 'wet', level: this.wetness >= 70 ? 2 : 1, text: 'Wet clothing: losing heat faster' });
+    if (this.rainExposure > 0) w.push({ id: 'rain', level: 1, text: 'Rain: soaking you. Get under shelter (a tent, the cabin, the van)' });
     if (this.core < THERMO.coldBelow) w.push({ id: 'cold', level: this.core < THERMO.severeBelow ? 2 : 1,
       text: `${this.core < THERMO.severeBelow ? 'Very cold' : 'Cold'}: shivering, stamina recovers slower. Get dry and find a fire` });
     else if (this.core < THERMO.comfortLow) w.push({ id: 'chilly', level: 0, text: 'Chilly: keep moving or find warmth' });

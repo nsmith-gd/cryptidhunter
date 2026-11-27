@@ -28,7 +28,8 @@ export class FieldKit {
   constructor({ scene, camera, player, flashlight, photo = null, thermo = () => null, evidence = null, input = null, notify = () => {} }) {
     this.scene = scene; this.camera = camera; this.player = player; this.flashlight = flashlight; this.photo = photo;
     this.thermo = thermo; this.evidence = evidence; this.notify = notify;
-    this.carried = { binoculars: 0, whistle: 0, fieldRecorder: 0, bivy: 0, dryClothes: 0, fireKit: 0 };
+    this.carried = { binoculars: 0, whistle: 0, fieldRecorder: 0, bivy: 0, dryClothes: 0, fireKit: 0, tent: 0 };
+    this.camp = null;            // the field camp (#104): tent, sleep; also says when rain stops a fire
     this.binocularsOn = false;
     this.recording = false;
     this.recordings = [];
@@ -71,6 +72,7 @@ export class FieldKit {
     this.player.noiseBurst = { level: w.noise, radius: w.radius, left: w.seconds };
     this.playTone();
     this.notify('FWEEEET! The whistle carries a long way: anything out there heard that.');
+    this.camp?.cue({ x: this.player.position.x, z: this.player.position.z, what: 'a whistle' });
     this.record('whistle', 'blast');
     return true;
   }
@@ -160,6 +162,8 @@ export class FieldKit {
     if (t?.inWater && t.inWater !== 'dry') { this.notify('Not in the water.'); return false; }
     const p = this.player.position, yaw = this.player.yaw;
     const x = p.x - Math.sin(yaw) * 1.4, z = p.z - Math.cos(yaw) * 1.4, y = groundAt(x, z);
+    const wet = this.camp?.fireBlocked({ x, z });   // rain (#104): only under the lee of your tent
+    if (wet) { this.notify(wet); return false; }
     const g = new THREE.Group();
     g.name = 'campfire-small';
     for (let i = 0; i < 4; i++) {
