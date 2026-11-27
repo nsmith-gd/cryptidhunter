@@ -42,6 +42,7 @@ import { ClueTrails } from './clues/clueTrail.js';
 import { FieldKit } from './gear/fieldKit.js';
 import { Equipment, WEAR } from './gear/condition.js';
 import { ScentField, SCENT_WORLD } from './cryptids/scent.js';
+import { HowlerProxy } from './cryptids/howlerProxy.js';
 import { showEquipmentPanel } from './gear/equipmentPanel.js';
 import { FieldCamp } from './survival/fieldCamp.js';
 import { Weather } from './survival/weather.js';
@@ -306,7 +307,7 @@ const noiseRing = new NoiseRing(scene, player);
 // Scent traces (#107): food you open and blood from a bleeding wound leave real traces the wind
 // carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
 // east at 1.5 m/s (?wind=x,z,speed overrides for tests). Carcasses use the same field (emit 'carcass').
-const scent = new ScentField();
+const scent = new ScentField({ isWet: (x, z) => { const w = map.surfaceAt?.(x, z, 0); return w === 'shallow' || w === 'deep'; } });   // #143: water carries scent off
 { const w = new URLSearchParams(location.search).get('wind')?.split(',').map(Number); if (w?.length === 3) scent.setWind({ x: w[0], z: w[1], speed: w[2] }); }
 SCENT_WORLD.field = scent;
 {
@@ -434,6 +435,10 @@ dread.audio = () => dreadAudio;   // checks: the breathing/heartbeat the player 
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
+// Scent follower (#143): ?howler (or the map's howler spawn) brings a greybox predator that hunts by
+// nose alone, following real scent trails (blood, food, carcasses) through the world.
+const howlerAt = map.spawns?.howler ?? (new URLSearchParams(location.search).has('howler') ? { x: player.position.x - 20, z: player.position.z - 20 } : null);
+const howler = howlerAt ? new HowlerProxy({ scene, field: scent, x: howlerAt.x, z: howlerAt.z }) : null;
 // Igopogo (#136, L03 Lake Simcoe): a proxy in the lake that surfaces on a seeded cycle and dives
 // when the shore is noisy (you, a fire, pitching a tent). It never leaves the water.
 const igopogo = map.surfacing ? new Igopogo({ scene, zones: map.surfacing, seed: getSeed(), waterY: map.waterHeight ?? 0 }) : null;
@@ -784,6 +789,7 @@ function simulateOnce(dt, extra = false) {
   batteries.update(dt);
   bait.update(dt);
   cryptids.update(dt);
+  howler?.update(dt);
   if (igopogo) {
     const P = player.position;
     igopogo.update(hunt.elapsed, dt, (zone) => Math.max(
@@ -904,7 +910,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { howler, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {
