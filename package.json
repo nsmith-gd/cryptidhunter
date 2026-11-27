@@ -57,6 +57,7 @@
     "check:t71": "vite build && node tools/check-t71.mjs",
     "check:t75": "vite build && node tools/check-t75.mjs",
     "check:t74": "vite build && node tools/check-t74.mjs",
+    "check:t114": "vite build && node tools/check-t114.mjs",
     "check:t108": "vite build && node tools/check-t108.mjs",
     "check:t105": "vite build && node tools/check-t105.mjs",
     "check:t104": "vite build && node tools/check-t104.mjs",

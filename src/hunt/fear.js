@@ -111,8 +111,10 @@ export class Fear {
 
     const lamp = this.lampLight(), torch = this.torchOn(), safe = this.inSafeZone();
     const dark = !torch && lamp < 0.3 && !safe; // inside a tent/cabin/van the dark isn't frightening
-    if (dark) { rate += FEAR.darkRise; reasons.push('dark'); }
-    if (near > 0) { rate += FEAR.nearRise * near * near; reasons.push('cryptid near'); }
+    // Dread (#114) makes fear build faster as the night wears on (dreadMul 1 .. 1.8).
+    const dm = this.dreadMul ?? 1;
+    if (dark) { rate += FEAR.darkRise * dm; reasons.push('dark'); }
+    if (near > 0) { rate += FEAR.nearRise * near * near * dm; reasons.push('cryptid near'); }
     if (near === 0) {
       if (safe) { rate -= FEAR.safeFall; reasons.push('safe'); }
       else if (lamp >= 0.3) { rate -= FEAR.lampFall * lamp; reasons.push('lamplight'); }

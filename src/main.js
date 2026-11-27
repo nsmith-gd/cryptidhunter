@@ -61,6 +61,7 @@ import { TrailCameras } from './gear/trailCamera.js';
 import { AudioLures, synthWhoop } from './gear/audioLure.js';
 import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
+import { Dread, buildDreadAudio } from './hunt/dread.js';
 import { Survival } from './survival/survival.js';
 import { EvidenceKit } from './evidence/evidence.js';
 import { spawnDeerTracks, spawnFoxTracks, spawnOwlFeathers } from './clues/deerTracks.js';
@@ -388,6 +389,25 @@ journalUI.dossier = () => {
 };
 hunt.journal = journal;
 
+// Dread (#114): the slow build under fear. Time out alone, distance from the van, the dark, every
+// fresh sign and a share of every scare push it up; only a lit safe place eases it a little. It
+// closes the fog in, kills the night chorus under a rising heartbeat, makes fear build faster,
+// stutters the torch at its worst, and makes the creature bolder (higher escalation level).
+const dread = new Dread({ player, fear, flashlight, scene, half: map.bounds ?? 150,
+  getHome: () => HUNT.exit,
+  getThreats: () => cryptids.cryptids,
+  isSafe: () => fear.inSafeZone() || fear.lampLight() > 0.5 || !!fieldCamp?.insideTent,
+  notify: (m) => m && photo.toast(m),
+  vr: () => !!renderer.xr?.isPresenting });
+{ const scare = fear.scare.bind(fear); fear.scare = (amount, why) => { dread.onScare(amount); return scare(amount, why); }; }
+{ const record = journal.record.bind(journal);
+  journal.record = (clue) => { const e = record(clue); if (e && !['deerTrack', 'foxTrack', 'owlFeather'].includes(clue.type)) dread.onClue(); return e; }; }
+let dreadAudio = null, dreadAudioAt = 0;
+addEventListener('pointerdown', () => {      // browsers only start sound after a click
+  if (dreadAudio || new URLSearchParams(location.search).has('mute')) return;
+  try { const ac = new (globalThis.AudioContext ?? globalThis.webkitAudioContext)(); dreadAudio = buildDreadAudio(ac); dreadAudio.set(dread.level); } catch { /* no audio */ }
+});
+
 // Level flow: spawn this hunt's Bigfoot. On maps with spawn zones (the forest) it picks where it
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
@@ -702,6 +722,7 @@ function simulateOnce(dt, extra = false) {
   survival.update(dt);
   updateScent(dt);
   fear.update(dt);
+  dread.update(dt, { active: hunt.stage === 'search' || hunt.stage === 'extract' });
   if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
   photo.update(dt);
   flashlight.update(dt);
@@ -758,6 +779,8 @@ function present(dt) {
   noiseRing.update();
   clueFinder.update();
   journalUI.update(dt);
+  dread.render();
+  if (dreadAudio) { dreadAudio.tick(); if ((dreadAudioAt -= dt) <= 0) { dreadAudioAt = 0.5; dreadAudio.set(dread.level); } }
   aiDebug.update(camera);
   night?.update(player.position, dt);
   water?.update(dt);
@@ -774,6 +797,7 @@ const clock = new THREE.Clock();
 // cause, effect and recovery, and warns (SOON) before any penalty applies (NOW). It also feeds the
 // HUD warning list, so there's one list, not one per system. The hunt pauses while it's open.
 const status = new StatusModel({ player, survival, fear, flashlight });
+status.dread = dread;   // #114: dread shows on the status screen
 const statusScreen = new StatusScreen({ model: status, input });
 survival.setWarningSource(() => status.hudWarnings());
 
@@ -815,7 +839,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { sponsorSurvey, scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {

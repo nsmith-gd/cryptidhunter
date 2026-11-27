@@ -132,6 +132,14 @@ export class StatusModel {
       }
     }
 
+    const dr = this.dread;   // #114: the slow build of the night
+    if (dr && dr.stage >= 1) {
+      add({ id: 'dread', stage: 'now', severity: dr.stage >= 3 ? 2 : dr.stage >= 2 ? 1 : 0, name: dr.stageName,
+        cause: dr.depth() > 0.35 ? 'Deep in the woods, a long time out' : 'A long time out in the dark',
+        effect: ['', 'The woods have gone quiet; fear comes quicker', 'The fog is closing in and it is getting bolder', 'You can barely see, your torch stutters and it may charge'][dr.stage],
+        fix: 'Head back toward the van or a lit place. It only eases a little' });
+    }
+
     if (p.exhausted) {
       add({ id: 'winded', stage: 'now', severity: 1, name: 'Winded', cause: 'Sprinted until out of breath',
         effect: "Can't sprint until you catch your breath", fix: 'Walk or stand still to recover' });
@@ -184,6 +192,7 @@ export class StatusModel {
       a.push({ id: 'wetness', name: 'Wetness', value: t.wetness / 100, text: `${Math.round(t.wetness)}%${t.wetness < 5 ? ' (dry)' : ''}` });
       if (s.fatigue) a.push({ id: 'fatigue', name: 'Fatigue', value: s.fatigue.value / 100, text: `${Math.round(s.fatigue.value)} (${s.fatigue.band}${s.fatigue.asleep ? ', asleep' : ''}) · low is good` });
     }
+    if (this.dread) a.push({ id: 'dread', name: 'Dread', value: this.dread.level, text: `${Math.round(this.dread.value)} (${this.dread.stageName.toLowerCase()})` });
     if (f) a.push({ id: 'fear', name: 'Fear', value: f.value / 100, text: `${Math.round(f.value)} (${f.value > 70 ? 'terrified' : f.value > FEAR.swayStart ? 'scared' : f.value > STATUS.fearSoon ? 'uneasy' : 'calm'})` });
     if (fl) a.push({ id: 'battery', name: 'Torch battery', value: fl.battery, text: `${Math.round(fl.battery * 100)}% · ${this.torchMinutes()} of light · ${fl.spares} spare${fl.spares === 1 ? '' : 's'}` });
     return a;
