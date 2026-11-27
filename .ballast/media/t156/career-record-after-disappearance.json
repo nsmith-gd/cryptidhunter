@@ -1,0 +1,23 @@
+{
+ "committed": true,
+ "disappeared": {
+  "attemptId": "A1",
+  "at": 50.1,
+  "payout": 0
+ },
+ "attempts": [
+  {
+   "attemptId": "A1",
+   "event": "committed",
+   "at": 0
+  },
+  {
+   "attemptId": "A1",
+   "event": "disappeared",
+   "at": 50.1
+  }
+ ],
+ "ordinaryDeaths": 0,
+ "extractions": 0,
+ "caseComplete": true
+}
