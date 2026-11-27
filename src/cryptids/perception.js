@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SCENT_WORLD } from './scent.js';
+import { RoutineMemory } from './routine.js';
 
 // Cryptid senses (L1). Each tick turns what the cryptid can hear and see into an
 // awareness meter (0..1). Hearing reads the player's noise and distance; sight reads a
@@ -68,6 +70,8 @@ export class Perception {
     this.lastSeen = null;
     this.time = 0;
     this.memory = [];        // stimulus records (see MEMORY)
+    this.routine = new RoutineMemory();   // where it has seen you / found your traces (#107)
+    this.scentLevel = 0; this.lastScent = null;
     this.stage = 'unaware';
     this.stageSince = 0;
     this.stageLog = [];      // [{ t, from, to }] newest last
@@ -200,6 +204,22 @@ export class Perception {
       this.remember(this.sightLevel > 0 ? 'visual' : 'light', 'player', p.x, p.z, Math.max(this.sightLevel, this.beamLevel), 0.5);
       this.lastPlayerCue = this.time;
     }
+    // Scent (#107): the strongest real trace the wind brings to its nose (never the player's pack).
+    this.scentLevel = 0;
+    const field = SCENT_WORLD.field;
+    if (field) {
+      const sm = field.smell(x, z, c.smell ?? 1);
+      if (sm && sm.level > (c.smellThreshold ?? 0.08)) {
+        const t = sm.trace;
+        this.scentLevel = sm.level;
+        this.lastScent = { x: t.x, z: t.z, kind: t.kind, id: t.id, t: this.time, level: sm.level, expiresIn: field.expiresIn(t) };
+        this.remember('scent', t.kind, t.x, t.z, sm.level, 1.5 + Math.hypot(t.x - x, t.z - z) * 0.1);
+        if (t.source === 'player') this.routine.observe(t.kind, t.x, t.z, 'trace');   // inferred from a trace you left
+      }
+    }
+    // Routine (#107): where it has actually watched you go.
+    this.routine.update(dt);
+    if (this.sightLevel > 0) this.routine.sampleSeen(p);
     this.forgetExpired();
 
     const stimulus = Math.max(this.hearLevel, this.sightLevel, this.beamLevel);
