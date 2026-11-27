@@ -65,9 +65,13 @@ import { applyUpgrades, showShopPanel } from './hunt/shop.js';
 import { formatCAD } from './economy/ledger.js';
 import { Loadout, showLoadoutPicker } from './gear/loadout.js';
 import { FieldMap } from './nav/fieldMap.js';
-import { resolveMap, showMapPicker, TARGET_BY_MAP, MAP_CHOICES } from './hunt/mapSelect.js';
+import { resolveMap, showMapPicker, TARGET_BY_MAP, MAP_CHOICES, unlockContext } from './hunt/mapSelect.js';
+import { fieldRecords, SPECIES } from './research/fieldRecords.js';
+import { MILESTONE_NAMES } from './research/dossier.js';
 import { Expedition, EXPEDITION, OUTCOMES, manifestText } from './hunt/expedition.js';
 import { renderAlbum } from './hunt/album.js';
+import { Supplier, showSupplierPanel } from './hunt/supplier.js';
+import { setKit } from './gear/pack.js';
 import { EvidenceArchive, advance } from './evidence/photoEvidence.js';
 import { BaitManager, BAIT } from './gear/bait.js';
 import { PixelPipeline } from './render/pixelPipeline.js';
@@ -145,7 +149,7 @@ const leftBehindNow = () => [
 // Photo evidence you've brought home, kept across hunts for review (and HQ verification / sale) (#85).
 const evidenceArchive = new EvidenceArchive(camp.saveService);
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: huntTarget,
-  onStart: () => expedition?.commit(),
+  onStart: () => { expedition?.commit(); supplier.commit(expedition?.attemptId ?? null); },   // purchases and rentals are final once you set off (#88)
   manifest: () => {
     const carried = evidence.carried;
     const est = carried.length ? `${carried.length} item${carried.length > 1 ? 's' : ''}` : null;
@@ -159,10 +163,15 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       charges: outcome === 'emergency' ? [{ id: 'evac', cents: EXPEDITION.emergencyCents, memo: 'Emergency evacuation' }] : [],
       outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      // Research (#101): this attempt's field notes for the target's dossier (kept only if extracted).
+      mapId, research: fieldRecords({ target: huntTarget, journalEntries: journal.entries, photos: hunt.photos,
+        evidence: evidence.items.filter((i) => i.stage !== 'lost'), knocks: knocks.log, events: cryptidEvents }),
       evidence: evidence.settle(outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency'),
       gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
     });
     expedition?.settled();
+    // Rented gear goes back after the trip (#88): deposit returned, or kept if it was lost out there at dawn.
+    hunt.rentalReturns = supplier.returnRentals({ lost: outcome === 'dawn' });
     // Photo evidence on the roll: home with you (extracted, archived for review) or lost with the camera.
     const extracted = outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency';
     advance(photo.records, extracted ? 'extracted' : 'lost', hunt.elapsed);
@@ -183,7 +192,7 @@ showBountyPanel(camp.bounties);   // #45: offers for specific photos, paid once 
 // End-of-hunt photo album: every frame shot this hunt (lost if you were caught).
 hunt.album = (outcome) => renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: outcome === 'caught' || outcome === 'dawn', target: huntTarget });
 hunt.screen.style.overflowY = 'auto';
-showMapPicker({ current: mapId, reputation: camp.state.reputation ?? 0, onPick: (id) => {
+showMapPicker({ current: mapId, ctx: unlockContext(camp), onPick: (id) => {
   camp.state.map = id; camp.save();
   location.href = location.pathname;            // reload into the chosen map (drops any ?map=)
 } });
@@ -288,6 +297,21 @@ const trailReader = new TrailReader({ clues, clueTrails, journal, player });
 // van: the way back is read from the map, the compass, the landmarks and the trail signs.
 const fieldMap = new FieldMap({ map, player, input, home: 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : 'PINE HOLLOW' });
 const journalUI = new JournalUI(journal, clueFinder);
+// Species dossier in the field journal (#101): milestones banked from earlier extracted trips,
+// career credibility, and what the next milestone needs. Tonight's notes count once you get out.
+journalUI.dossier = () => {
+  const id = SPECIES[huntTarget] ?? 'bigfoot', sp = camp.state.research?.species?.[id];
+  const ms = ['lead', 'located', 'documented', 'characterized', 'confirmed'];
+  const have = (m) => (m === 'lead' ? true : !!sp?.milestones?.[m]);
+  const next = ms.find((m) => !have(m));
+  const need = { located: 'a clearly identifying sign (e.g. a huge footprint), or two weaker signs on different trips',
+    documented: 'a grade 2+ record of the target (a photo scoring 40+, or bagged physical evidence)',
+    characterized: 'two different behaviours observed (a knock exchange, a warning, a charge...)',
+    confirmed: 'strong evidence from two trips and two kinds of evidence' }[next];
+  return `<b>DOSSIER · ${huntTarget}</b> · credibility ${camp.state.research?.credibility ?? 0}<br>` +
+    ms.map((m) => `${have(m) ? '✓' : '·'} ${MILESTONE_NAMES[m]}`).join(' &nbsp; ') +
+    (next ? `<br><i>Next: ${MILESTONE_NAMES[next]} needs ${need}. Tonight's notes count once you get back to the van and drive out.</i>` : '');
+};
 hunt.journal = journal;
 
 // Level flow: spawn this hunt's Bigfoot. On maps with spawn zones (the forest) it picks where it
@@ -354,7 +378,7 @@ const urlLoadout = new URLSearchParams(location.search).get('loadout')?.split(',
 const qs = new URLSearchParams(location.search);
 const urlPack = qs.get('pack')?.split(',').filter(Boolean);
 const getFood = () => survival.nutrition.food;
-// Field kit (#87): binoculars, whistle, field recorder, headlamp, emergency bivy, dry clothes, fire kit.
+// Field kit (#87): binoculars, whistle, field recorder, emergency bivy, dry clothes, fire kit.
 fieldKit = new FieldKit({ scene, camera, player, flashlight, photo, evidence, input, thermo: () => survival.thermo, notify: (m) => photo.toast(m) });
 let knocksHeard = 0;
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
@@ -372,6 +396,11 @@ const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: lo
 // Shop (#46): buy gear and permanent upgrades at base camp, before you set off. Upgrades are
 // saved with camp and applied to the camera and torch at the start of every hunt.
 applyUpgrades(camp, { photo, flashlight });
+// Supplier (#88): catalogue gear you own or rent changes this hunt through the systems it affects
+// (pack and worn mass, pace on rough ground, insulation, torch beam, camera lens).
+const supplier = new Supplier(camp);
+const applyGear = () => supplier.apply({ player, thermo: survival.thermo, flashlight, photo, setKit });
+applyGear();
 const shop = showShopPanel(camp, {
   canBuy: () => hunt.stage === 'briefing',
   onChange: ({ kind, key }) => {
@@ -383,11 +412,24 @@ const shop = showShopPanel(camp, {
     refreshMoney();
   },
 });
+const supplierPanel = showSupplierPanel(supplier, {
+  canTrade: () => hunt.stage === 'briefing',
+  onChange: ({ act, ok }) => {
+    if (!ok) return;
+    // Taking gear back out of the kit: reload the camp so its effects are gone too (nothing is lost, all saved).
+    if (act === 'undo' || act === 'sell' || act === 'cancel') { camp.save(); location.reload(); return; }
+    applyGear();
+    loadout.setSlots(loadout.slots);
+    picker?.refresh?.();
+    refreshMoney();
+  },
+});
 /** Every money readout on the start screen shows the ledger's cash right now. */
 function refreshMoney() {
   const cp = document.getElementById('camp-panel');
   if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\$[\d.]+/, `BASE CAMP  ·  ${formatCAD(camp.ledger.cash)}`);
   shop?.render?.();
+  supplierPanel?.render?.();
   expedition?.render();
 }
 // Prep panel (#98): plan numbers and capabilities, and the one COMMIT button that pays for the trip.
@@ -625,4 +667,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { fieldKit, expedition, evidenceArchive, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { fieldKit, expedition, evidenceArchive, supplier, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

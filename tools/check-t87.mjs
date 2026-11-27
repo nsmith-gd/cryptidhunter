@@ -1,7 +1,7 @@
 // Field kit (#87). Run: npm run check:t87 [outDir]
 // Buys the new gear at the base-camp shop (real buttons), packs it, commits a Pine Hollow hunt and
 // uses every item with its real key: binoculars (O), signal whistle (Y), field recorder (P),
-// headlamp (I), and from quick slots with Q: emergency bivy, dry clothes, fire kit. Checks each
+// and from quick slots with Q: emergency bivy, dry clothes, fire kit. Checks each
 // one's effect, and that a recording sells at base camp after driving out.
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
@@ -39,17 +39,17 @@ await page.goto(`http://localhost:${PORT}/`);
 await page.evaluate(() => localStorage.clear());
 await load();
 await page.evaluate(() => { __game.camp.state.money = 400; __game.camp.save(); __game.shop.render(); });
-for (const k of ['binoculars', 'fieldRecorder', 'headlamp', 'bivy', 'fireKit']) await page.click(`#shop-panel button[data-kind="gear"][data-key="${k}"]`);
+for (const k of ['binoculars', 'fieldRecorder', 'bivy', 'fireKit']) await page.click(`#shop-panel button[data-kind="gear"][data-key="${k}"]`);
 const shop = await page.evaluate(() => ({ gear: { ...__game.camp.state.gear }, cash: __game.camp.state.money, text: document.getElementById('shop-panel').innerText }));
 await page.screenshot({ path: `${out}/01-shop-field-kit.png` });
 check('the shop sells the field kit at GDD prices; durable items are bought once (OWNED); the starter kit has dry clothes and a whistle',
-  shop.gear.binoculars === 1 && shop.gear.fieldRecorder === 1 && shop.gear.headlamp === 1 && shop.gear.bivy === 1 && shop.gear.fireKit === 6
-  && shop.gear.dryClothes >= 1 && shop.gear.whistle >= 1 && shop.cash === 400 - 45 - 75 - 45 - 22 - 12 && /OWNED/.test(shop.text), shop);
+  shop.gear.binoculars === 1 && shop.gear.fieldRecorder === 1 && shop.gear.bivy === 1 && shop.gear.fireKit === 6
+  && shop.gear.dryClothes >= 1 && shop.gear.whistle >= 1 && shop.cash === 400 - 45 - 75 - 22 - 12 && /OWNED/.test(shop.text), shop);
 const again = await page.evaluate(() => { const before = __game.camp.state.money; document.querySelector('#shop-panel button[data-key="binoculars"]').click(); return { before, after: __game.camp.state.money }; });
 check('buying binoculars twice is refused', again.before === again.after, again);
 
 // ---- Hunt 1: the hotkey items ----
-await load('&loadout=binoculars,whistle,fieldRecorder,headlamp');
+await load('&loadout=binoculars,whistle,fieldRecorder');
 await go();
 const fov0 = await page.evaluate(() => __game.camera.fov);
 await page.keyboard.press('KeyO'); await steps(5);
@@ -84,14 +84,6 @@ const rec = await page.evaluate(() => __game.evidence.items.filter((i) => i.type
 await knockAt(85); await steps(2);
 const recFar = await page.evaluate(() => __game.fieldKit.recordings.map((r) => r.quality));
 check('P records: a wood knock 30 m away becomes an acoustic recording (EV07) only while recording; further away, lower quality', ev0 === 0 && rec.length === 1 && rec[0].ev === 'EV07' && rec[0].q > 0.4 && (recFar.length === 1 || recFar[1] < rec[0].q), { ev0, rec, recFar });
-
-// Headlamp: wider, shorter, slower drain.
-const lamp0 = await page.evaluate(() => { const L = __game.flashlight.light; return { angle: L.angle, distance: L.distance, life: __game.flashlight.batteryLife }; });
-await page.keyboard.press('KeyI'); await steps(5);
-const lamp1 = await page.evaluate(() => { const L = __game.flashlight.light; return { angle: L.angle, distance: L.distance, life: __game.flashlight.batteryLife, on: __game.flashlight.on }; });
-await shot('03-headlamp');
-check('I switches to the headlamp: wider beam, shorter reach, longer battery life', lamp1.on && lamp1.angle > lamp0.angle && lamp1.distance < lamp0.distance && lamp1.life > lamp0.life, { lamp0, lamp1 });
-await page.keyboard.press('KeyI'); await steps(2);
 
 // Drive out: the recording sells.
 await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { groundAt } from '../maps/ground.js';
 
+// (The C05 headlamp is worn gear from the base-camp supplier, #88.)
 // Field kit (#87): the GDD's personal gear for the early levels (01-03) that was not in the game
 // yet, each with use and effect in a Pine Hollow hunt. All are loadout items (quick slot or pack,
 // hotkey or Q), bought at the base-camp shop, and weigh what the catalogue says.
@@ -10,8 +11,6 @@ import { groundAt } from '../maps/ground.js';
 //                             look, close ones are startled); also tells you where you are
 //   F05 Field recorder    P   record while you listen: whoops and wood knocks in range become an
 //                             acoustic recording (EV07), better closer and when you keep quiet
-//   C05 Headlamp          I   hands-free light: wider and dimmer than the torch, shorter reach,
-//                             easier on the battery (it shares the torch's battery)
 //   D02 Emergency bivy    Q   crawl in where you stand: warm while you stay put; moving packs it
 //   B04 Dry clothes       Q   change into dry layers (a few seconds standing still): wetness gone
 //   D06 Fire-starting kit Q   (6 uses) light a small fire in front of you: warmth for a few minutes,
@@ -20,7 +19,6 @@ export const FIELD_KIT = Object.freeze({
   binocularsFov: 16,         // degrees (~5× over the naked eye)
   whistle: { noise: 1, radius: 60, seconds: 0.6, cooldown: 2 },
   recorder: { range: 90, minQuality: 0.15 },
-  headlamp: { angleScale: 1.6, distanceScale: 0.6, intensityScale: 0.65, drainScale: 0.6 },
   bivy: { moveLimit: 0.8, heat: 1.6 },
   dryClothes: { seconds: 5 },
   fire: { uses: 6, burn: 240, radius: 4 },
@@ -30,12 +28,11 @@ export class FieldKit {
   constructor({ scene, camera, player, flashlight, photo = null, thermo = () => null, evidence = null, input = null, notify = () => {} }) {
     this.scene = scene; this.camera = camera; this.player = player; this.flashlight = flashlight; this.photo = photo;
     this.thermo = thermo; this.evidence = evidence; this.notify = notify;
-    this.carried = { binoculars: 0, whistle: 0, fieldRecorder: 0, headlamp: 0, bivy: 0, dryClothes: 0, fireKit: 0 };
+    this.carried = { binoculars: 0, whistle: 0, fieldRecorder: 0, bivy: 0, dryClothes: 0, fireKit: 0 };
     this.binocularsOn = false;
     this.recording = false;
     this.recordings = [];
     this.whistleAt = -99;
-    this.headlampOn = false;
     this.bivyAt = null;          // { x, z, mesh } while sheltering
     this.changing = null;        // { left, x, z } while changing clothes
     this.fires = [];             // { x, z, left, mesh, light }
@@ -43,7 +40,7 @@ export class FieldKit {
     this.log = [];               // { t, item, what } every use, for checks
     this.buildOverlay();
     // Hotkeys (the loadout's capture listener runs first and blocks items left at camp or in the pack).
-    const KEYS = { KeyO: () => this.toggleBinoculars(), KeyY: () => this.blowWhistle(), KeyP: () => this.toggleRecorder(), KeyI: () => this.toggleHeadlamp() };
+    const KEYS = { KeyO: () => this.toggleBinoculars(), KeyY: () => this.blowWhistle(), KeyP: () => this.toggleRecorder() };
     addEventListener('keydown', (e) => { if (!e.repeat && (!input || input.locked) && KEYS[e.code]) KEYS[e.code](); });
   }
 
@@ -116,29 +113,6 @@ export class FieldKit {
     this.notify(`Recorded a ${kind === 'whoop' ? 'whoop' : 'wood knock'} (${d.toFixed(0)} m, quality ${Math.round(quality * 100)}%)`);
     this.record('fieldRecorder', `captured ${kind}`);
     return item ?? rec;
-  }
-
-  // ---- C05 Headlamp ----------------------------------------------------------------------------
-  toggleHeadlamp(on = !this.headlampOn) {
-    if (on && !this.carried.headlamp) return false;
-    if (on === this.headlampOn) return true;
-    const h = FIELD_KIT.headlamp, L = this.flashlight.light;
-    if (on) {
-      this.torch = { angle: L.angle, distance: L.distance, intensity: this.flashlight.baseIntensity, life: this.flashlight.batteryLife };
-      L.angle = Math.min(1.2, L.angle * h.angleScale); L.distance = this.torch.distance * h.distanceScale;
-      this.flashlight.baseIntensity = this.torch.intensity * h.intensityScale;
-      this.flashlight.batteryLife = this.torch.life / h.drainScale;
-      L.position.set(0, 0.08, 0);                     // on your forehead, not in your hand
-      if (!this.flashlight.on) this.flashlight.toggle();
-    } else {
-      L.angle = this.torch.angle; L.distance = this.torch.distance;
-      this.flashlight.baseIntensity = this.torch.intensity; this.flashlight.batteryLife = this.torch.life;
-      L.position.set(0.18, -0.15, 0);
-    }
-    this.headlampOn = on;
-    this.notify(on ? 'Headlamp on: wide, dim light that follows your eyes. Your hands are free.' : 'Back to the hand torch.');
-    this.record('headlamp', on ? 'on' : 'off');
-    return true;
   }
 
   // ---- D02 Emergency bivy ----------------------------------------------------------------------

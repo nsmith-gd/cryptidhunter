@@ -19,7 +19,6 @@ export const SHOP = Object.freeze({
     // Field kit (#87, GDD 3.2 prices). Durable items are bought once.
     binoculars: { name: 'Binoculars', price: 45, note: 'Look far without walking up (O)', durable: true },
     fieldRecorder: { name: 'Field recorder', price: 75, note: 'Record whoops and knocks as evidence (P)', durable: true },
-    headlamp: { name: 'Headlamp', price: 45, note: 'Wide hands-free light, easy on batteries (I)', durable: true },
     bivy: { name: 'Emergency bivy', price: 22, note: 'Shelter where you stand: warm while still (Q)', durable: true },
     whistle: { name: 'Signal whistle', price: 5, note: 'One blast heard 60 m away (Y)', durable: true },
     dryClothes: { name: 'Dry clothes', price: 20, note: 'Change out of wet layers (Q)' },

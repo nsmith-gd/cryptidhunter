@@ -62,7 +62,6 @@ Object.assign(ITEMS, {
   binoculars: kitItem('binoculars', 'Binoculars', 'KeyO', (k) => k.toggleBinoculars()),
   whistle: kitItem('whistle', 'Signal whistle', 'KeyY', (k) => k.blowWhistle()),
   fieldRecorder: kitItem('fieldRecorder', 'Field recorder', 'KeyP', (k) => k.toggleRecorder()),
-  headlamp: kitItem('headlamp', 'Headlamp', 'KeyI', (k) => k.toggleHeadlamp()),
   bivy: kitItem('bivy', 'Emergency bivy', null, (k) => k.toggleBivy()),
   dryClothes: kitItem('dryClothes', 'Dry clothes', null, (k) => k.changeClothes(), false),
   fireKit: kitItem('fireKit', 'Fire kit', null, (k) => k.lightFire(), false),

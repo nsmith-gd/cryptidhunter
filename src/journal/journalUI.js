@@ -97,6 +97,7 @@ export class JournalUI {
       `<li><span class="type">${e.label}</span>: ${e.description}${e.hint ? `<br><i>${e.hint}</i>` : ''}<br><span class="age">${formatAge(j.ageOf(e))} · logged ${formatAge(j.time - e.foundAt).replace(' old', ' ago')}</span></li>`).join('');
     this.panel.innerHTML = `<h2>FIELD JOURNAL</h2><p class="sub">Pine Hollow · ${j.entries.length} clue${j.entries.length === 1 ? '' : 's'} logged</p>
       <div class="verdict">${verdict}</div>
+      ${this.dossier ? `<div class="dossier" style="margin:-4px 0 12px;padding:6px 10px;border:1px solid #8a7048;background:#efe3c4">${this.dossier()}</div>` : ''}
       ${items ? `<ol reversed>${items}</ol>` : '<p class="empty">No clues logged.</p>'}
       <p class="foot">Age = time since the cryptid left it. Fresh clues mean it's close. [J] close</p>`;
   }

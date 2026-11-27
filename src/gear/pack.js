@@ -24,7 +24,6 @@ export const ITEM_SPECS = {
   binoculars: { kg: 0.35, L: 0.6 },        // F03
   whistle: { kg: 0.02, L: 0.02 },          // C06
   fieldRecorder: { kg: 0.18, L: 0.2 },     // F05
-  headlamp: { kg: 0.1, L: 0.15 },          // C05
   bivy: { kg: 0.2, L: 0.5 },               // D02
   dryClothes: { kg: 0.5, L: 2.0 },         // B04 (a bundle)
   fireKit: { kg: 0.1, L: 0.15 },           // D06 (6 uses)
@@ -43,6 +42,14 @@ export const PACKS = {
   daypack: { name: 'Daypack', L: 12, kg: 0.45 },
 };
 
+/**
+ * The kit you're taking this trip, set by the base-camp supplier (#88): the pack you carry (B07
+ * trail pack instead of the daypack) and extra worn mass from owned or rented gear (net of what it
+ * replaces). Every load calculation reads it, so the HUD, the prep panel and the picker agree.
+ */
+export const KIT = { bag: PACKS.daypack, worn: [] };
+export function setKit({ bag = null, worn = [] } = {}) { KIT.bag = bag ?? PACKS.daypack; KIT.worn = worn; }
+
 export const LOAD = {
   referenceKg: 30,       // load ratio 1.0: a heavy all-day load for a fit adult
   maxKg: 45,             // can't shoulder more than this at all
@@ -58,10 +65,10 @@ export const WATER_MAX = 8;
  * Totals for a manifest. quick/pack: { itemId: count }. Returns masses (kg), pack volume (L),
  * load ratio and the derived movement and exertion multipliers.
  */
-export function computeLoad({ quick = {}, pack = {}, bag = PACKS.daypack } = {}) {
+export function computeLoad({ quick = {}, pack = {}, bag = KIT.bag } = {}) {
   const kgOf = (m) => Object.entries(m).reduce((a, [id, n]) => a + (ITEM_SPECS[id]?.kg ?? 0) * Math.max(0, n), 0);
   const volume = Object.entries(pack).reduce((a, [id, n]) => a + (ITEM_SPECS[id]?.L ?? 0) * Math.max(0, n), 0);
-  const worn = WORN.reduce((a, w) => a + w.kg, 0);
+  const worn = [...WORN, ...KIT.worn].reduce((a, w) => a + w.kg, 0);
   const quickKg = kgOf(quick), packKg = kgOf(pack) + bag.kg;
   const total = worn + quickKg + packKg;
   return { worn, quickKg, packKg, total, volume, capacity: bag.L, ...loadEffects(total) };
