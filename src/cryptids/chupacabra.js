@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { sel, seq, when, act, tier, Brain, OK, RUN, FAIL } from './brains/bt.js';
+import { buildModel, getSpecies } from './species.js';
+import './catalog.js';
 
 // CHUPACABRA — behaviour tree, lore first (Puerto Rico 1995, then Texas ranch country):
 //  · The "goat-sucker": a low, spined night predator that drains livestock through puncture
@@ -59,20 +61,17 @@ export class Chupacabra {
     this.chargeDir = new THREE.Vector3();
     this.retreatTo = new THREE.Vector3();
 
+    // The sculpted, skinned body (#93), built through the cryptid framework's model registry.
+    // The mesh origin stays at body centre height (what the rest of the game expects); the model
+    // inside it stands on the ground.
     const s = CHUPA.size;
-    this.mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(s.x, s.y, s.z),
-      new THREE.MeshStandardMaterial({ color: 0x5c4a3a, roughness: 0.9 }),
-    );
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffd23a });
-    for (const x of [-0.15, 0.15]) {
-      const eye = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.02), eyeMat);
-      eye.position.set(x, 0.1, s.z / 2 + 0.01);
-      this.mesh.add(eye);
-    }
-    this.mesh.castShadow = true;
+    this.mesh = new THREE.Group();
+    this.model = buildModel(getSpecies('chupacabra') ?? { id: 'chupacabra' });
+    this.model.position.y = -s.y / 2;
+    this.mesh.add(this.model);
     this.mesh.position.copy(CHUPA.spawn);
     this.mesh.position.y = s.y / 2;
+    this._last = this.mesh.position.clone();
     scene.add(this.mesh);
 
     // Red screen flash when it hits you.
@@ -222,8 +221,11 @@ export class Chupacabra {
     this.dist = this.toPlayer.length();
     this.timer += dt;
     this.brain.tick();
-    // Squash during wind-up so the leap is telegraphed.
-    this.mesh.scale.y = this.state === 'windup' ? 0.7 : 1;
+    // Animate from how fast it actually moved this frame; the wind-up crouch telegraphs the leap.
+    const speed = dt > 0 ? Math.hypot(this.position.x - this._last.x, this.position.z - this._last.z) / dt : 0;
+    this._last.copy(this.position);
+    this.speed = speed;
+    this.model.userData.animate?.(dt, speed, this.state === 'stalk' && this.bait ? 'feed' : this.state);
   }
 
   enter(state) { this.state = state; this.timer = 0; }
