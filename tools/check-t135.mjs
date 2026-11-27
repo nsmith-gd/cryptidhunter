@@ -47,6 +47,7 @@ const vis = await page.evaluate(() => __game.map.visibility);
 const visOk = vis.every((z) => z.seenFrom.length >= 1);
 check('every surfacing zone is visible from at least one dry observation point', visOk, vis);
 
+await page.evaluate(() => { const g = __game; for (const el of document.body.children) if (el !== g.renderer.domElement) el.style.visibility = 'hidden'; });
 // Captures: the Point's long view, each camp spot, the exposed beach, the road.
 await page.evaluate(() => { const g = __game; if (g.flashlight.on) g.flashlight.toggle(); });
 const P = await page.evaluate(() => ({ point: __game.map.observation[0], zones: __game.map.surfacing, camps: __game.map.camps }));
@@ -84,9 +85,10 @@ await page.evaluate(() => {
 });
 await shot('06-overview-from-above');
 // The road exit.
+await page.evaluate(() => { const g = __game; for (const el of document.body.children) el.style.visibility = ''; });
 await page.evaluate(() => { const g = __game; delete g.player.update; });
 const out2 = await page.evaluate(() => {
-  const g = __game, v = g.HUNT.exit; __stand(v.x + 1, v.z - 1); steps(5);
+  const g = __game, v = g.HUNT.exit; g.hunt.elapsed += 300; __stand(v.x + 1, v.z - 1); steps(5);
   return { inZone: g.hunt.inZone };
 });
 await page.keyboard.press('KeyH'); await page.waitForTimeout(300); await page.keyboard.press('KeyH');
