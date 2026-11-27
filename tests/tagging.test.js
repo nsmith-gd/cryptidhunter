@@ -83,6 +83,16 @@ test('Recovered only by extracting with the records; only valid recovered interv
   assert.equal(r3.payable, false, 'no complete interval: recovered, but nothing valid to pay');
 });
 
+test('a silence right after an interval is still a visible gap', () => {
+  const t = new TagTrack();
+  t.tag(0, { opportunity: true });
+  for (const s of [10, 25, 40]) t.telemetry(s, good);
+  t.telemetry(70, { inRange: false });
+  t.telemetry(120, { inRange: false });
+  assert.deepEqual(t.gaps, [{ from: 40, to: 120, seconds: 80 }]);
+  assert.equal(t.intervals.length, 1, 'the recorded interval stays valid');
+});
+
 test('the track round-trips through JSON (save/resume)', () => {
   const t = new TagTrack({ tagId: 'F16-2' });
   t.tag(0, { opportunity: true }); t.telemetry(10, good); t.telemetry(25, good);

@@ -33,6 +33,7 @@ export class TagTrack {
     this.intervals = [];    // valid intervals: { from, to, fixes: [t, t, t] }
     this.gaps = [];         // broken observations: { from, to, seconds }
     this.recovered = null;  // { t, extracted, payable }
+    this.lastFix = null;    // time of the last counted fix (gaps are measured from it, even right after an interval)
   }
 
   get tagged() { return this.state !== 'Untracked'; }
@@ -54,14 +55,16 @@ export class TagTrack {
     const rec = (counted, why) => { this.fixes.push({ t, inRange, signal, counted, why }); return { counted, why, state: this.state, run: this.run.length, intervals: this.intervals.length }; };
     if (this.state === 'Untracked') return rec(false, 'not tagged');
     if (this.state === 'Recovered') return rec(false, 'already recovered');
-    const last = this.run[this.run.length - 1] ?? null;
-    // A long silence breaks the observation (whether or not this fix is good).
-    if (last != null && t - last > c.maxGap) { this.gaps.push({ from: last, to: t, seconds: t - last }); this.run = []; }
+    const last = this.lastFix;
+    // A long silence breaks the observation (whether or not this fix is good); it's recorded once.
+    if (last != null && t - last > c.maxGap && !this.gaps.some((g) => g.from === last)) { this.gaps.push({ from: last, to: t, seconds: t - last }); this.run = []; }
+    if (last != null && t - last > c.maxGap) { const g = this.gaps.find((x) => x.from === last); g.to = t; g.seconds = t - last; }
     if (!inRange) return rec(false, 'out of receiver range');
     if (signal < c.minSignal) return rec(false, 'signal too weak');
     const prev = this.run[this.run.length - 1];
     if (prev != null && t - prev < c.minSpacing) return rec(false, 'too soon after the last fix');
     this.run.push(t);
+    this.lastFix = t;
     if (this.run.length >= c.updatesPerInterval) {
       this.intervals.push({ from: this.run[0], to: t, fixes: [...this.run] });
       this.run = [];
@@ -80,6 +83,6 @@ export class TagTrack {
     return { ok: extracted, ...this.recovered };
   }
 
-  toJSON() { return { tagId: this.tagId, subjectId: this.subjectId, state: this.state, taggedAt: this.taggedAt, fixes: this.fixes, run: this.run, intervals: this.intervals, gaps: this.gaps, recovered: this.recovered }; }
-  static fromJSON(o) { const t = new TagTrack({ tagId: o.tagId, subjectId: o.subjectId }); Object.assign(t, { state: o.state, taggedAt: o.taggedAt, fixes: o.fixes ?? [], run: o.run ?? [], intervals: o.intervals ?? [], gaps: o.gaps ?? [], recovered: o.recovered ?? null }); return t; }
+  toJSON() { return { tagId: this.tagId, subjectId: this.subjectId, state: this.state, taggedAt: this.taggedAt, fixes: this.fixes, run: this.run, intervals: this.intervals, gaps: this.gaps, recovered: this.recovered, lastFix: this.lastFix }; }
+  static fromJSON(o) { const t = new TagTrack({ tagId: o.tagId, subjectId: o.subjectId }); Object.assign(t, { state: o.state, taggedAt: o.taggedAt, fixes: o.fixes ?? [], run: o.run ?? [], intervals: o.intervals ?? [], gaps: o.gaps ?? [], recovered: o.recovered ?? null, lastFix: o.lastFix ?? null }); return t; }
 }

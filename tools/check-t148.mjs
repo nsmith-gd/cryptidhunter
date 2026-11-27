@@ -50,10 +50,10 @@ await page.screenshot({ path: `${out}/01-telemetry-interval-recorded.png` });
 check('in receiver range, three fixes 15 s apart make one valid telemetry interval (IntervalRecorded)', t2.state === 'IntervalRecorded' && t2.intervals === 1, t2);
 
 // Out of range: the next fixes fail and a gap shows.
-await page.evaluate(() => { const g = __game, p = g.player; p.position.set(0, 0, 128); p.velocity.set(0, 0, 0); g.jerseyDevil.pos.set(g.map.nest.x, 24, g.map.nest.z); g.jerseyDevil.patrolPts = [g.map.nest]; });
+await page.evaluate(() => { const g = __game, p = g.player; p.position.set(-140, 0, 140); p.velocity.set(0, 0, 0); g.jerseyDevil.pos.set(g.map.nest.x, 24, g.map.nest.z);   // ~280 m: beyond the 250 m receiver g.jerseyDevil.patrolPts = [g.map.nest]; });
 await steps(80 * 60);
 const t3 = await track();
-check('out of receiver range the fixes fail ("out of receiver range") and the broken watch is recorded as a gap', t3.fixes.some((f) => /out of receiver range/.test(f)) && t3.gaps >= 0, t3);
+check('out of receiver range the fixes fail ("out of receiver range") and the broken watch is recorded as a gap', t3.fixes.some((f) => /out of receiver range/.test(f)) && t3.gaps >= 1, t3);
 
 // Drive out: Recovered; the interval sells as tracking telemetry.
 await page.evaluate(() => { const g = __game, e = g.HUNT.exit; g.player.position.set(e.x, 0, e.z); g.player.velocity.set(0, 0, 0); });
