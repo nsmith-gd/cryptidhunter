@@ -13,13 +13,13 @@ export const CAMP = {
   greatPhoto: 70,           // a target photo scoring this much earns double reputation
   targetBonus: 3,           // the hunt's target cryptid is worth this many times more
   // Starter kit: consumables are topped back up to this at camp before every hunt.
-  starter: { camera: 1, flashlight: 1, bait: 3, spareBatteries: 1, trailCamera: 2, audioLure: 1, nightVision: 1, knockStick: 1, dryClothes: 1, whistle: 1 },
+  starter: { camera: 1, flashlight: 1, bait: 3, spareBatteries: 1, trailCamera: 2, audioLure: 1, nightVision: 1, knockStick: 1, dryClothes: 1, whistle: 1, canteen: 1 },
 };
 
 const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery',
   trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick',
   binoculars: 'binoculars', whistle: 'signal whistle', fieldRecorder: 'field recorder', bivy: 'emergency bivy',
-  dryClothes: 'dry clothes bundle', fireKit: 'fire kit', tent: 'tent' };
+  dryClothes: 'dry clothes bundle', fireKit: 'fire kit', tent: 'tent', canteen: 'canteen', purTablets: 'purification tablets' };
 
 import { SaveService } from '../save/saveService.js';
 import { addAttempt, emptyResearch, dossierLine, researchLines, buyersFor } from '../research/dossier.js';
@@ -238,8 +238,8 @@ export class Camp {
 
 export function gearList(gear) {
   return Object.entries(gear).filter(([, n]) => n > 0)
-    .map(([k, n]) => (['camera', 'flashlight', 'nightVision', 'knockStick', 'binoculars', 'whistle', 'fieldRecorder', 'bivy', 'tent'].includes(k) ? GEAR_NAMES[k]
-      : k === 'dryClothes' ? `${n} dry clothes bundle${n > 1 ? 's' : ''}` : k === 'fireKit' ? `${n} fire kit${n > 1 ? 's' : ''}`
+    .map(([k, n]) => (['camera', 'flashlight', 'nightVision', 'knockStick', 'binoculars', 'whistle', 'fieldRecorder', 'bivy', 'tent', 'canteen'].includes(k) ? GEAR_NAMES[k]
+      : k === 'dryClothes' ? `${n} dry clothes bundle${n > 1 ? 's' : ''}` : k === 'fireKit' ? `${n} fire kit${n > 1 ? 's' : ''}` : k === 'purTablets' ? `${n} purification tablet${n > 1 ? 's' : ''}`
       : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}`
         : `${n} ${GEAR_NAMES[k] ?? k}${n > 1 && k !== 'bait' ? 's' : ''}`)).join(', ');
 }

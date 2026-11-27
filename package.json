@@ -78,7 +78,8 @@
     "check:t88": "vite build && node tools/check-t88.mjs",
     "check:t87": "vite build && node tools/check-t87.mjs",
     "check:t89": "vite build && node tools/check-t89.mjs",
-    "check:t90": "vite build && node tools/check-t90.mjs"
+    "check:t90": "vite build && node tools/check-t90.mjs",
+    "check:t103": "vite build && node tools/check-t103.mjs"
   },
   "repository": {
     "type": "git",
