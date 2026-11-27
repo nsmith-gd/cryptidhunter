@@ -21,6 +21,7 @@ import { GYM_RUNS } from './gym/gymRuns.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
+import { Igopogo, heardAt } from './cryptids/igopogo.js';
 import { buildForestMap } from './maps/forest.js';
 import { setGroundHeight } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
@@ -415,6 +416,9 @@ dread.audio = () => dreadAudio;   // checks: the breathing/heartbeat the player 
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
+// Igopogo (#136, L03 Lake Simcoe): a proxy in the lake that surfaces on a seeded cycle and dives
+// when the shore is noisy (you, a fire, pitching a tent). It never leaves the water.
+const igopogo = map.surfacing ? new Igopogo({ scene, zones: map.surfacing, seed: getSeed(), waterY: map.waterHeight ?? 0 }) : null;
 if (mapId !== 'swamp' && !map.noBigfoot) levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
 // #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
 for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
@@ -453,6 +457,7 @@ const photo = new PhotoCamera({
     ...cryptids.cryptids.map((c) => ({ name: c.profile.name, object3d: c.mesh, radius: c.profile.radius,
       center: new THREE.Vector3(c.agent.x, c.profile.height * 0.6, c.agent.z),
       base: new THREE.Vector3(c.agent.x, 0, c.agent.z), height: c.profile.height })),
+    ...(igopogo?.subject() ? [igopogo.subject()] : []),
     ...(sandbox ? [
       { name: 'Mothman', object3d: mothman.mesh, radius: 0.8, center: mothman.mesh.position.clone() },
       { name: 'Chupacabra', object3d: chupacabra.mesh, radius: 0.5, center: chupacabra.position.clone() },
@@ -738,6 +743,13 @@ function simulateOnce(dt, extra = false) {
   batteries.update(dt);
   bait.update(dt);
   cryptids.update(dt);
+  if (igopogo) {
+    const P = player.position;
+    igopogo.update(hunt.elapsed, dt, (zone) => Math.max(
+      heardAt(zone, { x: P.x, z: P.z, level: player.noise, radius: player.noiseRadius }),
+      fieldCamp?.pitching ? heardAt(zone, { x: P.x, z: P.z, level: 0.5, radius: 8 }) : 0,          // hammering tent pegs
+      ...(fieldKit?.fires ?? []).map((f) => heardAt(zone, { x: f.x, z: f.z, level: 0.35, radius: 6 }))));   // crackle and glow
+  }
   knocks.update(dt);
   clueTrails.update();
   clues.update(dt);
@@ -849,7 +861,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { igopogo, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {
