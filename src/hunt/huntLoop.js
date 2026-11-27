@@ -42,7 +42,7 @@ export class HuntLoop {
       // #98: the first H opens the extraction manifest review; H again commits the departure.
       if (e.code === 'KeyH' && !e.repeat) {
         const outcome = this.canLeaveWithPhoto() ? 'complete' : this.canGiveUp() ? 'abandoned' : null;
-        if (!outcome) return;
+        if (!outcome) { this.explainNoLeave(); return; }
         if (this.review && this.manifest) this.end(this.review.outcome);
         else if (this.manifest) this.openReview(outcome);
         else this.end(outcome);
@@ -50,6 +50,17 @@ export class HuntLoop {
       if (e.code === 'KeyC' && this.review) this.closeReview();
       if ((e.code === 'Space' || e.code === 'Enter') && this.stage === 'ended' && this.outcome !== 'caught') this.restart();
     });
+  }
+
+  /** H pressed but you can't drive out yet: say why instead of doing nothing (#90). */
+  explainNoLeave() {
+    if (this.stage !== 'search' && this.stage !== 'extract') return;
+    const p = this.player.position, d = Math.hypot(p.x - HUNT.exit.x, p.z - HUNT.exit.z);
+    this.notice = !this.inZone
+      ? `The van is ${Math.round(d)} m away (trailhead parking): walk into the green ring to drive out.`
+      : `You've only just got here: look around for ${Math.ceil(HUNT.giveUpAfter - this.elapsed)} s before heading home.`;
+    this.noticeUntil = this.elapsed + 3;
+    this.renderHud();
   }
 
   start() {
@@ -237,7 +248,8 @@ export class HuntLoop {
   }
 
   renderHud() {
-    this.hud.textContent = this.objectiveText();
+    const notice = (this.stage === 'search' || this.stage === 'extract') && this.notice && this.elapsed < (this.noticeUntil ?? 0) ? `\n${this.notice}` : '';
+    this.hud.textContent = this.objectiveText() + notice;
     if (this.stage === 'briefing' || this.stage === 'ended') { this.clock.textContent = ''; return; }
     const t = this.timeLeft;
     // In-world clock: 11:00 PM start, dawn at 5:30 AM.
