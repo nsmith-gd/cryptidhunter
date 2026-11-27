@@ -98,7 +98,7 @@ export function sightBlocked(ax, az, bx, bz, boxes = []) {
 
 export class TerritoryProxy {
   // loseSight: seconds out of sight mid-charge before it pulls up; search: seconds it waits before going home (#141).
-  static CFG = { charge: 5, back: 2.5, warnHold: 4, contact: 1.3, damage: 12, hitCooldown: 4, disengageMargin: 4, loseSight: 1, search: 2 };
+  static CFG = { charge: 5, back: 2.5, warnHold: 4, contact: 1.3, damage: 12, hitCooldown: 4, disengageMargin: 4, loseSight: 1, search: 2, calm: 6, minLead: 2 };
 
   constructor({ scene, trace, debug, notify = () => {} }) {
     this.trace = trace; this.notify = notify;
@@ -132,7 +132,7 @@ export class TerritoryProxy {
     const C = TerritoryProxy.CFG, p = player.position;
     const fromHome = Math.hypot(p.x - G04.home.x, p.z - G04.home.z);
     const toMe = Math.hypot(p.x - this.pos.x, p.z - this.pos.z);
-    if (this.state === 'idle' && fromHome < G04.warnR) {
+    if (this.state === 'idle' && fromHome < G04.warnR && this.time >= (this.calmUntil ?? 0)) {   // just back home: a few seconds' grace to leave (#141)
       this.warnTime = 0;
       this.set('warn', { playerFromHome: +fromHome.toFixed(3) });
       this.notify('A deep, rattling growl. Something big rears up ahead. This is its ground.');
@@ -141,7 +141,8 @@ export class TerritoryProxy {
       this.mesh.rotation.y = Math.atan2(p.x - this.pos.x, p.z - this.pos.z) + Math.PI;
       this.mesh.scale.y = 1 + 0.15 * Math.abs(Math.sin(this.time * 6));   // rearing
       if (fromHome > G04.warnR + 3) { this.mesh.scale.y = 1; this.set('idle', { why: 'warning heeded' }); }
-      else if (fromHome < G04.coreR || this.warnTime > C.warnHold) { this.mesh.scale.y = 1; this.set('charge', { lead: +this.warnTime.toFixed(2), playerFromHome: +fromHome.toFixed(1) }); }
+      // Even running straight into the core gets the minimum warning before it charges.
+      else if ((fromHome < G04.coreR && this.warnTime >= C.minLead) || this.warnTime > C.warnHold) { this.mesh.scale.y = 1; this.set('charge', { lead: +this.warnTime.toFixed(2), playerFromHome: +fromHome.toFixed(1) }); }
     } else if (this.state === 'charge') {
       // It charges at what it can see. Behind solid cover it runs on to where it last saw you; out of
       // sight for long enough, it pulls up (#141: breaking line of sight is an escape response).
@@ -160,7 +161,7 @@ export class TerritoryProxy {
       this.searchTime += dt;
       if (this.searchTime > C.search) this.set('disengage', { why: 'lost sight' });
     } else if (this.state === 'disengage') {
-      if (this.moveToward(G04.home.x, G04.home.z, C.back, dt) < 0.05) this.set('idle', { why: 'home' });
+      if (this.moveToward(G04.home.x, G04.home.z, C.back, dt) < 0.05) { this.calmUntil = this.time + C.calm; this.set('idle', { why: 'home' }); }
     }
   }
 }
