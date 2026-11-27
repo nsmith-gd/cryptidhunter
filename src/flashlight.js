@@ -61,6 +61,10 @@ export class Flashlight {
       k = 0.35 + 0.65 * (this.battery / FLASHLIGHT.lowLevel);
       if (Math.sin(this.t * 23) * Math.sin(this.t * 7.3) > 0.85) k *= 0.25;
     }
+    // Equipment condition (#106): a worn torch throws a dimmer beam, and flickers when badly damaged.
+    const out = this.output ?? 1;
+    k *= out;
+    if (out < 0.66 && Math.sin(this.t * 17) * Math.sin(this.t * 5.1) > 0.9) k *= 0.4;
     this.light.intensity = this.baseIntensity * k;
   }
 }

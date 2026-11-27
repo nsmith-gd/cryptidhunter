@@ -17,6 +17,7 @@ export const ITEM_SPECS = {
   nightVision: { kg: 0.9, L: 1.2 },
   knockStick: { kg: 0.8, L: 1.0 },
   spareBatteries: { kg: 0.05, L: 0.05 },
+  repairKit: { kg: 0.09, L: 0.1 },        // per use: a 5-use kit is 0.45 kg (D10)
   water: { kg: 1.0, L: 1.0 },              // a 1 L bottle
   packedLunch: { kg: 0.45, L: 0.6 },
   trailSnack: { kg: 0.15, L: 0.2 },
@@ -27,6 +28,7 @@ export const ITEM_SPECS = {
   bivy: { kg: 0.2, L: 0.5 },               // D02
   dryClothes: { kg: 0.5, L: 2.0 },         // B04 (a bundle)
   fireKit: { kg: 0.1, L: 0.15 },           // D06 (6 uses)
+  tent: { kg: 2.2, L: 6 },                 // D03 two-person tent (#104)
 };
 
 /** Worn kit: always carried, counted once (GDD 13.1 "worn mass included once"). */

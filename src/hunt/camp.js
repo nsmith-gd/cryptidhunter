@@ -19,7 +19,7 @@ export const CAMP = {
 const GEAR_NAMES = { camera: 'camera', flashlight: 'flashlight', bait: 'bait', spareBatteries: 'spare battery',
   trailCamera: 'trail camera', audioLure: 'audio lure', nightVision: 'night-vision goggles', knockStick: 'knock stick',
   binoculars: 'binoculars', whistle: 'signal whistle', fieldRecorder: 'field recorder', bivy: 'emergency bivy',
-  dryClothes: 'dry clothes bundle', fireKit: 'fire kit' };
+  dryClothes: 'dry clothes bundle', fireKit: 'fire kit', tent: 'tent' };
 
 import { SaveService } from '../save/saveService.js';
 import { addAttempt, emptyResearch, dossierLine, researchLines, buyersFor } from '../research/dossier.js';
@@ -193,7 +193,7 @@ export class Camp {
 
 export function gearList(gear) {
   return Object.entries(gear).filter(([, n]) => n > 0)
-    .map(([k, n]) => (['camera', 'flashlight', 'nightVision', 'knockStick', 'binoculars', 'whistle', 'fieldRecorder', 'bivy'].includes(k) ? GEAR_NAMES[k]
+    .map(([k, n]) => (['camera', 'flashlight', 'nightVision', 'knockStick', 'binoculars', 'whistle', 'fieldRecorder', 'bivy', 'tent'].includes(k) ? GEAR_NAMES[k]
       : k === 'dryClothes' ? `${n} dry clothes bundle${n > 1 ? 's' : ''}` : k === 'fireKit' ? `${n} fire kit${n > 1 ? 's' : ''}`
       : k === 'spareBatteries' ? `${n} spare batter${n > 1 ? 'ies' : 'y'}`
         : `${n} ${GEAR_NAMES[k] ?? k}${n > 1 && k !== 'bait' ? 's' : ''}`)).join(', ');

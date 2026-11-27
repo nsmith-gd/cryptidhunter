@@ -1,0 +1,56 @@
+{
+  "before": {
+    "exposure": 1,
+    "rainWarning": [
+      "Exhausted",
+      "Wet clothing",
+      "Out in the rain",
+      "Cold",
+      "Hungry"
+    ],
+    "fireInOpenRain": false,
+    "wetness": 81.1,
+    "staminaCap": 0.68
+  },
+  "pitch": {
+    "started": true,
+    "pitched": true,
+    "tentsLeft": 0,
+    "at": {
+      "x": 4,
+      "z": 116.2
+    }
+  },
+  "inside": {
+    "inside": true,
+    "exposure": 0,
+    "shelter": "your tent",
+    "fire": true,
+    "campFire": true,
+    "quality": 0.85
+  },
+  "night": {
+    "start": 8.6,
+    "fatigueBefore": 78.4,
+    "healthBefore": 80,
+    "coreBefore": 35.43,
+    "energyBefore": 29.3,
+    "quality": 0.85,
+    "end": 84.4,
+    "fatigueAfter": 5,
+    "healthAfter": 80,
+    "coreAfter": 37.06,
+    "energyAfter": 24.9,
+    "woke": "rested",
+    "clockAdvanced": 71.8,
+    "wetness": 0
+  },
+  "creature": {
+    "asleep": false,
+    "woke": "woken: Bigfoot is close"
+  },
+  "knock": {
+    "asleep": false,
+    "woke": "woken: a wood knock nearby"
+  }
+}

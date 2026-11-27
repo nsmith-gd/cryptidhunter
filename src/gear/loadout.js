@@ -65,7 +65,21 @@ Object.assign(ITEMS, {
   bivy: kitItem('bivy', 'Emergency bivy', null, (k) => k.toggleBivy()),
   dryClothes: kitItem('dryClothes', 'Dry clothes', null, (k) => k.changeClothes(), false),
   fireKit: kitItem('fireKit', 'Fire kit', null, (k) => k.lightFire(), false),
+  // D03 tent (#104): pitch it, sleep in it (Q inside), pack it (Q beside it). See survival/fieldCamp.js.
+  tent: kitItem('tent', 'Tent', null, (k) => !!k.camp?.use()),
 });
+
+// Field repair kit (#106, D10): 5 uses, counted in uses; slot it and press Q to patch the worst
+// damaged item you carry (see gear/condition.js). No hotkey: every letter is already taken.
+ITEMS.repairKit = {
+  name: 'Repair kit', key: null,
+  count: (g) => g.repairKit?.uses ?? 0, carry: (g, n) => { if (g.repairKit) g.repairKit.uses = n; },
+  use: (g) => {
+    const r = g.equipment?.fieldRepair(g.repairKit);
+    g.notify?.(r?.ok ? `Patched the ${r.item}: ${Math.round(r.from * 100)}% → ${Math.round(r.to * 100)}% (${r.usesLeft} kit use${r.usesLeft === 1 ? '' : 's'} left)` : `Repair kit: ${r?.reason ?? 'not available'}`);
+    return !!r?.ok;
+  },
+};
 
 export const DEFAULT_LOADOUT = ['bait', 'trailCamera', 'audioLure', 'spareBatteries'];
 
