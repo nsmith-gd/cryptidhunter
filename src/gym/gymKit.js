@@ -3,6 +3,7 @@ import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05World } from './g05.js';
 import { G07World } from './g07.js';
 import { G06World } from './g06.js';
+import { G09World } from './g09.js';
 
 // Gym harness for G02–G04 (GDD 14.2, 15.1–15.3, 17.5; task #108).
 //   Fixture     every load rebuilds the gym from scratch with its fixed seed (GYM_SEEDS, or ?seed=),
@@ -28,6 +29,8 @@ export const GYM_TASKS = {
     'Go over the side in deep water (E away from the dock): breath and cold, then reach the shallows and the hut', 'Leave by the dry exit on foot, no boat needed'],
   G06: ['Cover the three corridors with overlapping cameras (A, B, C)', 'Remove one camera (5/6/7) and watch the alarm', 'Let the power fail (8) or recharge it (9)',
     'Sleep in the tent with full coverage', 'Find the blind spot behind the rock; move camera D past it (0)', 'Dogman mode (&proxy=dogman): walk the same route twice, then change it'],
+  G09: ['Cross the river at the ford', 'Take supplies from the base cache (it never restocks)', 'Walk to the stones; 5 once for the warning',
+    'Walk away and leave by the trailhead (ordinary extraction)', 'Or press 5 again to commit, then try to get home'],
   G07: ['Commit a module with no opening: nothing is spent', 'Wait for it to feed at the anchor; commit the wrong (heavy) module, then the light one (5 / Shift+5)',
     'Secure it and crate it (6)', 'Switch the generator off (0): watch integrity fall, then repair the crate (7)', 'Block the cargo route (L), try to stage (9); clear it and stage',
     'Haul the sled to the truck and deliver (9)', 'Release one (8) and walk out the foot path with your evidence'],
@@ -66,6 +69,13 @@ export class GymHarness {
       debug(this.world.proxy.mesh);
       const keys = { Digit5: () => this.world.toggleCam('A'), Digit6: () => this.world.toggleCam('B'), Digit7: () => this.world.toggleCam('C'),
         Digit8: () => this.world.setHub(!this.world.hub.on), Digit9: () => this.world.recharge(), Digit0: () => this.world.moveD(this.world.cams[3].x !== -26) };
+      addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && keys[e.code]) keys[e.code](e); });
+    }
+    if (this.id === 'G09') {
+      this.world = new G09World({ game, map, trace, notify });
+      this.proxies.push(this.world.proxy);
+      debug(this.world.proxy.mesh);
+      const keys = { Digit5: () => this.world.commitStep(), Digit6: () => this.world.take('food'), Digit7: () => this.world.take('batteries'), KeyH: () => { this.world.leaving = true; } };
       addEventListener('keydown', (e) => { if (!e.repeat && game.input.locked && keys[e.code]) keys[e.code](e); });
     }
     if (this.id === 'G07') {
@@ -148,6 +158,7 @@ export class GymHarness {
     const g = this.g, p = g.player.position;
     const w = this.world;
     const state = { tick: this.tick, p: [p.x, p.z].map((v) => +v.toFixed(3)),
+      ...(w?.cache ? { phase: w.phase, outcome: w.outcome, cache: { ...w.cache }, mimic: w.mimicry.length } : {}),
       ...(w?.hb ? { hb: [w.hb.x, w.hb.z].map((v) => +v.toFixed(3)), hub: +w.hub.charge.toFixed(3), dog: w.dogman ? [w.dogman.position.x, w.dogman.position.z].map((v) => +v.toFixed(3)) : null } : {}),
       ...(w?.machine ? { capture: w.state, integrity: +w.machine.integrity.toFixed(3), condition: +w.machine.condition.toFixed(3), charges: [w.modules.light.charges, w.modules.heavy.charges] } : {}),
       ...(w?.boat ? { fuel: +w.boat.fuel.toFixed(4), charge: +w.power.charge.toFixed(3), breath: +w.breath.value.toFixed(3), boat: [w.boat.x, w.boat.z].map((v) => +v.toFixed(3)) } : {}), health: +g.survival.health.value.toFixed(3),
@@ -174,6 +185,14 @@ export class GymHarness {
       <div>battery ${Math.round(w.power.charge)}% · ${Object.entries(d).map(([k, v]) => `${k} ${v ? 'ok' : 'OFF'}`).join(' · ')}</div>
       <div>generator ${w.generator.running ? 'running' : 'off'} (fuel ${Math.round(w.generator.fuel * 100)}%) · breath ${Math.round(w.breath.value)} s · buoy data ${w.buoy.readings.length} (copied ${w.buoy.copied.length})</div>
       <div style="color:#8fa89a">E board/leave · 5 engine · 6 sonar · 7 copy buoy · 8 generator</div>`;
+  }
+
+  /** G09 readouts: phase, cache, what changed, what was heard. */
+  finaleHud() {
+    const w = this.world;
+    return `<div style="margin-top:4px">finale: <b>${w.phase}</b>${w.outcome ? ' · ' + w.outcome : ''} · cache food ${w.cache.food} · batteries ${w.cache.batteries} · fuel ${w.cache.fuel}</div>
+      <div>${w.changed.length ? 'changed: ' + w.changed.join(', ') : 'landmarks as they were'} · heard ${w.mimicry.length} false call${w.mimicry.length === 1 ? '' : 's'}</div>
+      <div style="color:#8fa89a">5 at the stones (twice to commit) · 6 take food · 7 take batteries · H at the trailhead to leave</div>`;
   }
 
   /** G06 readouts: cameras (live / dark / removed), hub, alarm, and the proxy's progress (debug). */
@@ -223,11 +242,11 @@ export class GymHarness {
       ...this.events.slice(-6).map((e) => `<div style="color:#b8c8c0">${e.tick} ${e.system}.${e.type} ${JSON.stringify(e.data).slice(0, 60)}</div>`),
     ].join('');
     this.el.innerHTML = `<div style="font-weight:bold;color:#ffd88a">${this.map.title}</div>
-      <div>${link('G00', 'gym')}${link('G02', 'g02')}${link('G03', 'g03')}${link('G04', 'g04')}${link('G05', 'g05')}${link('G06', 'g06')}${link('G07', 'g07')}</div>
+      <div>${link('G00', 'gym')}${link('G02', 'g02')}${link('G03', 'g03')}${link('G04', 'g04')}${link('G05', 'g05')}${link('G06', 'g06')}${link('G07', 'g07')}${link('G09', 'g09')}</div>
       <div>seed ${this.seed} · tick ${this.tick} · ${this.blind ? 'blind' : 'debug'}</div>
       <div style="margin:4px 0">${btn('reset', 'Reset')}${btn('run', 'Run script')}${btn('blind', this.blind ? 'Debug view' : 'Blind mode')}</div>
       <div>health ${Math.round(s.health.value)}${s.health.bleeding.length ? ' (bleeding)' : ''} · energy ${Math.round(s.nutrition.energy)} · body ${s.thermo.core.toFixed(1)}°C · wet ${Math.round(s.thermo.wetness)}% · stamina ${Math.round(g.player.stamina * 100)}% · you @ ${p.x.toFixed(1)}, ${p.z.toFixed(1)}</div>
-      ${this.world?.boat ? this.worldHud() : this.world?.machine ? this.captureHud() : this.world?.cams ? this.securityHud() : ''}
+      ${this.world?.boat ? this.worldHud() : this.world?.machine ? this.captureHud() : this.world?.cams ? this.securityHud() : this.world?.cache ? this.finaleHud() : ''}
       <div style="color:#8fa89a;margin-top:4px">TASKS</div>${(GYM_TASKS[this.id] ?? []).map((t) => `<div>· ${t}</div>`).join('')}
       <div style="margin-top:4px">${answers}</div>
       ${this.criteria.length ? `<div style="color:#8fa89a;margin-top:4px">PASS CRITERIA</div>${this.criteria.map((c) => `<div><span style="color:${status[c.status]}">${c.status.toUpperCase()}</span> ${c.text}</div>`).join('')}` : ''}`;

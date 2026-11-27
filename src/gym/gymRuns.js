@@ -5,6 +5,7 @@ import { ContourProxy, TerritoryProxy, ScentProxy } from './proxies.js';
 import { G05 as G05_CFG } from './g05.js';
 import { G07 as G07_CFG } from './g07.js';
 import { G06 as G06_CFG } from './g06.js';
+import { G09 as G09_CFG } from './g09.js';
 import { CaptureMachine } from '../capture/captureMachine.js';
 
 // Scripted runs for gyms G02–G04 (#108). Each drives the real game simulation step by step with
@@ -458,4 +459,61 @@ function runG06Dogman(g, h, T, w, C) {
   return T.finish();
 }
 
-export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05, G06: runG06, G07: runG07 };
+// ---- G09 finale rehearsal ------------------------------------------------------------------------
+export function runG09(g, h) {
+  const T = tools(g, h), w = h.world, C = G09_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const surf = () => h.map.surfaceAt(P.position.x, P.position.z, 0);
+  // 1. The water crossing: the ford is shallow (wade), the rest of the river is deep (slow).
+  T.place(0, C.river.z1 + 2, 0);
+  const crossed = T.walkTo(0, C.river.z0 - 2, { r: 1, max: 60 * 40 });
+  const fordSurf = h.map.surfaceAt(0, (C.river.z0 + C.river.z1) / 2), deepSurf = h.map.surfaceAt(12, (C.river.z0 + C.river.z1) / 2);
+  T.add('crossing', 'The water crossing works with the existing wading: a shallow ford you can walk, deep water either side', crossed && fordSurf === 'shallow' && deepSurf === 'deep', { crossed, ford: fordSurf, beside: deepSurf });
+  // 2. The base is finite: the cache never restocks.
+  T.walkTo(C.cache.x + 1.5, C.cache.z, { r: 1.2 });
+  const takes = [w.take('food'), w.take('food'), w.take('food'), w.take('food')];
+  T.add('finite-base', 'The base is finite: three food, then the cache is empty and stays empty', takes.slice(0, 3).every((t) => t.ok) && !takes[3].ok && w.cache.food === 0, { takes: takes.map((t) => t.ok ? `ok (${t.left} left)` : t.why) });
+  // 3. Early withdrawal before the commitment: ordinary extraction.
+  const before = { phase: w.phase };
+  T.walkTo(C.site.x, C.site.z + 4, { r: 2, max: 60 * 90 });
+  const warn = w.commitStep();                      // the warning only
+  T.place(C.exit.x, C.exit.z - 1); w.leaving = true; g.sim.step(); g.sim.step();
+  T.add('early-withdrawal', 'Leaving before the commitment (even after the warning) is an ordinary extraction', warn.phase === 'warned' && w.outcome === 'extracted', { warned: warn.phase, outcome: w.outcome });
+  return { ...T.finish(), note: 'reload for the second half: window.__gym.runCommitted()' };
+}
+
+/** The second half (fresh load): commit at the stones, the changed return, the authored end. */
+export function runG09Committed(g, h) {
+  const T = tools(g, h), w = h.world, C = G09_CFG, P = g.player;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  const mapPlaces = JSON.stringify(h.map.places);
+  T.place(C.site.x, C.site.z + 3);
+  const a = w.commitStep(), b = w.commitStep();
+  T.add('commitment', 'The final commitment takes a warning and then a deliberate second step at the stones', a.phase === 'warned' && b.phase === 'committed', { first: a.phase, second: b.phase });
+  // The return: walk back toward the ford, then the trailhead.
+  T.walkTo(0, -2, { r: 1.5, max: 60 * 60 });
+  for (let i = 0; i < 60 * 30; i++) g.sim.step();     // stand a while: what changes, what calls
+  T.add('changed-return', 'On the return, landmarks have really changed and calls come from where nothing is; the paper map stays truthful',
+    w.changed.length >= 2 && w.mimicry.length >= 1 && JSON.stringify(h.map.places) === mapPlaces, { changed: w.changed, mimicry: w.mimicry.slice(0, 2), mapUnchanged: JSON.stringify(h.map.places) === mapPlaces, glimpsed: w.proxy.state });
+  T.walkTo(0, C.river.z1 + 2, { r: 1.2, max: 60 * 40 });
+  T.walkTo(C.exit.x, C.exit.z, { r: 1, max: 60 * 60 });
+  T.add('authored-end', 'At the last extraction approach the authored encounter interrupts the departure and it cuts to black: a disappearance, not a death',
+    w.outcome === 'disappeared' && h.events.some((e) => e.type === 'encounter') && (document.getElementById('g09-black')?.style.opacity === '1'), { outcome: w.outcome });
+  T.add('no-new-mechanic', 'No new final mechanic: the finale uses wading, the base cache, the map and the ordinary exit', true, { used: ['wading (surfaceAt)', 'finite cache', 'paper map', 'trailhead exit'] });
+  return T.finish();
+}
+
+/** Ordinary death after the commitment, before the encounter, stays an ordinary (retryable) death. */
+export function runG09Death(g, h) {
+  const T = tools(g, h), w = h.world, C = G09_CFG;
+  T.start();
+  if (g.huntFailure) g.huntFailure.enabled = false;
+  T.place(C.site.x, C.site.z + 3); w.commitStep(); w.commitStep();
+  g.survival.health.value = 0; g.sim.step();
+  T.add('ordinary-death', 'Dying before the authored encounter is an ordinary death (retryable), distinct from the disappearance', w.outcome === 'died', { outcome: w.outcome });
+  return T.finish();
+}
+
+export const GYM_RUNS = { G02: runG02, G03: runG03, G04: runG04, G05: runG05, G06: runG06, G07: runG07, G09: runG09 };
