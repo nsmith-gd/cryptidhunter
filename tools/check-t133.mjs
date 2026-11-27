@@ -57,7 +57,7 @@ const ig = await page.evaluate(() => {
   const traces = g.clues.clues.filter((c) => c.type === 'shoreTrace').map((c) => ({ x: +c.x.toFixed(1), z: +c.z.toFixed(1) }));
   return { samples, recs, traces, log: (I.log ?? []).slice(0, 8), windows: I.schedule.windows.length };
 });
-const follow = ig.samples.filter((s) => !s.up);
+const follow = ig.samples.slice(6).filter((s) => !s.up);   // after it has caught up with you
 const tracked = follow.filter((s) => s.d <= 30).length / Math.max(1, follow.length);
 const corr = (() => { const n = follow.length, mx = follow.reduce((a, s) => a + s.px, 0) / n, my = follow.reduce((a, s) => a + s.ix, 0) / n; let c = 0, vx = 0, vy = 0; for (const s of follow) { c += (s.px - mx) * (s.ix - my); vx += (s.px - mx) ** 2; vy += (s.ix - my) ** 2; } return c / Math.sqrt(vx * vy); })();
 check('Igopogo follows your shoreline movement from the water at night (its position along the shore tracks yours; always in deep water)', tracked > 0.8 && corr > 0.8 && ig.samples.every((s) => s.deep), { tracked: +tracked.toFixed(2), correlation: +corr.toFixed(2), sample: ig.samples.slice(0, 5) });

@@ -21,6 +21,7 @@ export class OldYellowTop {
     this.name = 'Old Yellow Top';
     this.routes = routes.map((r, i) => ({ id: r.id ?? `route${i}`, name: r.name ?? `route ${i + 1}`, pts: r.pts, disturbance: 0 }));
     this.rests = rests; this.colliders = colliders; this.clues = clues;
+    this.t = 0;
     this.state = 'roam'; this.route = null; this.i = 0; this.dir = 1; this.timer = 0;
     this.log = []; this.prints = []; this.hair = []; this.walked = 0; this.sinceHair = 0;
     this.noticedOn = new Set();

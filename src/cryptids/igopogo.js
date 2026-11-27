@@ -13,7 +13,7 @@ import * as THREE from 'three';
 
 export const IGOPOGO = {
   // #133 stalking: at night, while it's down, it shadows your movement along the shore from the water.
-  shadow: { near: 12, far: 26, speed: 1.4, deep: -1.8, flee: 35, wary: 120 },
+  shadow: { near: 12, far: 26, speed: 2.2, deep: -1.8, flee: 35, wary: 120 },
   firstWindow: [60, 150],    // s of hunt clock until the first rise
   gap: [150, 260],           // s resting between windows
   duration: [22, 36],        // s a window lasts if undisturbed
@@ -125,7 +125,9 @@ export class Igopogo {
    */
   update(t, dt, noiseAt, ctx = null) {
     const before = this.schedule.trace.length;
-    const s = this.schedule.update(t, noiseAt);
+    // Shadowing, it hears the shore from where it actually is, not from its usual surfacing spot.
+    const hear = ctx && this.pos ? () => noiseAt({ ...this.schedule.zone, x: this.pos.x, z: this.pos.z, r: 4 }) : noiseAt;
+    const s = this.schedule.update(t, hear);
     const target = s === 'up' ? 1 : 0;
     this.riseLevel += Math.sign(target - this.riseLevel) * Math.min(Math.abs(target - this.riseLevel), dt / IGOPOGO.rise);
     const zone = this.schedule.zone;
