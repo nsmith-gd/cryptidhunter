@@ -20,6 +20,7 @@ import { GymHarness } from './gym/gymKit.js';
 import { GYM_RUNS } from './gym/gymRuns.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
+import { buildSimcoeMap } from './maps/simcoe.js';
 import { buildForestMap } from './maps/forest.js';
 import { setGroundHeight } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
@@ -128,7 +129,8 @@ const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Cam
 // condition (held in the ledger's asset record) drops with use, water and impact.
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
-const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap,   // gym: G00 bench (#77)
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, simcoe: buildSimcoeMap,   // simcoe: L03 greybox (#135)
+  gym: buildGymMap,   // gym: G00 bench (#77)
   g02: buildGymG02, g03: buildGymG03, g04: buildGymG04 };                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
