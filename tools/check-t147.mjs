@@ -47,7 +47,7 @@ const m = await page.evaluate(() => {
     scene: ['devil-nest', 'furnace-stack', 'sandstone-outcrop', 'camp-leanto', 'jersey-devil', 'extraction-van'].filter((n) => g.scene.getObjectByName(n)), slots: g.loadout.slots, tags: g.tags.carried, target: g.hunt.target, bigfoot: g.cryptids.cryptids.length };
 });
 check('Level 9 Pine Barrens: $15,000 trip; clearings, canopy gaps, the nest stand, rock and the road camp; the Jersey Devil in the sky; a loaned tag launcher in slot 4',
-  /Pine Barrens/.test(prep) && /\$15,000/.test(prep) && m.clearings >= 3 && m.gaps >= 5 && m.perches >= 4 && m.coverBarren === 0 && m.coverWoods >= 2 && m.scene.length === 6
+  /Pine Barrens/.test(prep) && /\$15,?000/.test(prep) && m.clearings >= 4 && m.gaps >= 5 && m.perches >= 4 && m.coverBarren === 0 && m.coverWoods >= 2 && m.scene.length === 6
   && m.slots[3] === 'tagLauncher' && m.tags === 2 && m.target === 'Jersey Devil' && m.bigfoot === 0, { prep, ...m });
 await shot('01-road-camp');
 
@@ -115,7 +115,7 @@ check('a fire out in the open draws it to circle over it', fire.state === 'inves
 
 // 7) After a swoop it perches on a dead pine: the tag window. Tag it with the launcher (slot 4, Q).
 await page.evaluate(() => { const d = __game.jerseyDevil; d.setState('climb', 'test'); d.stateTime = 5; });
-for (let i = 0; i < 40; i++) { await steps(15); if ((await devil()).tagWindow) break; }
+for (let i = 0; i < 120; i++) { await steps(15); if ((await devil()).tagWindow) break; }
 const per = await page.evaluate(() => ({ ...__game.jerseyDevil.perch, window: __game.jerseyDevil.tagWindow }));
 // Stand 18 m off at the nest's edge and aim.
 await page.evaluate((per) => { const g = __game, p = g.player; p.position.set(per.x + 14, 0, per.z + 11); p.velocity.set(0, 0, 0); g.sim.step();

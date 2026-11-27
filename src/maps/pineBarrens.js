@@ -27,7 +27,7 @@ const L = {
 export const BARRENS_PLACES = { roadCamp: 'Road camp', bigBarren: 'The big barren', eastBarren: 'East barren', furnace: 'Furnace ruins', outcrop: 'Sandstone outcrop', nest: 'Dead pines (nest)', bog: 'Cedar bog' };
 const ROAD = [L.roadCamp, { x: 6, z: 95 }, { x: -10, z: 60 }, { x: -20, z: 40 }, L.bigBarren, { x: -30, z: -20 }, { x: -5, z: -70 }, { x: 10, z: -88 }];
 // Open sky: [centre, radius].
-const CLEARINGS = [[L.bigBarren, 24], [L.eastBarren, 18], [L.nest, 20], [L.bog, 14]];
+const CLEARINGS = [[L.bigBarren, 24], [L.eastBarren, 18], [L.nest, 20], [L.bog, 14], [L.furnace, 12], [L.outcrop, 14]];   // the ruins and the outcrop stand in the open: rock is the only cover there
 const GAPS = [[{ x: -14, z: 82 }, 5], [{ x: 40, z: 25 }, 6], [{ x: -60, z: 70 }, 5], [{ x: 50, z: -60 }, 6], [{ x: -50, z: -95 }, 5], [{ x: -22, z: -48 }, 5], [{ x: 95, z: 20 }, 5]];
 
 export function buildPineBarrensMap(scene) {
