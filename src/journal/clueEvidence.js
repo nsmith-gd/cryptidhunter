@@ -3,6 +3,9 @@
 // and each candidate cryptid has a likelihood of leaving that feature. The journal combines
 // found clues with Bayes' rule into a confidence per cryptid.
 
+/** Ordinary-animal sign types (GDD 4.4 false leads, #99). */
+export const ORDINARY_SIGN = new Set(['deerTrack', 'foxTrack', 'owlFeather']);
+
 /** Turn a found clue into a feature key like 'footprint:large'. */
 export function clueFeature(clue) {
   switch (clue.type) {
@@ -26,7 +29,9 @@ export function describeClue(clue) {
     case 'hair': return 'Tuft of coarse brown hair';
     case 'branch': return `Branch snapped off ${clue.y.toFixed(1)} m up: something tall pushed through`;
     case 'scat': return `${(clue.data?.size ?? 1) >= 1.3 ? 'Large' : 'Small'} pile of droppings, still soft`;
-    case 'deerTrack': return 'Small split-hoof prints: just a deer';
+    case 'deerTrack': return 'Small split-hoof prints in pairs, 7 cm long';
+    case 'foxTrack': return 'Small four-toed paw prints in a neat single line, 5 cm long';
+    case 'owlFeather': return 'A soft feather, barred brown and cream, a hand long';
     default: return clue.type;
   }
 }
@@ -55,7 +60,7 @@ export function assess(foundClues) {
   const scores = CANDIDATES.map((c) => {
     let logL = 0;
     for (const clue of foundClues) {
-      if (clue.type === 'deerTrack') continue;   // an ordinary animal says nothing about which cryptid (GDD 4.4)
+      if (ORDINARY_SIGN.has(clue.type)) continue;   // an ordinary animal says nothing about which cryptid (GDD 4.4)
       logL += Math.log(c.likelihood[clueFeature(clue)] ?? 0.01);
     }
     return { id: c.id, name: c.name, logL };

@@ -59,7 +59,7 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
 import { EvidenceKit } from './evidence/evidence.js';
-import { spawnDeerTracks } from './clues/deerTracks.js';
+import { spawnDeerTracks, spawnFoxTracks, spawnOwlFeathers } from './clues/deerTracks.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
 import { XRControls } from './xr/xrControls.js';
@@ -161,7 +161,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
   manifest: () => {
     const carried = evidence.carried;
     const est = carried.length ? `${carried.length} item${carried.length > 1 ? 's' : ''}` : null;
-    return manifestText({ evidence: carried.map((i) => `${i.name} (${i.cryptid})`), photos: photo.log?.length ?? hunt.shotsTaken,
+    return manifestText({ evidence: carried.map((i) => i.name),   // what it really is stays unknown until HQ (#99) photos: photo.log?.length ?? hunt.shotsTaken,
       targetPhotos: hunt.photos.length, target: huntTarget, leftBehind: leftBehindNow(), kg: +loadout.load.total.toFixed(1),
       estimate: est && `${est} of evidence plus your photos, valued at base camp` });
   },
@@ -362,9 +362,13 @@ for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   cryptids.spawn(sp, s.x, s.z);
 }
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
-if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
-  blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
-  avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] });
+// #99: plus fox trails and owl feathers. All are tagged ordinary (hidden; HQ verification reads it).
+if (mapId === 'forest') {
+  const wild = { clues, bounds,
+    blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
+    avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] };
+  spawnDeerTracks(wild); spawnFoxTracks(wild); spawnOwlFeathers(wild);
+}
 // Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
 if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
 levelFlow.setDebug(clueTrails.debug);

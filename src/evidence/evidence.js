@@ -23,6 +23,7 @@ export const EVIDENCE = {
     footprintPhoto: { id: 'EV01', name: 'Footprint photo', base: 10, from: 'footprint', how: 'photo' },
     disturbancePhoto: { id: 'EV04', name: 'Disturbance photo', base: 8, from: 'scratch', how: 'photo' },
     hairSample: { id: 'EV02', name: 'Hair sample', base: 15, from: 'hair', how: 'pouch' },
+    featherSample: { id: 'EV02', name: 'Feather sample', base: 15, from: 'owlFeather', how: 'pouch' },
     biologicalSample: { id: 'EV06', name: 'Droppings sample', base: 30, from: 'scat', how: 'vial' },
     footprintCast: { id: 'EV05', name: 'Footprint cast', base: 20, from: 'footprint', how: 'cast' },
     audioRecording: { id: 'EV07', name: 'Acoustic recording', base: 20, from: 'sound', how: 'recorder' },   // F05 field recorder (#87)
@@ -32,6 +33,14 @@ export const EVIDENCE = {
 };
 
 const CRYPTID_NAMES = { bigfoot: 'Bigfoot', mothman: 'Mothman', chupacabra: 'Chupacabra' };
+// Ordinary-animal sign (#99): what really made it. Hidden ground truth: only HQ verification reads it.
+const ORDINARY_OF = { deerTrack: 'deer', foxTrack: 'fox', owlFeather: 'owl' };
+/** The hidden source tag for a clue: { kind, id, origin, species, actual }. */
+export function sourceTag(c) {
+  const ord = ORDINARY_OF[c.type];
+  return ord ? { kind: 'clue', id: c.id, origin: 'ordinary', species: ord, actual: `${ord} (ordinary animal)` }
+    : { kind: 'clue', id: c.id, origin: 'cryptid', species: c.cryptidId, actual: CRYPTID_NAMES[c.cryptidId] ?? c.cryptidId };
+}
 
 export class EvidenceKit {
   constructor({ camera, clues, input, notify = () => {} }) {
@@ -74,6 +83,7 @@ export class EvidenceKit {
   add(type, clue) {
     const t = EVIDENCE.types[type];
     const item = { id: this.nextId++, type, evId: t.id, name: t.name, clueId: clue.id, cryptid: CRYPTID_NAMES[clue.cryptidId] ?? clue.cryptidId,
+      source: clue.type ? sourceTag(clue) : { kind: 'recording', origin: 'cryptid', species: clue.cryptidId },   // hidden until HQ (#99)
       stage: 'collected', at: +this.time.toFixed(2) };
     this.items.push(item);
     this.observed.add(clue.id);
@@ -110,7 +120,16 @@ export class EvidenceKit {
       this.notify(`Droppings sample in a vial (${this.sampleVials} vials left)`);
       return item;
     }
-    if (c.type === 'deerTrack') { this.notify('Just a deer: no buyer wants that'); return null; }
+    if (c.type === 'owlFeather') {
+      if (this.has(c.id, 'featherSample')) { this.notify('Already bagged'); return null; }
+      if (this.pouches <= 0) { this.notify('No sample pouches left'); return null; }
+      this.pouches--;
+      const item = this.add('featherSample', c);
+      c.object.visible = false;
+      this.notify(`Feather bagged (${this.pouches} pouches left)`);
+      return item;
+    }
+    if (c.type === 'deerTrack' || c.type === 'foxTrack') { this.notify('Prints this small won\'t hold a cast: photograph them'); return null; }
     if (c.type === 'footprint') {
       if (this.has(c.id, 'footprintCast')) { this.notify('Already cast'); return null; }
       if (this.castingKits <= 0) { this.notify('No casting kits left: photograph it instead'); return null; }
@@ -133,7 +152,7 @@ export class EvidenceKit {
   photographed(entry = null, photo = null) {
     const c = this.aimed(EVIDENCE.photoReach);
     if (!c) return null;
-    const kind = c.type === 'footprint' || c.type === 'deerTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch') ? 'disturbance' : null;
+    const kind = c.type === 'footprint' || c.type === 'deerTrack' || c.type === 'foxTrack' ? 'footprint' : (c.type === 'scratch' || c.type === 'branch' || c.type === 'owlFeather') ? 'disturbance' : null;
     if (!kind) return null;
     let quality = null, rec = null;
     if (photo && entry) {
@@ -143,13 +162,12 @@ export class EvidenceKit {
       const light = lightAt(photo.scene, new THREE.Vector3(c.x, c.y + 0.03, c.z), { ambient: ctx.ambient ?? 0.05, nightVision: !!ctx.nightVision });
       quality = clueQuality({ view, light, steadiness: entry.steadiness ?? 1, committed: ctx.committed !== false });
       rec = photoRecord({ id: `${ctx.attemptId ?? 'A?'}-F${entry.frame}-clue${c.id}`, kind,
-        source: { kind: 'clue', id: c.id, actual: c.type === 'deerTrack' ? 'deer (ordinary animal)' : (CRYPTID_NAMES[c.cryptidId] ?? c.cryptidId) },
+        source: sourceTag(c),
         eventId: `clue:${c.id}`, attemptId: ctx.attemptId ?? null, time: ctx.time ?? this.time,
         location: photo.camera.getWorldPosition(new THREE.Vector3()), frame: entry.frame, quality, thumb: entry.thumb });
       photo.records.push(rec);
       entry.clueEvidence = rec;
     }
-    if (c.type === 'deerTrack') return null;   // a clear photo of an ordinary animal's sign is no evidence (GDD 4.5)
     const type = kind === 'footprint' ? 'footprintPhoto' : 'disturbancePhoto';
     if (this.has(c.id, type)) return null;
     const item = this.add(type, c);
@@ -202,7 +220,8 @@ export class EvidenceKit {
         text = parts.join(' · ');
       } else if ((c?.type === 'scratch' || c?.type === 'branch') && !this.has(c.id, 'disturbancePhoto')) text = `Photograph the ${c.type === 'branch' ? 'snapped branch' : 'scratch marks'} for evidence`;
       else if (c?.type === 'scat' && !this.has(c.id, 'biologicalSample')) text = `[X] Take a sample (${this.sampleVials} vials)`;
-      else if (c?.type === 'deerTrack') text = 'Deer tracks: just a deer';
+      else if ((c?.type === 'deerTrack' || c?.type === 'foxTrack') && !this.has(c.id, 'footprintPhoto')) text = 'Photograph the prints for evidence';
+      else if (c?.type === 'owlFeather' && !this.has(c.id, 'featherSample')) text = `[X] Bag the feather (${this.pouches} pouches)`;
     }
     if (this.prompt.textContent !== text) this.prompt.textContent = text;
   }
@@ -233,6 +252,7 @@ export function valueEvidence(items) {
     const key = `${i.type}:${i.cryptid}`;
     const n = seen.get(key) ?? 0; seen.set(key, n + 1);
     const novelty = EVIDENCE.novelty[Math.min(n, EVIDENCE.novelty.length - 1)];
+    if (i.source?.origin === 'ordinary') return { ...i, novelty: 0, value: 0 };   // an ordinary animal's sign is no cryptid evidence
     return { ...i, novelty, value: Math.round(EVIDENCE.types[i.type].base * EVIDENCE.dollarsPerUnit * novelty) };
   });
 }
