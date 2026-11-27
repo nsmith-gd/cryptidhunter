@@ -15,7 +15,7 @@ import * as THREE from 'three';
 //       warning cue, a safe edge route, two hiding spots and the extraction point; a territorial
 //       proxy and a scent-pursuit proxy (either can be switched off with ?proxy=).
 
-export const GYM_SEEDS = { gym: 77, g02: 202, g03: 303, g04: 404 };
+export const GYM_SEEDS = { gym: 77, g02: 202, g03: 303, g04: 404, g05: 505 };
 
 function kit(scene) {
   const colliders = [];
