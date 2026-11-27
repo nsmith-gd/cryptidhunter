@@ -63,7 +63,7 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
 import { EvidenceKit } from './evidence/evidence.js';
-import { spawnDeerTracks } from './clues/deerTracks.js';
+import { spawnDeerTracks, spawnFoxTracks, spawnOwlFeathers } from './clues/deerTracks.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
 import { XRControls } from './xr/xrControls.js';
@@ -80,6 +80,7 @@ import { Expedition, EXPEDITION, OUTCOMES, manifestText } from './hunt/expeditio
 import { renderAlbum } from './hunt/album.js';
 import { Supplier, showSupplierPanel, CATALOGUE } from './hunt/supplier.js';
 import { chargeRecovery, gearAfter, deathReport } from './hunt/failureRules.js';
+import { RecoveryAssignment } from './hunt/recoveryAssignment.js';
 import { setKit } from './gear/pack.js';
 import { EvidenceArchive, advance } from './evidence/photoEvidence.js';
 import { BaitManager, BAIT } from './gear/bait.js';
@@ -150,7 +151,10 @@ else HUNT.exit.set(player.position.x + Math.sin(player.yaw) * 7, 0, player.posit
 // Base camp: money, owned gear and past hunts carry over between hunts. This hunt's photos only
 // count if you drive home from the van; getting caught loses them, gear comes home.
 addEventListener('pagehide', () => camp.save());   // save on quit (money is also saved whenever it changes)
-const packed = camp.packForHunt();
+// Recovery assignment (#105, GDD 7.4): broke? A sponsor's local survey instead of a trip. While one is
+// active you go out with the sponsor's loaner kit; your own gear stays at camp, untouched.
+const sponsorSurvey = new RecoveryAssignment({ camp, mapId, tripCents: EXPEDITION.tripCents });
+const packed = sponsorSurvey.active ? sponsorSurvey.loanerKit() : camp.packForHunt();
 // Expedition lifecycle (#98): Plan on the start screen -> Commit (trip debited once, attempt ID)
 // -> Investigate -> Extract (manifest review at the van) -> Debrief. Built after the loadout below.
 let expedition = null;
@@ -165,11 +169,11 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
   clock: map.clock ?? null, vehicle: map.daylight ? 'car' : 'van',
   objective: map.daylight ? [`OBJECTIVE: Find signs of the ${huntTarget} and get back to the car before dusk`,
     'Leave the trail to search. Drink (I) before you are thirsty, take steep slopes slowly, and keep your map and compass (M) handy.'] : null,
-  onStart: () => { expedition?.commit(); supplier.commit(expedition?.attemptId ?? null); },   // purchases and rentals are final once you set off (#88)
+  onStart: () => { expedition?.commit(); supplier.commit(expedition?.attemptId ?? null); sponsorSurvey.bind(expedition?.attemptId ?? null); },   // purchases and rentals are final once you set off (#88)
   manifest: () => {
     const carried = evidence.carried;
     const est = carried.length ? `${carried.length} item${carried.length > 1 ? 's' : ''}` : null;
-    return manifestText({ evidence: carried.map((i) => `${i.name} (${i.cryptid})`), photos: photo.log?.length ?? hunt.shotsTaken,
+    return manifestText({ evidence: carried.map((i) => i.name),   // what it really is stays unknown until HQ (#99) photos: photo.log?.length ?? hunt.shotsTaken,
       targetPhotos: hunt.photos.length, target: huntTarget, leftBehind: leftBehindNow(), kg: +loadout.load.total.toFixed(1),
       estimate: est && `${est} of evidence plus your photos, valued at base camp` });
   },
@@ -183,11 +187,14 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       charges: outcome === 'emergency' ? [{ id: 'evac', cents: EXPEDITION.emergencyCents, memo: 'Emergency evacuation' }] : [],
       outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      records: photo.records.filter((r) => r.kind === 'creature'),   // graded and verified at HQ (#99)
       // Research (#101): this attempt's field notes for the target's dossier (kept only if extracted).
       mapId, research: fieldRecords({ target: huntTarget, journalEntries: journal.entries, photos: hunt.photos,
         evidence: evidence.items.filter((i) => i.stage !== 'lost'), knocks: knocks.log, events: cryptidEvents }),
       evidence: evidence.settle(outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency'),
-      gearLeft: gearAfter(carriedNow, died),   // what you carried comes home (or is lost with you); gear left at camp is untouched
+      // what you carried comes home (or is lost with you); gear left at camp is untouched. The
+      // sponsor's loaner kit never enters your owned gear (#105).
+      gearLeft: sponsorSurvey.active ? {} : gearAfter(carriedNow, died),
     });
     expedition?.settled();
     // Rented gear goes back after the trip (#88): deposit returned, or kept if it was lost out there at dawn.
@@ -197,10 +204,14 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
     const extracted = outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency';
     advance(photo.records, extracted ? 'extracted' : 'lost', hunt.elapsed);
     if (extracted) evidenceArchive.add(photo.records);
+    // Sponsor survey (#105): the fixed fee if both points were logged and you drove out; zero otherwise.
+    hunt.sponsor = sponsorSurvey.settle({ extracted });
+    if (hunt.sponsor) camp.save();
     // Between-trip recovery (GDD 9.3): a moderate/severe injury you brought home costs 5%/10% of the trip.
     const recovery = extracted ? chargeRecovery(camp.ledger, survival.health, EXPEDITION.tripCents, expedition?.attemptId ?? h.attemptId) : null;
     if (recovery) camp.save();
     let summary = huntSummary(h);
+    if (hunt.sponsor) summary += `\n${hunt.sponsor.reason}.`;
     if (recovery) summary += `\nInjury recovery (${recovery.severity}): -${formatCAD(recovery.cents)}${recovery.cents < recovery.quoted ? ` (the rest waived)` : ''}. You'll be back to full health for the next trip.`;
     hunt.recovery = recovery;
     reputation.set(camp.state.reputation ?? 0);   // keep the live reputation in step with camp
@@ -396,9 +407,16 @@ for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   cryptids.spawn(sp, s.x, s.z);
 }
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
-if (mapId === 'forest' || mapId === 'oromedonte') spawnDeerTracks({ clues, bounds,
-  blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
-  avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] });
+// #99: plus fox trails and owl feathers. All are tagged ordinary (hidden; HQ verification reads it).
+if (mapId === 'forest' || mapId === 'oromedonte') {
+  const wild = { clues, bounds,
+    blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
+    avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] };
+  spawnDeerTracks(wild); spawnFoxTracks(wild); spawnOwlFeathers(wild);
+}
+// Sponsor survey (#105): flagged stakes with fresh sign at the two survey points.
+sponsorSurvey.setUp({ scene, clues });
+sponsorSurvey.buildHud();
 // Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
 if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
 levelFlow.setDebug(clueTrails.debug);
@@ -457,6 +475,14 @@ let knocksHeard = 0;
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
   pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
   gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit, equipment, repairKit: { uses: 0 }, notify: (m) => photo.toast(m) } });
+// S07 hydration (#103): the packed bottles are the loadout's water; the canteen and tablets come
+// from camp. The canteen and its water are carried in the pack (mass counts once, in the load).
+survival.hydration.bottles = { get: () => loadout.water, set: (n) => { loadout.water = n; loadout.render(); } };
+survival.hydration.hasCanteen = (camp.state.gear.canteen ?? 0) > 0;
+survival.hydration.canteen.litres = survival.hydration.hasCanteen ? 1 : 0;
+survival.hydration.tablets = camp.state.gear.purTablets ?? 0;
+survival.hydration.onTablet = () => { camp.state.gear.purTablets = Math.max(0, (camp.state.gear.purTablets ?? 0) - 1); camp.save(); };
+loadout.extraPack = () => (survival.hydration.hasCanteen ? { canteen: 1, canteenWater: survival.hydration.canteen.litres } : {});
 photo.onLoweredClick = () => loadout.use();
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
   onChange: ({ slots, pack, water }) => {
@@ -553,10 +579,13 @@ expedition = new Expedition({ camp, loadout, target: huntTarget,
     ];
   } });
 hunt.outcomeLabels = OUTCOMES;
+expedition.requireSponsor = () => sponsorSurvey.offered;   // broke: the sponsor's survey is the way out (#105)
 expedition.mount(undefined, {
   onCommit: () => { refreshMoney(); input.requestLock(); },
   onEmergency: () => { if (hunt.stage === 'search' || hunt.stage === 'extract') { overlay.classList.add('hidden'); hunt.end('emergency'); } },
 });
+sponsorSurvey.mount(undefined, { onAccept: () => { location.href = location.pathname + location.search; } });   // reload with the loaner kit
+
 // First-person hands and gear: torch in the right hand, camera in the left, goggles and trail cam on use.
 const viewmodel = new Viewmodel({ camera, player, flashlight, photo, nightVision, trailCams });
 
@@ -697,6 +726,7 @@ function simulateOnce(dt, extra = false) {
   trailCams.update(dt);
   fieldKit.update(dt);
   fieldCamp.update(dt);
+  for (const s of sponsorSurvey.update(clues)) photo.toast(`Survey point logged: ${s.name} (${sponsorSurvey.progress.done}/${sponsorSurvey.progress.total})`);
   // Wood knocks a cryptid makes are sounds the field recorder can pick up (#87).
   for (; knocksHeard < knocks.log.length; knocksHeard++) {
     const k = knocks.log[knocksHeard];
@@ -717,6 +747,7 @@ function present(dt) {
   fieldMap.update(dt);
   survival.render();
   weather.update(dt);
+  sponsorSurvey.renderHud();
   evidence.render();
   const v = Math.hypot(player.velocity.x, player.velocity.z);
   const wading = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
@@ -788,4 +819,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { daylight, terrainInjury, scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { daylight, terrainInjury, sponsorSurvey, scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

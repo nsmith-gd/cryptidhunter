@@ -2,6 +2,7 @@ import { Thermoregulation, THERMO } from './thermoregulation.js';
 import { Nutrition } from './nutrition.js';
 import { Health, HEALTH } from './health.js';
 import { Fatigue } from './fatigue.js';
+import { Hydration } from './hydration.js';
 
 // Survival systems for the tutorial tier (GDD 1.2 S01 Nutrition, S02 Thermoregulation).
 // Each system owns its own state; this module steps them in the GDD order (environment first,
@@ -10,7 +11,7 @@ import { Fatigue } from './fatigue.js';
 // Z eats.
 
 export class Survival {
-  constructor({ player, input, map, heatSources, food, lethalCold = false, rain = () => 0 }) {
+  constructor({ player, input, map, heatSources, food, lethalCold = false, rain = () => 0, hydration = {} }) {
     this.player = player;
     this.thermo = new Thermoregulation({ player, airTemp: map.environment?.airTemp ?? 6, heatSources, surfaceAt: map.surfaceAt, lethal: lethalCold, rain });
     // S09 (#104): sleep debt. Caps stamina capacity; only sleep at a camp brings it down.
@@ -18,17 +19,28 @@ export class Survival {
     this.nutrition = new Nutrition({ player, food, getCold: () => this.thermo.coldDeficit });
     // S08: the only damage path. onDeath is set by the hunt (health 0 ends it).
     this.health = new Health({ onDeath: (cause) => this.onDeath?.(cause) });
+    // S07 (#103): hydration. The packed bottles are wired in once the loadout exists (main.js).
+    this.hydration = new Hydration({ player, health: this.health, lethal: lethalCold, getWater: () => this.thermo.inWater,
+      getWarm: () => !!this.thermo.nearHeat, ...hydration });
     this.shown = new Set();
     this.buildHud();
     addEventListener('keydown', (e) => {
       if (e.code === 'KeyZ' && !e.repeat && input.locked) this.eat();
       if (e.code === 'KeyB' && !e.repeat && input.locked) this.bandage();
+      if (e.code === 'KeyI' && !e.repeat && input.locked) this.drink();
     });
   }
 
   eat() {
     const r = this.nutrition.eat();
     this.toast(r ? `Ate a ${r.name.toLowerCase()} (+${r.energy} energy)` : 'No food left');
+    return r;
+  }
+
+  /** I: drink (or fill the canteen when standing in a stream or swamp). */
+  drink() {
+    const r = this.hydration.act();
+    this.toast(r.text);
     return r;
   }
 
@@ -42,12 +54,13 @@ export class Survival {
   update(dt) {
     this.thermo.update(dt);
     this.nutrition.update(dt);
+    this.hydration.update(dt);
     this.fatigue.update(dt);
     // Critical cold (ordinary expeditions): the shared health path, after the warnings (#89).
     this.health.exposure('Hypothermia', THERMO.criticalDrain, dt, this.thermo.critical);
     this.health.update(dt);
-    const hunger = this.nutrition.hungerDeficit * 0.5, cold = this.thermo.coldDeficit * 0.6;
-    this.player.recoveryScale = Math.max(0.25, 1 - hunger - cold);
+    const hunger = this.nutrition.hungerDeficit * 0.5, thirst = this.hydration.thirstDeficit * 0.5, cold = this.thermo.coldDeficit * 0.6;
+    this.player.recoveryScale = Math.max(0.25, 1 - hunger - thirst - cold);   // GDD 2.8 stamina_recovery
     // Derived capability (GDD 2.8): wounds and cold slow you and cap your stamina; never below the floors.
     const h = this.health;
     this.player.injuryPenalty = Math.max(0, (70 - h.value) / 70) * 0.35 + (h.bleeding.some((c) => c.severity === 'heavy') ? 0.1 : 0);
@@ -59,7 +72,7 @@ export class Survival {
   setWarningSource(fn) { this.warningSource = fn; }
 
   /** Every active warning, each naming its cause. */
-  warnings() { return [...this.health.warnings(), ...this.thermo.warnings(), ...this.nutrition.warnings(), ...this.fatigue.warnings()]; }
+  warnings() { return [...this.health.warnings(), ...this.thermo.warnings(), ...this.nutrition.warnings(), ...this.hydration.warnings(), ...this.fatigue.warnings()]; }
 
   // --- HUD -------------------------------------------------------------------------------
   buildHud() {
@@ -80,6 +93,7 @@ export class Survival {
     this.el.innerHTML = `
       <div class="row"><span>HEALTH</span><div class="track"><div class="fill h"></div></div><span class="hn"></span></div>
       <div class="row"><span>ENERGY</span><div class="track"><div class="fill e"></div></div><span class="en"></span></div>
+      <div class="row water"><span>WATER</span><div class="track"><div class="fill w"></div></div><span class="wn"></span></div>
       <div class="row"><span>BODY</span><div class="track"><div class="fill t"></div></div><span class="tn"></span></div>
       <div class="row"><span>FATIGUE</span><div class="track"><div class="fill f"></div></div><span class="fn"></span></div>
       <div class="warn"></div>`;
@@ -97,6 +111,11 @@ export class Survival {
     e.style.width = `${n.energy.toFixed(1)}%`;
     e.style.background = n.energy <= 25 ? '#c0504d' : n.energy <= 50 ? '#e0a040' : '#8fd07a';
     this.el.querySelector('.en').textContent = `${Math.round(n.energy)} · food ${n.foodLeft} (Z)`;
+    const hy = this.hydration, wf = this.el.querySelector('.fill.w');
+    this.el.querySelector('.row.water').style.display = hy.enabled ? '' : 'none';
+    wf.style.width = `${hy.value.toFixed(1)}%`;
+    wf.style.background = hy.value <= 25 ? '#c0504d' : hy.value <= 50 ? '#e0a040' : '#6ab0e0';
+    this.el.querySelector('.wn').textContent = `${Math.round(hy.value)} · ${hy.drinkable.toFixed(2).replace(/\.?0+$/, '')} L (I)${hy.canteen.purifyLeft > 0 ? ' · purifying' : ''}`;
     const frac = (t.core - THERMO.floor) / (THERMO.ceiling - THERMO.floor);
     tf.style.width = `${(Math.max(0, Math.min(1, frac)) * 100).toFixed(1)}%`;
     tf.style.background = t.core < THERMO.coldBelow ? '#6aa8ff' : t.core < THERMO.comfortLow ? '#a8c8ff' : '#f0c070';

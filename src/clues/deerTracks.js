@@ -43,3 +43,43 @@ export function spawnDeerTracks({ clues, bounds, blocked = () => false, avoid = 
   }
   return trails;
 }
+
+// More ordinary-animal sign (#99, GDD 4.4): a fox's neat single-file trail and owl feathers
+// dropped under the pines. Seeded like the deer trails.
+export const FOX = { trails: 3, length: [20, 40], stride: 0.35, turn: 0.15 };
+export const OWL = { feathers: 6 };
+
+export function spawnFoxTracks({ clues, bounds, blocked = () => false, avoid = [], rand = stream('fox') }) {
+  const trails = [];
+  for (let t = 0; t < FOX.trails; t++) {
+    let x = 0, z = 0, ok = false;
+    for (let tries = 0; tries < 40 && !ok; tries++) {
+      x = (rand() * 2 - 1) * (bounds - 12); z = (rand() * 2 - 1) * (bounds - 12);
+      ok = !blocked(x, z) && avoid.every((a) => Math.hypot(x - a.x, z - a.z) > a.r);
+    }
+    if (!ok) continue;
+    let h = rand() * Math.PI * 2;
+    const len = FOX.length[0] + rand() * (FOX.length[1] - FOX.length[0]), prints = [];
+    for (let d = 0; d < len; d += FOX.stride) {
+      h += (rand() - 0.5) * 2 * FOX.turn;
+      const nx = x + Math.sin(h) * FOX.stride, nz = z - Math.cos(h) * FOX.stride;
+      if (blocked(nx, nz) || Math.abs(nx) > bounds - 4 || Math.abs(nz) > bounds - 4) { h += Math.PI / 2; continue; }
+      x = nx; z = nz;                                  // a fox walks in a single straight line (direct register)
+      clues.spawn('foxTrack', { cryptidId: 'fox', position: { x, y: 0, z }, rotationY: -h, origin: { x, z }, data: {} });
+      prints.push({ x, z });
+    }
+    trails.push(prints);
+  }
+  return trails;
+}
+
+export function spawnOwlFeathers({ clues, bounds, blocked = () => false, avoid = [], rand = stream('owl') }) {
+  const out = [];
+  for (let i = 0, tries = 0; i < OWL.feathers && tries < 200; tries++) {
+    const x = (rand() * 2 - 1) * (bounds - 10), z = (rand() * 2 - 1) * (bounds - 10);
+    if (blocked(x, z) || avoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
+    clues.spawn('owlFeather', { cryptidId: 'owl', position: { x, y: 0, z }, rotationY: rand() * Math.PI * 2, origin: { x, z }, data: {} });
+    out.push({ x, z }); i++;
+  }
+  return out;
+}
