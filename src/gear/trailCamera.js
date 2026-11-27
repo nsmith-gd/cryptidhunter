@@ -65,6 +65,7 @@ export class TrailCameras {
       const led = cam.group.userData.led;
       led.material.color.set(cam.flash > 0 ? 0xffffff : (Math.sin(this.t * 3 + cam.id) > 0.6 ? 0xff2a1a : 0x330806));
       cam.group.userData.ir.intensity = cam.flash > 0 ? 6 : 0;
+      if (cam.jammed) { led.material.color.set(0x000000); continue; }   // electrical interference (#145): dead while it lasts
       if (cam.cooldown > 0 || cam.photos.length >= TRAIL_CAM.maxPhotos) continue;
       const shot = this.evaluate(cam);
       if (shot) this.trigger(cam, shot);

@@ -47,6 +47,7 @@ import { FieldKit } from './gear/fieldKit.js';
 import { Equipment, WEAR } from './gear/condition.js';
 import { ScentField, SCENT_WORLD } from './cryptids/scent.js';
 import { HowlerProxy } from './cryptids/howlerProxy.js';
+import { InterferenceField, INTERFERENCE } from './power/interference.js';
 import { showEquipmentPanel } from './gear/equipmentPanel.js';
 import { FieldCamp } from './survival/fieldCamp.js';
 import { Weather } from './survival/weather.js';
@@ -593,6 +594,33 @@ const equipmentPanel = showEquipmentPanel(equipment, { canAct: () => hunt.stage 
 // Field wear (#106): per shot, per minute of torch, per km walked; wading soaks the shoes; raising
 // the camera while wading dips it into the water (the photos already on its card are kept).
 const wearState = { shots: photo.log.length, last: player.position.clone(), dunkCooldown: 0 };
+// Electrical interference (#145, GDD 5.3/5.4 L08): powered devices near the Mothman flicker and
+// fail; walk out of range and they come back. The film camera and the paper map and compass are
+// analogue: never affected. Only devices inside the field are touched.
+const interference = new InterferenceField({ sources: () => (mothman.mesh.visible ? [mothman.mesh.position] : []) });
+const deviceSay = { torch: ['Your torch flickers.', 'Your torch dies. The bulb is fine, the light just stops.', 'Your torch comes back on.'],
+  nightVision: ['The night vision fizzes with static.', 'Night vision: nothing but static.', 'The night vision clears.'],
+  recorder: ['The recorder hisses.', 'The recorder has died mid-take.', 'The recorder powers back up.'] };
+function updateInterference(dt) {
+  const P = player.position, me = { x: P.x, y: P.y + 1.4, z: P.z };
+  const devices = [{ id: 'torch', kind: 'torch', ...me }, { id: 'nvg', kind: 'nightVision', ...me }, { id: 'recorder', kind: 'recorder', ...me },
+    ...trailCams.cams.map((c) => ({ id: `cam${c.id}`, kind: 'trailCam', x: c.group.position.x, y: c.group.position.y, z: c.group.position.z, ref: c })),
+    ...audioLures.lures.map((l, i) => ({ id: `lure${i}`, kind: 'audioLure', x: l.x, y: 0.5, z: l.z, ref: l }))];
+  const before = new Map([...interference.state].map(([k, v]) => [k, v.status]));
+  const st = interference.update(dt, devices);
+  for (const d of devices) {
+    const s = st.get(d.id), was = before.get(d.id) ?? 'ok';
+    if (d.ref) { d.ref.jammed = s === 'failed' || (s === 'flicker' && !interference.flickerOn(d.id, interference.state.get(d.id).level)); continue; }
+    const say = deviceSay[d.kind];
+    if (say && s !== was) photo.toast(s === 'flicker' && was === 'ok' ? say[0] : s === 'failed' ? say[1] : s === 'ok' ? say[2] : say[0]);
+  }
+  const torch = st.get('torch');
+  if (torch === 'failed') flashlight.output = 0;
+  else if (torch === 'flicker') flashlight.output *= interference.flickerOn('torch', interference.state.get('torch').level) ? 1 : 0.05;
+  nightVision.jammed = st.get('nvg') === 'failed';
+  if (nightVision.jammed && nightVision.on) nightVision.toggle(false);
+  if (st.get('recorder') === 'failed' && fieldKit?.recording) fieldKit.recording = false;
+}
 function updateWear(dt) {
   photo.clarity = equipment.cameraClarity; flashlight.output = equipment.torchOutput;
   if (hunt.stage !== 'search' && hunt.stage !== 'extract') { wearState.last.copy(player.position); return; }
@@ -797,6 +825,7 @@ function simulateOnce(dt, extra = false) {
   lake?.update(dt);                          // boat seats you; swim / dive / breath (#139), before survival reads it
   power?.update(dt);                         // packs, devices, fuel, generator (#140)
   updateWear(dt);
+  updateInterference(dt);
   survival.update(dt);
   terrainInjury?.update(dt);
   // Daylight follows the trip clock (sim time), not the frame rate (#129).
@@ -931,7 +960,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {
