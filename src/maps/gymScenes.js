@@ -162,7 +162,11 @@ export function buildGymG03(scene) {
 }
 
 // ---- G04 -------------------------------------------------------------------------------------
-export const G04 = { home: { x: -12, z: -8 }, warnR: 15, coreR: 7, extraction: { x: 14, z: -26 }, fork: { x: 0, z: 12 }, den: { x: 18, z: 6 } };
+export const G04 = { home: { x: -12, z: -8 }, warnR: 15, coreR: 7, extraction: { x: 14, z: -26 }, fork: { x: 0, z: 12 }, den: { x: 18, z: 6 },
+  // Hiding spots (#141): solid cover that blocks the creature's line of sight. A rock blind and a thicket.
+  hides: [{ id: 'A', name: 'the rock blind', x0: -4, z0: -1, x1: -1, z1: 0.5, h: 1.9 }, { id: 'B', name: 'the thicket', x0: 9, z0: -6, x1: 12, z1: -4.5, h: 2.1 }],
+  // Expensive gear left inside the defended core (#141): recover it (and pay for it) or abandon it.
+  cache: { x: -8, z: -5, name: 'trail camera case', value: 180 } };
 
 export function buildGymG04(scene) {
   const K = kit(scene), H = 30;
@@ -183,8 +187,12 @@ export function buildGymG04(scene) {
   K.sign(-2, 6, 'FRESH CLAW\nMARKS AHEAD', -0.6);
   K.box(G04.home.x - 2, G04.home.z - 1.5, G04.home.x + 2, G04.home.z + 1.5, 0, 0.6, 0x4a4036, { name: 'g04-lair' });
   // Two hiding spots: a rock blind and a dense thicket.
-  K.box(-4, -1, -1, 0.5, 0, 1.9, 0x5a5a5a, { name: 'g04-hide-rock' }); K.sign(-2.5, 1.4, 'HIDE A');
-  K.box(9, -6, 12, -4.5, 0, 2.1, 0x2a4a2a, { name: 'g04-hide-thicket' }); K.sign(10.5, -3.6, 'HIDE B');
+  const [hA, hB] = G04.hides;
+  K.box(hA.x0, hA.z0, hA.x1, hA.z1, 0, hA.h, 0x5a5a5a, { name: 'g04-hide-rock' }); K.sign(-2.5, 1.4, 'HIDE A');
+  K.box(hB.x0, hB.z0, hB.x1, hB.z1, 0, hB.h, 0x2a4a2a, { name: 'g04-hide-thicket' }); K.sign(10.5, -3.6, 'HIDE B');
+  // The abandoned gear: a yellow camera case inside the core, in plain view from the warning ring.
+  const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.45, 0.5), new THREE.MeshStandardMaterial({ color: 0xe0b020, emissive: 0x302000, roughness: 0.5 }));
+  caseMesh.position.set(G04.cache.x, 0.23, G04.cache.z); caseMesh.rotation.y = 0.6; caseMesh.name = 'g04-gear-cache'; scene.add(caseMesh);
   for (const [x, z] of [[8, 18], [-10, 18], [22, -12], [-22, 10], [18, 20], [-24, -20], [6, -18]]) K.tree(x, z);
   K.flat(G04.extraction.x, G04.extraction.z, 4, 3, 0xd0c060, 'g04-extraction'); K.sign(G04.extraction.x, G04.extraction.z - 2, 'EXTRACTION');
   K.light(G04.extraction.x, 3, G04.extraction.z, 0xfff0d0, 3, 10);
@@ -195,7 +203,8 @@ export function buildGymG04(scene) {
     spawns: {}, spawnZones: { bigfoot: [], clues: [] },
     surfaceAt: () => 'dry', speedAt: () => 1,
     safeZones: [],
-    landmarks: { start: { x: 0, z: 26 }, fork: G04.fork, home: G04.home, extraction: G04.extraction, hideA: { x: -2.5, z: -0.2 }, hideB: { x: 10.5, z: -5.2 }, den: G04.den },
+    landmarks: { start: { x: 0, z: 26 }, fork: G04.fork, home: G04.home, extraction: G04.extraction, hideA: { x: -2.5, z: -0.2 }, hideB: { x: 10.5, z: -5.2 }, den: G04.den, cache: G04.cache },
+    cacheMesh: caseMesh,
     environment: { ...dusk, lightLevel: 0.3 },
   };
 }
