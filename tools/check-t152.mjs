@@ -1,0 +1,50 @@
+// G06 observation network and adaptive threat gym check (#152, GDD 15.2 G06). Run: npm run check:t152 [outDir]
+// Loads ?map=g06 (Hidebehind) and ?map=g06&proxy=dogman, runs each scripted run, records every pass
+// criterion, checks a reset replays to the same digest, and captures the camp and its coverage.
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+const require = createRequire(import.meta.url);
+let chromium;
+try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
+const out = process.argv[2] || '.ballast/media/t152';
+mkdirSync(out, { recursive: true });
+const PORT = 4452;
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
+await new Promise((r) => setTimeout(r, 2500));
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push(e.message));
+const results = [];
+const check = (name, ok, s) => { results.push(`${ok ? 'PASS' : 'FAIL'} ${name} ${JSON.stringify(s)}`); };
+const load = async (extra = '') => { await page.goto(`http://localhost:${PORT}/?map=g06&simpaused${extra}`); await page.waitForFunction(() => window.__gym?.harness?.world, null, { timeout: 120000 }); };
+await load();
+await page.evaluate(() => { const g = __game; document.querySelector('#overlay').style.visibility = 'hidden';
+  g.camera.position.set(0, 26, 34); g.camera.lookAt(0, 0, 0); g.renderer.render(g.scene, g.camera); g.gymHarness.render(); });
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${out}/01-camp-corridors-cameras-from-above.png` });
+await page.evaluate(() => { document.querySelector('#overlay').style.visibility = ''; });
+const first = await page.evaluate(() => window.__gym.run());
+for (const c of first.criteria) check(`G06 ${c.id}: ${c.text}`, c.status !== 'fail', { status: c.status, ...c.detail });
+await page.evaluate(() => { const g = __game, hb = g.gymHarness.world.hb; g.player.position.set(hb.x + 3, 0, hb.z + 4); g.player.yaw = Math.atan2(-(hb.x - g.player.position.x), -(hb.z - g.player.position.z)); g.player.pitch = 0.05; g.sim.frame(1 / 60); g.gymHarness.render(); });
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${out}/02-after-the-run-intrusion-and-criteria.png` });
+writeFileSync(`${out}/run-hidebehind.json`, JSON.stringify(first, null, 1));
+await page.evaluate(() => window.__gym.reset());
+await page.waitForFunction(() => window.__gym?.harness?.world && window.__gym.harness.tick === 0, null, { timeout: 120000 });
+const second = await page.evaluate(() => window.__gym.run());
+check('G06 loads from ?map=g06 with its fixed seed', first.seed === 606 && first.ticks > 0, { seed: first.seed, ticks: first.ticks, events: first.events });
+check('G06 reset and replay reach the same state (same digest)', first.digest === second.digest, { first: first.digest, second: second.digest });
+await load('&proxy=dogman');
+const dog = await page.evaluate(() => window.__gym.run());
+for (const c of dog.criteria) check(`G06 (Dogman) ${c.id}: ${c.text}`, c.status !== 'fail', { status: c.status, ...c.detail });
+await page.evaluate(() => { const g = __game, d = g.gymHarness.world.dogman.position; g.player.position.set(d.x + 5, 0, d.z + 7); g.player.yaw = Math.atan2(-(d.x - g.player.position.x), -(d.z - g.player.position.z)); g.player.pitch = 0.02; g.sim.frame(1 / 60); g.gymHarness.render(); });
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${out}/03-dogman-waiting-on-route-a.png` });
+writeFileSync(`${out}/run-dogman.json`, JSON.stringify(dog, null, 1));
+check('no page errors', errors.length === 0, errors);
+console.log(results.map((r) => r.slice(0, 340)).join('\n'));
+await browser.close();
+server.kill();
+process.exit(results.some((r) => r.startsWith('FAIL')) ? 1 : 0);

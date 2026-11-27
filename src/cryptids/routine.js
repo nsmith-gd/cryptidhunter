@@ -60,8 +60,17 @@ export class RoutineMemory {
     const L = ROUTINE.leg;
     // The same leg: both ends close, within under half its length (so the next leg along a straight
     // path isn't mistaken for this one), and the same way round.
-    const m = Math.max(2, Math.min(ROUTINE.merge, Math.hypot(b.x - a.x, b.z - a.z) * 0.45));
-    const leg = this.legs.find((g) => Math.hypot(g.ax - a.x, g.az - a.z) < m && Math.hypot(g.bx - b.x, g.bz - b.z) < m);
+    // The same stretch of route, sampled at a different moment: the two legs overlap (each one's
+    // midpoint lies on the other) and run the same way. Neighbouring legs along a straight path
+    // don't overlap, so they stay separate.
+    const len = Math.hypot(b.x - a.x, b.z - a.z), m = Math.max(1.5, Math.min(ROUTINE.merge, len * 0.4));
+    const seg = (x, z, ax, az, bx, bz) => { const abx = bx - ax, abz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * abx + (z - az) * abz) / (abx * abx + abz * abz || 1))); return Math.hypot(x - ax - abx * t, z - az - abz * t); };
+    const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, ux = (b.x - a.x) / (len || 1), uz = (b.z - a.z) / (len || 1);
+    const leg = this.legs.find((g) => {
+      const gl = Math.hypot(g.bx - g.ax, g.bz - g.az) || 1;
+      return ((g.bx - g.ax) * ux + (g.bz - g.az) * uz) / gl > 0.8
+        && seg(mx, mz, g.ax, g.az, g.bx, g.bz) < m && seg((g.ax + g.bx) / 2, (g.az + g.bz) / 2, a.x, a.z, b.x, b.z) < m;
+    });
     if (leg) {
       leg.base = Math.min(1, this.confidenceOf(leg) + L.gain); leg.count++; leg.t = this.time; leg.expiry = Math.max(leg.expiry, this.time + L.ttl);
       return leg;

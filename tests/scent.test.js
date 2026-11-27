@@ -194,3 +194,11 @@ test('camps it saw are remembered (longer than a route sample), bounded, and fad
   m.update(ROUTINE.ttl.camp);
   assert.equal(m.anticipate(12, 12), null);
 });
+
+test('a second walk sampled out of step with the first still counts as the same route', () => {
+  const m = new RoutineMemory();
+  walkSeen(m, routeA);
+  walkSeen(m, routeA.map((p) => ({ x: p.x + 2.5, z: p.z + 0.4 })));          // same path, half a leg later, a little off the line
+  const a = m.ambushSpot();
+  assert.ok(a && a.count >= 2, JSON.stringify(m.legs.map((g) => g.count)));
+});
