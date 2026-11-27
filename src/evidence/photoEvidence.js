@@ -85,13 +85,14 @@ export function creatureQuality({ shot, light, steadiness, committed = true }) {
   // Features must be readable to identify anything: near-black frames show a shape at best.
   const readable = clamp01((light - PHOTO_EVIDENCE.readableFrom) / (PHOTO_EVIDENCE.darkBelow - PHOTO_EVIDENCE.readableFrom));
   const I = clamp01((0.6 * Math.min(1, (shot.screenSize ?? 0) / 0.3) + (shot.headVisible ? 0.4 : 0)) * readable);
-  const K = clamp01(shot.visible / Math.max(1, shot.samples));
+  // Completeness is coverage the image actually records (#99): an unlit body records no outline.
+  const K = clamp01(shot.visible / Math.max(1, shot.samples) * (0.2 + 0.8 * readable));
   const P = clamp01((committed ? 0.7 : 0.35) + ((shot.screenSize ?? 0) < 0.85 ? 0.3 : 0.1));
   const comp = { C: +C.toFixed(3), I: +I.toFixed(3), K: +K.toFixed(3), P: +P.toFixed(3) };
   const problems = [];
   if (light < PHOTO_EVIDENCE.darkBelow) problems.push('Too dark: light the subject (torch, lamp or night vision)');
   if (steadiness < PHOTO_EVIDENCE.blurBelow) problems.push('Blurred: hold still while you shoot');
-  if (K < PHOTO_EVIDENCE.coverBelow) problems.push('Partly hidden or cut off: get a clear view of all of it');
+  if (shot.visible / Math.max(1, shot.samples) < PHOTO_EVIDENCE.coverBelow) problems.push('Partly hidden or cut off: get a clear view of all of it');
   if ((shot.screenSize ?? 0) < PHOTO_EVIDENCE.smallBelow) problems.push('Too small in the frame: get closer or zoom in');
   else if (!shot.headVisible) problems.push('Head not in the shot: features are hard to make out');
   return { ...comp, integrity: 1, Q: qualityScore(comp), light: +light.toFixed(3), steadiness: +steadiness.toFixed(3), problems };
@@ -107,13 +108,13 @@ export function clueQuality({ view, light, steadiness, committed = true }) {
   const C = clamp01(light * steadiness);
   const readable = clamp01((light - PHOTO_EVIDENCE.readableFrom) / (PHOTO_EVIDENCE.darkBelow - PHOTO_EVIDENCE.readableFrom));
   const I = clamp01((0.55 * near + 0.45 * overhead) * readable);
-  const K = clamp01(view.inFrame * view.unobstructed);
+  const K = clamp01(view.inFrame * view.unobstructed * (0.2 + 0.8 * readable));
   const P = clamp01(committed ? 0.85 : 0.45);
   const comp = { C: +C.toFixed(3), I: +I.toFixed(3), K: +K.toFixed(3), P: +P.toFixed(3) };
   const problems = [];
   if (light < PHOTO_EVIDENCE.darkBelow) problems.push('Too dark: shine your torch on it');
   if (steadiness < PHOTO_EVIDENCE.blurBelow) problems.push('Blurred: hold still while you shoot');
-  if (K < PHOTO_EVIDENCE.coverBelow) problems.push('Not all of it is in the frame');
+  if (view.inFrame * view.unobstructed < PHOTO_EVIDENCE.coverBelow) problems.push('Not all of it is in the frame');
   if (near < 0.5) problems.push('Too far away to read the detail: step closer');
   if (overhead < 0.45) problems.push('Shot from too low an angle: photograph it from above');
   return { ...comp, integrity: 1, Q: qualityScore(comp), light: +light.toFixed(3), steadiness: +steadiness.toFixed(3), problems };

@@ -75,7 +75,7 @@ export class JournalUI {
   update(dt) {
     const t = this.finder.target;
     this.prompt.style.display = t && !this.open ? 'block' : 'none';
-    if (t) this.prompt.textContent = `[E] Examine ${({ scratch: 'scratch marks', hair: 'hair', footprint: 'footprint', branch: 'snapped branch', scat: 'droppings', deerTrack: 'tracks' })[t.type] ?? t.type}`;
+    if (t) this.prompt.textContent = `[E] Examine ${({ scratch: 'scratch marks', hair: 'hair', footprint: 'footprint', branch: 'snapped branch', scat: 'droppings', deerTrack: 'hoof prints', foxTrack: 'paw prints', owlFeather: 'feather' })[t.type] ?? t.type}`;
     this.hint.textContent = `[J] Journal (${this.journal.entries.length})`;
     // Ages tick while the journal is open.
     if (this.open && (this.refreshTimer -= dt) <= 0) { this.refreshTimer = 1; this.render(); }

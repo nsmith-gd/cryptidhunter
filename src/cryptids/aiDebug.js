@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SCENT_WORLD } from './scent.js';
 
 const STATE_COLORS = {
   roam: '#9fb4c8', investigate: '#7fd0ff', observe: '#ffc23a', flee: '#ff5a4a', aggress: '#ff8a2a', shadow: '#c9a0ff', warn: '#ff6a2a',
@@ -52,6 +53,12 @@ export class AIDebug {
     for (const [c, l] of this.labels) if (!this.manager.cryptids.includes(c)) { l.removeFromParent(); this.labels.delete(c); }
     if (!this.visible) return;
     const lines = ['CRYPTID AI  (F4 hides)'];
+    // #107: scent traces in the world (source, strength, time left) and the wind.
+    const sf = SCENT_WORLD.field;
+    if (sf) {
+      lines.push(`SCENT  wind → ${sf.wind.x.toFixed(1)},${sf.wind.z.toFixed(1)} at ${sf.wind.speed} m/s · ${sf.traces.length} trace${sf.traces.length === 1 ? '' : 's'}`);
+      for (const t of sf.traces.slice(-4)) lines.push(`  #${t.id} ${t.kind} from ${t.source} @${t.x.toFixed(0)},${t.z.toFixed(0)}  ${sf.strengthOf(t).toFixed(2)}  expires ${sf.expiresIn(t).toFixed(0)}s`);
+    }
     for (const c of this.manager.cryptids) {
       const pc = c.perception;
       lines.push('', `${c.profile.name}  [${c.state.toUpperCase()}] ${c.stateTime.toFixed(1)}s`);
@@ -60,6 +67,13 @@ export class AIDebug {
         // #86: awareness stage and the strongest remembered cue (channel, where, how sure).
         const m = pc.lastKnown?.();
         lines.push(`  stage ${pc.stage?.toUpperCase() ?? '-'}${m ? `  · remembers ${m.channel} cue ±${m.uncertainty.toFixed(1)} m, ${Math.round(m.confidence * 100)}%` : ''}`);
+        // #107: stimulus trace per channel: channel, source, where, strength, time left before it expires.
+        for (const r of (pc.memory ?? []).slice().sort((a, b) => b.expiry - a.expiry).slice(0, 4)) {
+          lines.push(`  · ${r.channel.padEnd(8)} ${String(r.source).padEnd(7)} @${r.x.toFixed(0)},${r.z.toFixed(0)}  ${r.intensity.toFixed(2)}  expires ${Math.max(0, r.expiry - pc.time).toFixed(0)}s`);
+        }
+        if (pc.scentLevel > 0 && pc.lastScent) lines.push(`  smells ${pc.lastScent.kind} trace #${pc.lastScent.id} (${pc.scentLevel.toFixed(2)}), fades in ${pc.lastScent.expiresIn.toFixed(0)}s`);
+        const rs = pc.routine?.spots ?? [];
+        if (rs.length) lines.push(`  routine: ${rs.length} spot${rs.length > 1 ? 's' : ''} · ` + rs.slice(0, 3).map((x) => `${x.kind}/${x.via} ${Math.round(pc.routine.confidenceOf(x) * 100)}% ${Math.max(0, x.expiry - pc.routine.time).toFixed(0)}s`).join(' · '));
       }
       if (c.brain?.scores && Object.keys(c.brain.scores).length) {
         lines.push(`  scores ${Object.entries(c.brain.scores).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' · ')}`);

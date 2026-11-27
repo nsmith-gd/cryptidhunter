@@ -83,9 +83,30 @@ export function bigfootBrain(c) {
         c.cautious ??= { every: T().listenEvery, pause: T().listenFor };
         return RUN;
       })),
+    // Scent (#107): a real trace on the wind (food you opened, blood) draws it to that spot, once per trace.
+    seq('Smelled a trace', when('scent', () => (c.state === 'roam' || (c.state === 'investigate' && !c.lure))
+        && pc().scentLevel > 0 && pc().lastScent && !(c.scentChecked ??= new Set()).has(pc().lastScent.id)),
+      act('follow the scent to its source', () => {
+        const s = pc().lastScent;
+        c.scentChecked.add(s.id);
+        if (c.state === 'investigate') c.retargetNoise(s);
+        else c.enterInvestigateNoise(s, `smelled ${s.kind}`);
+        c.cautious ??= { every: T().listenEvery, pause: T().listenFor };
+        return RUN;
+      })),
     seq('Investigating', when('investigating', () => c.state === 'investigate'),
       act('investigate (stop and listen)', () => { c.tickInvestigate(c.dt); return RUN; })),
     seq('Smelled food', act('smell food', () => (c.findLure() ? RUN : FAIL))),
+    // Routine (#107): every so often it goes to check a place where it has watched you before
+    // (only spots it actually witnessed or found your traces at; never somewhere it hasn't).
+    seq('Check a remembered spot', when('routine', () => c.state === 'roam' && (c.routineCooldown = (c.routineCooldown ?? 30) - c.dt) <= 0
+        && (pc().routine?.strongest()?.confidence ?? 0) >= 0.5),
+      act('go where it has seen you', () => {
+        const r = pc().routine.strongest();
+        c.routineCooldown = 45;
+        c.enterInvestigateNoise(r, `checking where it saw you (${Math.round(r.confidence * 100)}%)`);
+        return RUN;
+      })),
     act('forage', () => { c.tickRoam(c.dt); return RUN; }),
   );
   return new Brain(root, ctx);

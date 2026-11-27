@@ -72,10 +72,13 @@
     "smoke": "vite build && node tools/smoke-hunt.mjs",
     "check:t102": "vite build && node tools/check-t102.mjs",
     "check:t85": "vite build && node tools/check-t85.mjs",
+    "check:t99": "vite build && node tools/check-t99.mjs",
+    "check:t100": "vite build && node tools/check-t100.mjs",
     "check:t86": "vite build && node tools/check-t86.mjs",
     "check:t88": "vite build && node tools/check-t88.mjs",
     "check:t87": "vite build && node tools/check-t87.mjs",
-    "check:t89": "vite build && node tools/check-t89.mjs"
+    "check:t89": "vite build && node tools/check-t89.mjs",
+    "check:t90": "vite build && node tools/check-t90.mjs"
   },
   "repository": {
     "type": "git",

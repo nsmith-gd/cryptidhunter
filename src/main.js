@@ -31,6 +31,9 @@ import { WoodKnocks } from './cryptids/woodKnock.js';
 import { ClueSystem } from './clues/clueSystem.js';
 import { ClueTrails } from './clues/clueTrail.js';
 import { FieldKit } from './gear/fieldKit.js';
+import { Equipment, WEAR } from './gear/condition.js';
+import { ScentField, SCENT_WORLD } from './cryptids/scent.js';
+import { showEquipmentPanel } from './gear/equipmentPanel.js';
 import { FieldCamp } from './survival/fieldCamp.js';
 import { Weather } from './survival/weather.js';
 import { getSpecies } from './cryptids/species.js';
@@ -57,7 +60,7 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
 import { EvidenceKit } from './evidence/evidence.js';
-import { spawnDeerTracks } from './clues/deerTracks.js';
+import { spawnDeerTracks, spawnFoxTracks, spawnOwlFeathers } from './clues/deerTracks.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
 import { XRControls } from './xr/xrControls.js';
@@ -114,6 +117,9 @@ scene.add(moon);
 
 // Base camp (money, gear, reputation, chosen map) is loaded first: it decides where you hunt.
 const camp = new Camp();
+// Equipment condition (#106, S11): the starter camera, torch and shoes are persistent instances whose
+// condition (held in the ledger's asset record) drops with use, water and impact.
+const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap };   // gym: G00 bench (#77)
 const mapId = resolveMap(location.search, camp);
@@ -160,7 +166,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
   manifest: () => {
     const carried = evidence.carried;
     const est = carried.length ? `${carried.length} item${carried.length > 1 ? 's' : ''}` : null;
-    return manifestText({ evidence: carried.map((i) => `${i.name} (${i.cryptid})`), photos: photo.log?.length ?? hunt.shotsTaken,
+    return manifestText({ evidence: carried.map((i) => i.name),   // what it really is stays unknown until HQ (#99) photos: photo.log?.length ?? hunt.shotsTaken,
       targetPhotos: hunt.photos.length, target: huntTarget, leftBehind: leftBehindNow(), kg: +loadout.load.total.toFixed(1),
       estimate: est && `${est} of evidence plus your photos, valued at base camp` });
   },
@@ -174,6 +180,7 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       charges: outcome === 'emergency' ? [{ id: 'evac', cents: EXPEDITION.emergencyCents, memo: 'Emergency evacuation' }] : [],
       outcome, target: huntTarget, dawnBonus: outcome === 'complete' && !hunt.dawned ? HUNT.dawnBonus : 0,
       photos: hunt.photos.map((p) => ({ subject: p.subject, score: p.score })),
+      records: photo.records.filter((r) => r.kind === 'creature'),   // graded and verified at HQ (#99)
       // Research (#101): this attempt's field notes for the target's dossier (kept only if extracted).
       mapId, research: fieldRecords({ target: huntTarget, journalEntries: journal.entries, photos: hunt.photos,
         evidence: evidence.items.filter((i) => i.stage !== 'lost'), knocks: knocks.log, events: cryptidEvents }),
@@ -280,6 +287,26 @@ const survival = new Survival({ player, input, lethalCold: true,   // past the t
     ...(fieldCamp?.heatSources() ?? []),  // inside your pitched tent (#104)
   ] });
 const noiseRing = new NoiseRing(scene, player);
+// Scent traces (#107): food you open and blood from a bleeding wound leave real traces the wind
+// carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
+// east at 1.5 m/s (?wind=x,z,speed overrides for tests). Carcasses use the same field (emit 'carcass').
+const scent = new ScentField();
+{ const w = new URLSearchParams(location.search).get('wind')?.split(',').map(Number); if (w?.length === 3) scent.setWind({ x: w[0], z: w[1], speed: w[2] }); }
+SCENT_WORLD.field = scent;
+{
+  const eat = survival.eat.bind(survival);
+  survival.eat = () => { const r = eat(); if (r) scent.emit('food', player.position.x, player.position.z, { source: 'player' }); return r; };
+}
+let bloodClock = 0;
+function updateScent(dt) {
+  scent.update(dt);
+  const b = survival.health?.bleeding ?? [];
+  if (b.length && (bloodClock -= dt) <= 0) {
+    bloodClock = 3;                              // drops every few seconds while you bleed
+    const heavy = b.some((w) => w.severity === 'heavy');
+    scent.emit('blood', player.position.x, player.position.z, { strength: heavy ? 0.7 : 0.4, source: 'player' });
+  }
+}
 
 // Cryptids. Bigfoot is the forest's starter cryptid; the map can give it a spawn point.
 // Escalation level for this hunt: 1 Pine Hollow (forgiving) .. 3 (relentless).
@@ -297,7 +324,7 @@ function cryptidEvent(type, e) {
   if (['whoop', 'rock', 'roar', 'hiss', 'screech'].includes(type) && e.cryptid?.agent) fieldCamp?.cue({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, what: `a ${type}` });
   if (type === 'whoop') { audioLures.playCall({ x: e.cryptid.agent.x, z: e.cryptid.agent.z, cryptid: true }); fear.scare(8, 'whoop'); photo.toast(`A deep whoop, ${where(e.cryptid.agent.x, e.cryptid.agent.z)}. It knows you're here.`); }
   if (type === 'rock') { fear.scare(e.distance < 3 ? 22 : 12, 'rock'); photo.toast(`A rock slams into the ground ${e.distance.toFixed(0)} m from you. Back off.`); }
-  if (type === 'rock-hit') { fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
+  if (type === 'rock-hit') { equipment.impact(); fear.scare(35, 'rock hit'); player.velocity.x += (player.position.x - e.x) * 6; player.velocity.z += (player.position.z - e.z) * 6; }
   if (type === 'roar') { fear.scare(30, 'roar'); photo.toast(`${e.name} stops short and ROARS in your face.`); }
   if (type === 'hiss') { fear.scare(10, 'hiss'); photo.toast('A wet HISS behind you…'); }
   if (type === 'screech') { fear.scare(15, 'screech'); photo.toast('A shriek overhead: it is coming down at your light!'); }
@@ -367,9 +394,13 @@ for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   cryptids.spawn(sp, s.x, s.z);
 }
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
-if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
-  blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
-  avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] });
+// #99: plus fox trails and owl feathers. All are tagged ordinary (hidden; HQ verification reads it).
+if (mapId === 'forest') {
+  const wild = { clues, bounds,
+    blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
+    avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] };
+  spawnDeerTracks(wild); spawnFoxTracks(wild); spawnOwlFeathers(wild);
+}
 // Sponsor survey (#105): flagged stakes with fresh sign at the two survey points.
 sponsorSurvey.setUp({ scene, clues });
 sponsorSurvey.buildHud();
@@ -430,7 +461,7 @@ fieldCamp = new FieldCamp({ scene, player, survival, weather, fieldKit, collider
 let knocksHeard = 0;
 const loadout = new Loadout({ owned: packed, slots: urlLoadout ?? camp.state.loadout, input, player, scene, getFood,
   pack: urlPack ?? camp.state.pack ?? [], water: qs.has('water') ? +qs.get('water') : camp.state.water ?? 2,
-  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit } });
+  gear: { bait, trailCams, audioLures, nightVision, knocks, flashlight, fieldKit, equipment, repairKit: { uses: 0 }, notify: (m) => photo.toast(m) } });
 photo.onLoweredClick = () => loadout.use();
 const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: loadout.pack, water: loadout.water, getFood,
   onChange: ({ slots, pack, water }) => {
@@ -443,6 +474,38 @@ const picker = showLoadoutPicker({ owned: packed, slots: loadout.slots, pack: lo
 // Shop (#46): buy gear and permanent upgrades at base camp, before you set off. Upgrades are
 // saved with camp and applied to the camera and torch at the start of every hunt.
 applyUpgrades(camp, { photo, flashlight });
+// Condition changes capability only (#106): camera low-light clarity, torch output, shoes in water.
+{
+  const base = player.speedAt;
+  player.speedAt = (x, z, y) => { const sp = base ? base(x, z, y) : 1; return sp < 1 ? sp * equipment.wadeFactor : sp; };
+}
+const equipmentPanel = showEquipmentPanel(equipment, { canAct: () => hunt.stage === 'briefing', onChange: () => {
+  const cp = document.getElementById('camp-panel');
+  if (cp) cp.textContent = cp.textContent.replace(/BASE CAMP {2}· {2}\S+/, `BASE CAMP  ·  $${camp.state.money}`);
+} });
+// Field wear (#106): per shot, per minute of torch, per km walked; wading soaks the shoes; raising
+// the camera while wading dips it into the water (the photos already on its card are kept).
+const wearState = { shots: photo.log.length, last: player.position.clone(), dunkCooldown: 0 };
+function updateWear(dt) {
+  photo.clarity = equipment.cameraClarity; flashlight.output = equipment.torchOutput;
+  if (hunt.stage !== 'search' && hunt.stage !== 'extract') { wearState.last.copy(player.position); return; }
+  if (photo.log.length > wearState.shots) { equipment.wear('camera', WEAR.cameraPerShot * (photo.log.length - wearState.shots), 'use'); wearState.shots = photo.log.length; }
+  if (flashlight.on) equipment.wear('flashlight', WEAR.torchPerMinute * dt / 60, 'use');
+  const d = Math.hypot(player.position.x - wearState.last.x, player.position.z - wearState.last.z);
+  if (d < 5) equipment.wear('shoes', WEAR.shoesPerKm * d / 1000, 'use');
+  wearState.last.copy(player.position);
+  const water = map.surfaceAt?.(player.position.x, player.position.z, player.position.y);
+  wearState.dunkCooldown = Math.max(0, wearState.dunkCooldown - dt);
+  if (water === 'shallow' || water === 'deep') {
+    equipment.wet.shoes = true;
+    equipment.wear('shoes', WEAR.shoesWetPerSecond * dt, 'water');
+    if ((photo.raised || photo.wantRaised) && wearState.dunkCooldown <= 0) {
+      wearState.dunkCooldown = 20;
+      const c = equipment.dunk('camera');
+      photo.toast(`Your camera dips into the water! It's at ${Math.round(c * 100)}% now; the photos on its card are safe.`);
+    }
+  }
+}
 // Supplier (#88): catalogue gear you own or rent changes this hunt through the systems it affects
 // (pack and worn mass, pace on rough ground, insulation, torch beam, camera lens).
 const supplier = new Supplier(camp);
@@ -616,7 +679,9 @@ function simulateOnce(dt, extra = false) {
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) return;                       // world freezes behind the end screens
   if (!fieldCamp?.sleeping) player.update(dt);   // asleep: you lie still
+  updateWear(dt);
   survival.update(dt);
+  updateScent(dt);
   fear.update(dt);
   if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
   photo.update(dt);
@@ -730,4 +795,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { sponsorSurvey, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { sponsorSurvey, scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
