@@ -25,6 +25,7 @@ import { buildOroMedonteMap } from './maps/oroMedonte.js';
 import { DaylightCycle } from './maps/daylight.js';
 import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
+import { buildOzarkMap } from './maps/ozark.js';   // L07 greybox (#144)
 import { Igopogo, heardAt } from './cryptids/igopogo.js';
 import { buildTimiskamingMap } from './maps/timiskaming.js';   // L05 greybox (#139)
 import { createWaterTraversal } from './water/index.js';         // boat, swimming, breath (#139)
@@ -139,7 +140,7 @@ const camp = gymRun ? new Camp(null, new SaveService(memoryBackend())) : new Cam
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
-  simcoe: buildSimcoeMap,   // simcoe: L03 greybox (#135)
+  simcoe: buildSimcoeMap, ozark: buildOzarkMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
   g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05,
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
@@ -321,6 +322,8 @@ const noiseRing = new NoiseRing(scene, player);
 // carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
 // east at 1.5 m/s (?wind=x,z,speed overrides for tests). Carcasses use the same field (emit 'carcass').
 const scent = new ScentField({ isWet: (x, z) => { const w = map.surfaceAt?.(x, z, 0); return w === 'shallow' || w === 'deep'; } });   // #143: water carries scent off
+// Carcasses on the map (#144, the Ozarks) give off scent all night (#143).
+for (const c of map.carcasses ?? []) scent.addSource({ kind: 'carcass', x: c.x, z: c.z, every: 60, source: c.name });
 { const w = new URLSearchParams(location.search).get('wind')?.split(',').map(Number); if (w?.length === 3) scent.setWind({ x: w[0], z: w[1], speed: w[2] }); }
 SCENT_WORLD.field = scent;
 {
