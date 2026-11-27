@@ -318,7 +318,10 @@ export class HuntLoop {
       if (r.money.evidenceValue) lines.push(pad('Evidence sold', `$${r.money.evidenceValue}`));
       if (this.outcome === 'complete') lines.push(pad('Before-dawn bonus', `$${r.money.bonus}`));
       lines.push(pad('Earned this hunt', `$${r.money.earned}`));
-      lines.push(pad('Total money', `$${r.money.total}`));
+      // Sponsor survey (#105): a fixed fee paid on delivery, after the hunt's own settlement.
+      const sp = this.sponsor;
+      if (sp) lines.push(pad('Sponsor survey', sp.paid ? `+$${sp.cents / 100}` : '$0 (not delivered)'));
+      lines.push(pad('Total money', `$${r.money.total + (sp?.paid ? sp.cents / 100 : 0) - (this.recovery?.cents ?? 0) / 100}`));
     }
     if (r.debrief) {   // #98 debrief, straight from the ledger settlement (GDD 7.5)
       const d = r.debrief, $ = (c) => `${c < 0 ? '-' : ''}$${Math.abs(c) % 100 ? (Math.abs(c) / 100).toFixed(2) : Math.abs(c) / 100}`;
@@ -331,7 +334,8 @@ export class HuntLoop {
       // Between-trip recovery (#89, GDD 9.3): coming home hurt costs a visible share of the trip.
       const rec = this.recovery;
       if (rec) lines.push(pad('Injury recovery', `${$(-rec.cents)} (${rec.severity} injury${rec.cents < rec.quoted ? `, ${$(rec.quoted - rec.cents)} waived` : ''})`));
-      lines.push(pad('Closing cash', $(d.closing - (rec?.cents ?? 0))));
+      if (this.sponsor?.paid) lines.push(pad('Sponsor survey fee', $(this.sponsor.cents)));
+      lines.push(pad('Closing cash', $(d.closing + (this.sponsor?.paid ? this.sponsor.cents : 0) - (rec?.cents ?? 0))));
     }
     // Research dossier (#101): milestones from this trip's field notes, and the career total.
     const res = this.settlement?.entry?.research;

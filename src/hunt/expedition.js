@@ -155,7 +155,7 @@ export class Expedition {
     if (this.state === 'plan') {
       this.el.innerHTML = `<div style="font-weight:bold;letter-spacing:1px">EXPEDITION PREP · ${this.mapName} · target: ${this.target}</div>
         ${row('Trip cost', `${formatCAD(p.tripCents)} <span style="color:#8f8468">· fuel, access, standard supplies</span>`)}
-        ${row('Cash now → after commit', `${formatCAD(p.cash)} → ${formatCAD(p.after)}${p.affordable ? '' : ' (recovery sponsor covers this trip)'}`)}
+        ${row('Cash now → after commit', `${formatCAD(p.cash)} → ${formatCAD(p.after)}${p.affordable ? '' : this.requireSponsor?.() ? ' (not enough: see the sponsor survey)' : ' (waived: sponsor survey)'}`)}
         ${row('Deposits held', p.deposits ? formatCAD(p.deposits) : '$0 (no rentals on this trip)')}
         ${row('Carrying', p.kg == null ? '-' : `${p.kg} kg · ${p.ratio}% of a full load`)}
         ${row('Owned stock at camp', p.stock || 'nothing')}
