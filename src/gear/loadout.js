@@ -82,6 +82,13 @@ ITEMS.repairKit = {
   },
 };
 
+// Tracking tags (#147, GDD 8.2 F16): fired at a perched Jersey Devil during its opportunity window.
+ITEMS.tagLauncher = {
+  name: 'Tag launcher', key: null,
+  count: (g) => g.tags?.carried ?? 0, carry: (g, n) => { if (g.tags) g.tags.carried = n; },
+  use: (g) => !!g.tags?.fire(),
+};
+
 export const DEFAULT_LOADOUT = ['bait', 'trailCamera', 'audioLure', 'spareBatteries'];
 
 export class Loadout {

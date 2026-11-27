@@ -1,0 +1,247 @@
+{
+  "G04 recover": {
+    "digest": "8b9205b6",
+    "events": 33,
+    "criteria": [
+      {
+        "id": "valid-signals",
+        "text": "Creatures act only on valid signals (warning only inside the ring; scent only on real traces)",
+        "status": "pass",
+        "detail": {
+          "warnings": [
+            14.989,
+            14.985,
+            11.556
+          ],
+          "scentAcquisitions": 1,
+          "allTracesReal": true
+        }
+      },
+      {
+        "id": "no-teleport",
+        "text": "No proxy ever moves faster than its speed (no unobserved teleport)",
+        "status": "pass",
+        "detail": {
+          "maxStepVsSpeed": 1
+        }
+      },
+      {
+        "id": "warning",
+        "text": "A warning always comes first (lead ≥ 2 s), and a heeded warning never leads to an attack",
+        "status": "pass",
+        "detail": {
+          "heeded": true,
+          "alertToAttackLead": [
+            4.02,
+            2.02
+          ]
+        }
+      },
+      {
+        "id": "disengage",
+        "text": "Leaving the territory makes it disengage and go home (predictable)",
+        "status": "pass",
+        "detail": {
+          "states": [
+            "lost sight",
+            "made its point"
+          ]
+        }
+      },
+      {
+        "id": "lost-contact",
+        "text": "Lost contact can be demonstrated (stop the bleeding and the scent follower loses you)",
+        "status": "pass",
+        "detail": {
+          "acquisitions": 1,
+          "lost": 1
+        }
+      },
+      {
+        "id": "retreat",
+        "text": "Retreat stays physically viable after a nonlethal encounter (reach extraction alive)",
+        "status": "pass",
+        "detail": {
+          "healthAfterHit": 36.6,
+          "reachedExtraction": true,
+          "healthNow": 25.7
+        }
+      },
+      {
+        "id": "break-sight",
+        "text": "Breaking line of sight (behind hide A) makes a charging creature lose you; it pulls up and goes home",
+        "status": "pass",
+        "detail": {
+          "lostSight": true,
+          "hitWhileHiding": false
+        }
+      },
+      {
+        "id": "gear-choice",
+        "text": "Recover the gear (it costs you a hit) or abandon it (it costs its value); either way you get out",
+        "status": "pass",
+        "detail": {
+          "approach": "recover",
+          "hits": 1,
+          "healthLost": 18.8,
+          "cache": "carried",
+          "withdrawal": {
+            "decision": "recovered the gear",
+            "gearLost": 0,
+            "health": 26.2
+          }
+        }
+      },
+      {
+        "id": "measures",
+        "text": "Measure: alert-to-attack lead time, avoidable vs unavoidable deaths, withdrawal choice, gear loss (recorded every run)",
+        "status": "pass",
+        "detail": {
+          "alertToAttackLead": [
+            4.02,
+            2.02
+          ],
+          "deaths": {
+            "avoidable": 0,
+            "unavoidable": 0
+          },
+          "withdrawal": "recovered the gear",
+          "gearLost": 0,
+          "hits": {
+            "territorial": 1,
+            "scent": 0
+          }
+        }
+      },
+      {
+        "id": "testers",
+        "text": "4/5 testers can explain what alerted the creature and one escape response",
+        "status": "not_evaluated",
+        "detail": {
+          "reason": "needs human playtests (GDD 15.3)"
+        }
+      }
+    ]
+  },
+  "G04 abandon": {
+    "digest": "596c4f6",
+    "events": 25,
+    "criteria": [
+      {
+        "id": "valid-signals",
+        "text": "Creatures act only on valid signals (warning only inside the ring; scent only on real traces)",
+        "status": "pass",
+        "detail": {
+          "warnings": [
+            14.989,
+            14.985,
+            13.983
+          ],
+          "scentAcquisitions": 1,
+          "allTracesReal": true
+        }
+      },
+      {
+        "id": "no-teleport",
+        "text": "No proxy ever moves faster than its speed (no unobserved teleport)",
+        "status": "pass",
+        "detail": {
+          "maxStepVsSpeed": 1
+        }
+      },
+      {
+        "id": "warning",
+        "text": "A warning always comes first (lead ≥ 2 s), and a heeded warning never leads to an attack",
+        "status": "pass",
+        "detail": {
+          "heeded": true,
+          "alertToAttackLead": [
+            4.02
+          ]
+        }
+      },
+      {
+        "id": "disengage",
+        "text": "Leaving the territory makes it disengage and go home (predictable)",
+        "status": "pass",
+        "detail": {
+          "states": [
+            "lost sight"
+          ]
+        }
+      },
+      {
+        "id": "lost-contact",
+        "text": "Lost contact can be demonstrated (stop the bleeding and the scent follower loses you)",
+        "status": "pass",
+        "detail": {
+          "acquisitions": 1,
+          "lost": 1
+        }
+      },
+      {
+        "id": "retreat",
+        "text": "Retreat stays physically viable after a nonlethal encounter (reach extraction alive)",
+        "status": "pass",
+        "detail": {
+          "healthAfterHit": 51.4,
+          "reachedExtraction": true,
+          "healthNow": 41.4
+        }
+      },
+      {
+        "id": "break-sight",
+        "text": "Breaking line of sight (behind hide A) makes a charging creature lose you; it pulls up and goes home",
+        "status": "pass",
+        "detail": {
+          "lostSight": true,
+          "hitWhileHiding": false
+        }
+      },
+      {
+        "id": "gear-choice",
+        "text": "Recover the gear (it costs you a hit) or abandon it (it costs its value); either way you get out",
+        "status": "pass",
+        "detail": {
+          "approach": "abandon",
+          "hits": 0,
+          "healthLost": 4,
+          "cache": "left",
+          "withdrawal": {
+            "decision": "abandoned the gear",
+            "gearLost": 180,
+            "health": 41.9
+          }
+        }
+      },
+      {
+        "id": "measures",
+        "text": "Measure: alert-to-attack lead time, avoidable vs unavoidable deaths, withdrawal choice, gear loss (recorded every run)",
+        "status": "pass",
+        "detail": {
+          "alertToAttackLead": [
+            4.02
+          ],
+          "deaths": {
+            "avoidable": 0,
+            "unavoidable": 0
+          },
+          "withdrawal": "abandoned the gear",
+          "gearLost": 180,
+          "hits": {
+            "territorial": 0,
+            "scent": 0
+          }
+        }
+      },
+      {
+        "id": "testers",
+        "text": "4/5 testers can explain what alerted the creature and one escape response",
+        "status": "not_evaluated",
+        "detail": {
+          "reason": "needs human playtests (GDD 15.3)"
+        }
+      }
+    ]
+  }
+}
