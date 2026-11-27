@@ -419,7 +419,7 @@
   "health": 100
  },
  "L03": {
-  "seenFrames": 0,
+  "seenFrames": 99,
   "scans": 300,
   "windows": 2,
   "caught": false,

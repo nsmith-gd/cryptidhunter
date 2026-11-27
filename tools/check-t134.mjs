@@ -141,7 +141,7 @@ const col = { 'near start': '#7fb0ff', near: '#7fb0ff', 'walking out': '#c8c8c8'
 writeFileSync(`${out}/dread-curve.svg`, `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="background:#11151a;font-family:monospace"><rect width="${W}" height="${H}" fill="#11151a"/>
 <polyline points="${S.map((s) => `${X(s.t)},${Y(s.dread)}`).join(' ')}" fill="none" stroke="#888" stroke-width="1.5"/>
 ${S.map((s) => `<circle cx="${X(s.t)}" cy="${Y(s.dread)}" r="4" fill="${col[s.tag]}"/>`).join('')}
-<text x="50" y="22" fill="#ddd" font-size="14">L02 dread over one run: near the car (blue), far out at the meadow (orange), back at the car (green)</text>
+<text x="50" y="22" fill="#ddd" font-size="11">L02 dread over one run: near the car (blue), far out at the meadow (orange), back at the car (green)</text>
 <text x="10" y="${Y(0) + 4}" fill="#999" font-size="11">0</text><text x="4" y="${Y(100) + 4}" fill="#999" font-size="11">100</text>
 <text x="${W - 120}" y="${H - 12}" fill="#999" font-size="11">time out (s) →</text></svg>`);
 check('no page errors', errors.length === 0, errors);
