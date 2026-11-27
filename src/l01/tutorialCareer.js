@@ -80,9 +80,10 @@ export class TutorialCareer {
     if (!o) return null;
     let room = L01.ceilingCents;
     const records = evidence.map((e) => {
-      const v = Math.min(L01.evidence[e.kind]?.cents ?? 0, room);
+      // A graded photo (#123) brings its own offer (cents, label); traces use the fixed L01 values.
+      const v = Math.min(e.cents ?? L01.evidence[e.kind]?.cents ?? 0, room);
       room -= v;
-      return { id: `L01:${e.kind}:${e.eventId}`, cents: v, memo: L01.evidence[e.kind]?.label ?? e.kind };
+      return { id: `L01:${e.kind}:${e.eventId}`, cents: v, memo: e.label ?? L01.evidence[e.kind]?.label ?? e.kind };
     });
     const settlement = this.ledger.settleAttempt(o.id, { records });
     const firstClear = !this.s.cleared;
