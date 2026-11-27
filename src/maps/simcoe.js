@@ -56,7 +56,7 @@ export function buildSimcoeMap(scene) {
   const off = SIMCOE.wadeLimit / 0.22;
   for (let x = -H; x < H; x += 3) {
     const z = Math.max(shoreZ(x), shoreZ(x + 3)) - off;
-    solid(x, z - 1.5, x + 3, z, -5, 6);
+    solid(x, z - 1.5, x + 3, z, -5, 0.6);   // low: stops wading, never blocks the view across the lake (#134)
   }
   // Boundary walls (the woods carry on beyond them as a tree line).
   solid(-H, H, H, H + 1, -5, 8); solid(-H - 1, -H, -H, H, -5, 8); solid(H, -H, H + 1, H, -5, 8);
