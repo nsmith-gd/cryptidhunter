@@ -48,6 +48,19 @@ export class Health {
     return ev;
   }
 
+  /**
+   * Ongoing exposure (#89, GDD 9.1 critical thermal stress): drains health while active, as one
+   * condition per cause (not a pile of hits). Call every step with active=false to clear it.
+   */
+  exposure(cause, ratePerSecond, dt, active = true) {
+    if (this.dead) return;
+    const c = this.conditions.find((x) => x.kind === 'exposure' && x.cause === cause);
+    if (!active) { if (c) this.conditions.splice(this.conditions.indexOf(c), 1); return; }
+    if (!c) { this.conditions.push({ id: this.nextId++, kind: 'exposure', severity: 'heavy', cause, at: this.time }); this.log.push({ t: +this.time.toFixed(3), cause, damage: 0, wound: 'exposure', severity: 'heavy', healthAfter: +this.value.toFixed(2) }); }
+    this.value = Math.max(0, this.value - ratePerSecond * dt);
+    if (this.value <= 0) this.die(cause);
+  }
+
   /** Start bandaging the worst bleeding wound (uses one first-aid kit). Returns false if not possible. */
   bandage() {
     if (this.dead || this.bandaging || this.firstAid <= 0 || !this.bleeding.length) return false;
@@ -65,7 +78,8 @@ export class Health {
       const worst = this.bleeding.sort((a, b) => HEALTH.bleedRate[b.severity] - HEALTH.bleedRate[a.severity])[0];
       if (worst) { worst.kind = 'dressed'; this.value = Math.min(HEALTH.max, this.value + HEALTH.bandageHeal); }
     }
-    if (this.value <= 0) { this.value = 0; this.die(this.bleeding[0]?.cause ?? 'Your wounds'); }
+    // Bleeding out is its own way to die (the creature that caused the wound is remembered).
+    if (this.value <= 0) { this.value = 0; this.woundCause = this.bleeding[0]?.cause ?? null; this.die('Your wounds'); }
   }
 
   die(cause) {

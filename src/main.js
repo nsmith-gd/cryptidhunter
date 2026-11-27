@@ -63,14 +63,15 @@ import { Camp, gearList, huntSummary, showCampPanel } from './hunt/camp.js';
 import { showBountyPanel } from './hunt/bountyPanel.js';
 import { applyUpgrades, showShopPanel } from './hunt/shop.js';
 import { formatCAD } from './economy/ledger.js';
-import { Loadout, showLoadoutPicker } from './gear/loadout.js';
+import { Loadout, showLoadoutPicker, ITEMS } from './gear/loadout.js';
 import { FieldMap } from './nav/fieldMap.js';
 import { resolveMap, showMapPicker, TARGET_BY_MAP, MAP_CHOICES, unlockContext } from './hunt/mapSelect.js';
 import { fieldRecords, SPECIES } from './research/fieldRecords.js';
 import { MILESTONE_NAMES } from './research/dossier.js';
 import { Expedition, EXPEDITION, OUTCOMES, manifestText } from './hunt/expedition.js';
 import { renderAlbum } from './hunt/album.js';
-import { Supplier, showSupplierPanel } from './hunt/supplier.js';
+import { Supplier, showSupplierPanel, CATALOGUE } from './hunt/supplier.js';
+import { chargeRecovery, gearAfter, deathReport } from './hunt/failureRules.js';
 import { setKit } from './gear/pack.js';
 import { EvidenceArchive, advance } from './evidence/photoEvidence.js';
 import { BaitManager, BAIT } from './gear/bait.js';
@@ -158,6 +159,10 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       estimate: est && `${est} of evidence plus your photos, valued at base camp` });
   },
   onEnd: (outcome) => {
+    // Ordinary death (#89, GDD 9.1): what you carried and set out is lost; camp keeps its stock.
+    const died = outcome === 'caught' || outcome === 'dawn';
+    const carriedNow = loadout.gearLeft();
+    const deployedNow = leftBehindNow();
     const h = camp.settleHunt({
       attemptId: expedition?.attemptId ?? null, leftBehind: outcome === 'caught' || outcome === 'dawn' ? ['everything carried in the field'] : leftBehindNow(),
       charges: outcome === 'emergency' ? [{ id: 'evac', cents: EXPEDITION.emergencyCents, memo: 'Emergency evacuation' }] : [],
@@ -167,18 +172,31 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       mapId, research: fieldRecords({ target: huntTarget, journalEntries: journal.entries, photos: hunt.photos,
         evidence: evidence.items.filter((i) => i.stage !== 'lost'), knocks: knocks.log, events: cryptidEvents }),
       evidence: evidence.settle(outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency'),
-      gearLeft: loadout.gearLeft(),   // what you carried comes home; gear left at camp is untouched
+      gearLeft: gearAfter(carriedNow, died),   // what you carried comes home (or is lost with you); gear left at camp is untouched
     });
     expedition?.settled();
     // Rented gear goes back after the trip (#88): deposit returned, or kept if it was lost out there at dawn.
-    hunt.rentalReturns = supplier.returnRentals({ lost: outcome === 'dawn' });
+    hunt.rentalReturns = supplier.returnRentals({ lost: died });
+    const durableLost = died ? supplier.loseInUse() : [];
     // Photo evidence on the roll: home with you (extracted, archived for review) or lost with the camera.
     const extracted = outcome === 'complete' || outcome === 'abandoned' || outcome === 'emergency';
     advance(photo.records, extracted ? 'extracted' : 'lost', hunt.elapsed);
     if (extracted) evidenceArchive.add(photo.records);
-    const summary = huntSummary(h);
+    // Between-trip recovery (GDD 9.3): a moderate/severe injury you brought home costs 5%/10% of the trip.
+    const recovery = extracted ? chargeRecovery(camp.ledger, survival.health, EXPEDITION.tripCents, expedition?.attemptId ?? h.attemptId) : null;
+    if (recovery) camp.save();
+    let summary = huntSummary(h);
+    if (recovery) summary += `\nInjury recovery (${recovery.severity}): -${formatCAD(recovery.cents)}${recovery.cents < recovery.quoted ? ` (the rest waived)` : ''}. You'll be back to full health for the next trip.`;
+    hunt.recovery = recovery;
     reputation.set(camp.state.reputation ?? 0);   // keep the live reputation in step with camp
-    if (outcome === 'caught') huntFailure.reason.textContent += `\n\n${summary}\nYou kept your gear: ${gearList(h.gear)}.`;
+    if (died) {
+      const names = Object.entries(carriedNow).filter(([, n]) => n > 0).map(([k, n]) => `${ITEMS[k]?.name ?? k}${n > 1 ? ` x${n}` : ''}`);
+      const report = deathReport({ carried: names, deployed: deployedNow, durable: durableLost,
+        rentals: (hunt.rentalReturns ?? []).map((r) => CATALOGUE[r.id]?.name ?? r.id),
+        evidence: evidence.items.filter((i) => i.stage === 'lost').length, photos: photo.records.length, notes: journal.entries.length });
+      hunt.deathReport = report;
+      huntFailure.reason.textContent += `\n\n${summary}\n\n${report.text}`;
+    }
     if (outcome === 'caught') huntFailure.screen.append(renderAlbum(photo.log, { filmTotal: photo.filmTotal, lost: true, target: huntTarget }));
     return { summary, money: camp.state.money, entry: h };
   },
@@ -232,7 +250,7 @@ const bars = new Hud(player, flashlight, fear);
 // Survival (#68, GDD S01/S02): energy + food (Z eats) and body temperature + wetness. Heat:
 // the campfire, safe interiors (cabin, tent) and the van. Tutorial values: impairing, never lethal.
 let fieldKit = null;   // #87 field kit, built once the camera and evidence kit exist (below)
-const survival = new Survival({ player, input,
+const survival = new Survival({ player, input, lethalCold: true,   // past the tutorial, critical cold can kill (#89, GDD 9.1)
   map: { ...map, environment: { ...map.environment, airTemp: map.environment?.airTemp ?? ({ forest: 6, swamp: 13 }[mapId] ?? 10) } },
   heatSources: () => [
     ...(map.landmarks?.campsite ? [{ ...map.landmarks.campsite, r: 4.5, name: 'campfire' }] : []),
@@ -667,4 +685,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { fieldKit, expedition, evidenceArchive, supplier, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { fieldKit, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

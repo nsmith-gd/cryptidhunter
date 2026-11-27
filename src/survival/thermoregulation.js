@@ -20,6 +20,14 @@ export const THERMO = {
   dryWarm: 4,               // per second by a fire / indoors
   insulation: 1.0,          // everyday jacket (B01): the L01 kit
   heatRadius: 6,            // metres around a heat source that warm you
+  // Ordinary expeditions (#89, GDD 9.1): past the tutorial, critical cold uses the shared health
+  // path. The body can cool past the tutorial floor, and below `criticalBelow` health drains.
+  lethalFloor: 33.0,
+  hypothermiaSoon: 34.7,    // warning stage: health loss is coming
+  criticalBelow: 34.3,      // hypothermic: health drains at criticalDrain per second
+  criticalDrain: 0.8,
+  // Immersion on ordinary expeditions: cold water pulls heat far faster than the tutorial allows.
+  immersionLethal: { shallow: 1.0, deep: 3.2 },
 };
 
 export class Thermoregulation {
@@ -27,7 +35,9 @@ export class Thermoregulation {
    * airTemp: night air °C for this map. heatSources: () => [{ x, z, r?, name }] (fire, cabin, tent, van).
    * surfaceAt: (x, z, y) => 'dry' | 'shallow' | 'deep'.
    */
-  constructor({ player, airTemp = 6, heatSources = () => [], surfaceAt = null, insulation = THERMO.insulation }) {
+  constructor({ player, airTemp = 6, heatSources = () => [], surfaceAt = null, insulation = THERMO.insulation, lethal = false }) {
+    this.lethal = lethal;          // ordinary expedition: critical cold can hurt you (not the tutorial)
+    this.floor = lethal ? THERMO.lethalFloor : THERMO.floor;
     this.player = player;
     this.airTemp = airTemp;
     this.heatSources = heatSources;
@@ -72,18 +82,23 @@ export class Thermoregulation {
     const wetInsul = this.insulation * (1 - 0.6 * this.wetness / 100);
     const airPull = Math.max(0, 18 - this.airTemp) / 18;            // 0 on a mild night, ~0.7 at 6 °C
     let eq = THERMO.target - 0.6 * airPull / Math.max(0.25, wetInsul);   // dry on a cold night: ~36.6, still comfortable
-    if (this.inWater !== 'dry') eq -= this.inWater === 'deep' ? 1.6 : 0.8;
+    if (this.inWater !== 'dry') eq -= this.lethal ? THERMO.immersionLethal[this.inWater] : this.inWater === 'deep' ? 1.6 : 0.8;
     if (this.player.sprinting) eq += 0.4;
     if (heat) eq = Math.max(eq, THERMO.target + 0.2);
-    eq = Math.max(THERMO.floor, Math.min(THERMO.ceiling, eq));
+    eq = Math.max(this.floor, Math.min(THERMO.ceiling, eq));
     this.core += (eq - this.core) * Math.min(1, THERMO.approach * (heat ? 3 : 1) * dt);
-    this.core = Math.max(THERMO.floor, Math.min(THERMO.ceiling, this.core));
+    this.core = Math.max(this.floor, Math.min(THERMO.ceiling, this.core));
     this.equilibrium = eq;
   }
+
+  /** Hypothermic: health is draining (ordinary expeditions only). */
+  get critical() { return this.lethal && this.core < THERMO.criticalBelow; }
 
   /** Warnings that name their cause (GDD 2.11). */
   warnings() {
     const w = [];
+    if (this.critical) w.push({ id: 'hypothermia', level: 2, text: 'HYPOTHERMIC: you are losing health. Get out of the water and somewhere warm now' });
+    else if (this.lethal && this.core < THERMO.hypothermiaSoon) w.push({ id: 'hypothermia', level: 2, text: 'Dangerously cold: soon you\'ll start losing health. Get warm now' });
     if (this.wetness >= 30 && !this.nearHeat) w.push({ id: 'wet', level: this.wetness >= 70 ? 2 : 1, text: 'Wet clothing: losing heat faster' });
     if (this.core < THERMO.coldBelow) w.push({ id: 'cold', level: this.core < THERMO.severeBelow ? 2 : 1,
       text: `${this.core < THERMO.severeBelow ? 'Very cold' : 'Cold'}: shivering, stamina recovers slower. Get dry and find a fire` });
