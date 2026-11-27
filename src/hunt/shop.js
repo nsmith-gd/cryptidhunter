@@ -23,6 +23,7 @@ export const SHOP = Object.freeze({
     whistle: { name: 'Signal whistle', price: 5, note: 'One blast heard 60 m away (Y)', durable: true },
     dryClothes: { name: 'Dry clothes', price: 20, note: 'Change out of wet layers (Q)' },
     fireKit: { name: 'Fire kit', price: 12, note: 'Light a small fire for warmth (Q, 6 uses)' },
+    tent: { name: 'Two-person tent', price: 110, note: 'Pitch a camp, shelter from rain, sleep off fatigue (Q)', durable: true },   // D03 (#104)
   },
   // values[level]: level 0 is the stock gear; prices[level] is the cost of the NEXT level.
   upgrades: {
