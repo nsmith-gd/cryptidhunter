@@ -1,0 +1,428 @@
+{
+ "L02": {
+  "nearGain": 26.8,
+  "farGain": 40.9,
+  "peak": 88.8,
+  "atCar0": 85,
+  "atCar1": 0,
+  "samples": [
+   {
+    "t": 0,
+    "tag": "near start",
+    "dist": 20,
+    "dread": 0
+   },
+   {
+    "t": 60,
+    "tag": "near",
+    "dist": 20,
+    "dread": 5.2
+   },
+   {
+    "t": 120,
+    "tag": "near",
+    "dist": 20,
+    "dread": 10.4
+   },
+   {
+    "t": 180,
+    "tag": "near",
+    "dist": 20,
+    "dread": 18.6
+   },
+   {
+    "t": 240,
+    "tag": "near",
+    "dist": 20,
+    "dread": 26.8
+   },
+   {
+    "t": 240,
+    "tag": "walking out",
+    "dist": 20,
+    "dread": 26.8
+   },
+   {
+    "t": 245,
+    "tag": "walking out",
+    "dist": 26,
+    "dread": 27.5
+   },
+   {
+    "t": 250,
+    "tag": "walking out",
+    "dist": 33,
+    "dread": 28.1
+   },
+   {
+    "t": 255,
+    "tag": "walking out",
+    "dist": 40,
+    "dread": 28.8
+   },
+   {
+    "t": 260,
+    "tag": "walking out",
+    "dist": 48,
+    "dread": 29.5
+   },
+   {
+    "t": 265,
+    "tag": "walking out",
+    "dist": 55,
+    "dread": 30.2
+   },
+   {
+    "t": 270,
+    "tag": "walking out",
+    "dist": 63,
+    "dread": 31
+   },
+   {
+    "t": 275,
+    "tag": "walking out",
+    "dist": 71,
+    "dread": 31.7
+   },
+   {
+    "t": 280,
+    "tag": "walking out",
+    "dist": 79,
+    "dread": 32.4
+   },
+   {
+    "t": 285,
+    "tag": "walking out",
+    "dist": 87,
+    "dread": 33.1
+   },
+   {
+    "t": 290,
+    "tag": "walking out",
+    "dist": 95,
+    "dread": 33.9
+   },
+   {
+    "t": 295,
+    "tag": "walking out",
+    "dist": 102,
+    "dread": 34.6
+   },
+   {
+    "t": 300,
+    "tag": "walking out",
+    "dist": 110,
+    "dread": 35.4
+   },
+   {
+    "t": 305,
+    "tag": "walking out",
+    "dist": 118,
+    "dread": 36.1
+   },
+   {
+    "t": 310,
+    "tag": "walking out",
+    "dist": 126,
+    "dread": 36.9
+   },
+   {
+    "t": 315,
+    "tag": "walking out",
+    "dist": 134,
+    "dread": 37.7
+   },
+   {
+    "t": 320,
+    "tag": "walking out",
+    "dist": 142,
+    "dread": 38.4
+   },
+   {
+    "t": 325,
+    "tag": "walking out",
+    "dist": 150,
+    "dread": 39.2
+   },
+   {
+    "t": 330,
+    "tag": "walking out",
+    "dist": 158,
+    "dread": 40
+   },
+   {
+    "t": 335,
+    "tag": "walking out",
+    "dist": 166,
+    "dread": 40.8
+   },
+   {
+    "t": 340,
+    "tag": "walking out",
+    "dist": 174,
+    "dread": 41.6
+   },
+   {
+    "t": 345,
+    "tag": "walking out",
+    "dist": 182,
+    "dread": 42.4
+   },
+   {
+    "t": 350,
+    "tag": "walking out",
+    "dist": 190,
+    "dread": 43.2
+   },
+   {
+    "t": 355,
+    "tag": "walking out",
+    "dist": 198,
+    "dread": 44.1
+   },
+   {
+    "t": 360,
+    "tag": "walking out",
+    "dist": 206,
+    "dread": 44.9
+   },
+   {
+    "t": 365,
+    "tag": "walking out",
+    "dist": 214,
+    "dread": 45.7
+   },
+   {
+    "t": 370,
+    "tag": "walking out",
+    "dist": 222,
+    "dread": 46.6
+   },
+   {
+    "t": 375,
+    "tag": "walking out",
+    "dist": 230,
+    "dread": 47.4
+   },
+   {
+    "t": 378,
+    "tag": "far start",
+    "dist": 235,
+    "dread": 47.9
+   },
+   {
+    "t": 438,
+    "tag": "far",
+    "dist": 235,
+    "dread": 58.1
+   },
+   {
+    "t": 498,
+    "tag": "far",
+    "dist": 235,
+    "dread": 68.4
+   },
+   {
+    "t": 558,
+    "tag": "far",
+    "dist": 235,
+    "dread": 78.6
+   },
+   {
+    "t": 618,
+    "tag": "far",
+    "dist": 235,
+    "dread": 88.8
+   },
+   {
+    "t": 618,
+    "tag": "walking back",
+    "dist": 235,
+    "dread": 88.8
+   },
+   {
+    "t": 623,
+    "tag": "walking back",
+    "dist": 224,
+    "dread": 90.9
+   },
+   {
+    "t": 628,
+    "tag": "walking back",
+    "dist": 213,
+    "dread": 91.7
+   },
+   {
+    "t": 633,
+    "tag": "walking back",
+    "dist": 202,
+    "dread": 92.6
+   },
+   {
+    "t": 638,
+    "tag": "walking back",
+    "dist": 191,
+    "dread": 93.4
+   },
+   {
+    "t": 643,
+    "tag": "walking back",
+    "dist": 180,
+    "dread": 94.2
+   },
+   {
+    "t": 648,
+    "tag": "walking back",
+    "dist": 169,
+    "dread": 95
+   },
+   {
+    "t": 653,
+    "tag": "walking back",
+    "dist": 158,
+    "dread": 95.8
+   },
+   {
+    "t": 658,
+    "tag": "walking back",
+    "dist": 147,
+    "dread": 96.6
+   },
+   {
+    "t": 663,
+    "tag": "walking back",
+    "dist": 136,
+    "dread": 97.4
+   },
+   {
+    "t": 668,
+    "tag": "walking back",
+    "dist": 125,
+    "dread": 98.1
+   },
+   {
+    "t": 673,
+    "tag": "walking back",
+    "dist": 114,
+    "dread": 98.9
+   },
+   {
+    "t": 678,
+    "tag": "walking back",
+    "dist": 103,
+    "dread": 99.6
+   },
+   {
+    "t": 683,
+    "tag": "walking back",
+    "dist": 92,
+    "dread": 100
+   },
+   {
+    "t": 688,
+    "tag": "walking back",
+    "dist": 81,
+    "dread": 100
+   },
+   {
+    "t": 693,
+    "tag": "walking back",
+    "dist": 70,
+    "dread": 100
+   },
+   {
+    "t": 698,
+    "tag": "walking back",
+    "dist": 59,
+    "dread": 100
+   },
+   {
+    "t": 703,
+    "tag": "walking back",
+    "dist": 48,
+    "dread": 100
+   },
+   {
+    "t": 708,
+    "tag": "walking back",
+    "dist": 37,
+    "dread": 100
+   },
+   {
+    "t": 713,
+    "tag": "walking back",
+    "dist": 26,
+    "dread": 100
+   },
+   {
+    "t": 718,
+    "tag": "walking back",
+    "dist": 15,
+    "dread": 100
+   },
+   {
+    "t": 723,
+    "tag": "walking back",
+    "dist": 4,
+    "dread": 92.3
+   },
+   {
+    "t": 735,
+    "tag": "at the car",
+    "dist": 2,
+    "dread": 45
+   },
+   {
+    "t": 745,
+    "tag": "at the car",
+    "dist": 2,
+    "dread": 5
+   },
+   {
+    "t": 755,
+    "tag": "at the car",
+    "dist": 2,
+    "dread": 0
+   },
+   {
+    "t": 765,
+    "tag": "at the car",
+    "dist": 2,
+    "dread": 0
+   },
+   {
+    "t": 775,
+    "tag": "at the car",
+    "dist": 2,
+    "dread": 0
+   },
+   {
+    "t": 785,
+    "tag": "at the car",
+    "dist": 2,
+    "dread": 0
+   }
+  ],
+  "seenFrames": 48,
+  "scans": 33,
+  "caught": false,
+  "harmed": [],
+  "health0": 100,
+  "health": 100,
+  "stage": 0
+ },
+ "L01": {
+  "seenFrames": 120,
+  "scans": 50,
+  "showings": 2,
+  "health0": 100,
+  "health": 100
+ },
+ "L03": {
+  "seenFrames": 99,
+  "scans": 300,
+  "windows": 2,
+  "caught": false,
+  "harmed": []
+ }
+}
