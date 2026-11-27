@@ -65,6 +65,6 @@ export class Flashlight {
     const out = this.output ?? 1;
     k *= out;
     if (out < 0.66 && Math.sin(this.t * 17) * Math.sin(this.t * 5.1) > 0.9) k *= 0.4;
-    this.light.intensity = this.baseIntensity * k;
+    this.light.intensity = this.baseIntensity * k * (this.dreadDim ?? 1);   // dread (#114): the torch stutters at the worst of it
   }
 }
