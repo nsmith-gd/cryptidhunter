@@ -36,7 +36,7 @@ export const EVIDENCE = {
 
 // Settlement (#100, GDD 4.7/7): event entitlements and the per-attempt ceiling T (level maximum payout).
 export const SETTLEMENT = {
-  ceilingByMap: { test: 250, forest: 250, swamp: 600, oromedonte: 600 },   // T: L01 $250, L02 $600
+  ceilingByMap: { test: 250, forest: 250, swamp: 600, oromedonte: 600, pinebarrens: 125000 },   // T: L01 $250, L02 $600
   novelty: [1, 0.5, 0.25],                                // new events of one type & cryptid; floor 0.25
   affinity: { min: 0.8, max: 1.2, default: 1 },           // A: buyer affinity
 };
