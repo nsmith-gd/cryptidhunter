@@ -16,6 +16,13 @@ export const SHOP = Object.freeze({
     spareBatteries: { name: 'Spare battery', price: 25, note: 'A full battery for the torch / goggles (R)' },
     trailCamera: { name: 'Trail camera', price: 60, note: 'Snaps whatever walks past (T)' },
     audioLure: { name: 'Audio lure', price: 40, note: 'Plays a call to draw it in (L)' },
+    // Field kit (#87, GDD 3.2 prices). Durable items are bought once.
+    binoculars: { name: 'Binoculars', price: 45, note: 'Look far without walking up (O)', durable: true },
+    fieldRecorder: { name: 'Field recorder', price: 75, note: 'Record whoops and knocks as evidence (P)', durable: true },
+    bivy: { name: 'Emergency bivy', price: 22, note: 'Shelter where you stand: warm while still (Q)', durable: true },
+    whistle: { name: 'Signal whistle', price: 5, note: 'One blast heard 60 m away (Y)', durable: true },
+    dryClothes: { name: 'Dry clothes', price: 20, note: 'Change out of wet layers (Q)' },
+    fireKit: { name: 'Fire kit', price: 12, note: 'Light a small fire for warmth (Q, 6 uses)' },
   },
   // values[level]: level 0 is the stock gear; prices[level] is the cost of the NEXT level.
   upgrades: {
@@ -35,9 +42,10 @@ export function zoomFactor(fov) { return +(Math.tan((BASE_FOV * Math.PI) / 360) 
 export function buyGear(camp, key) {
   const item = SHOP.gear[key];
   if (!item) return { ok: false, reason: 'unknown item' };
+  if (item.durable && (camp.state.gear[key] ?? 0) >= 1) return { ok: false, reason: 'already owned' };
   const r = camp.ledger.purchase(camp.ledger.nextId(`buy:${key}`), cents(item.price), item.name);
   if (!r.ok) return { ok: false, reason: `need $${item.price}` };
-  camp.state.gear[key] = (camp.state.gear[key] ?? 0) + 1;
+  camp.state.gear[key] = (camp.state.gear[key] ?? 0) + (key === 'fireKit' ? 6 : 1);   // a fire kit is 6 uses
   camp.save();
   return { ok: true };
 }
@@ -91,7 +99,7 @@ export function showShopPanel(camp, { onChange = () => {}, root = document.query
         ${u.name} <span style="color:#c8a86a">${pips}</span> ${now}${max ? '' : ` → ${next}`}</div>`;
     }).join('');
     const gear = Object.entries(SHOP.gear).map(([key, g]) =>
-      `<div>${btn('gear', key, `$${g.price}`, money < g.price || !canBuy())} ${g.name} <span style="color:#a89a7a">(own ${camp.state.gear[key] ?? 0}) ${g.note}</span></div>`).join('');
+      `<div>${btn('gear', key, g.durable && (camp.state.gear[key] ?? 0) >= 1 ? 'OWNED' : `$${g.price}`, money < g.price || !canBuy() || (g.durable && (camp.state.gear[key] ?? 0) >= 1))} ${g.name} <span style="color:#a89a7a">(own ${camp.state.gear[key] ?? 0}) ${g.note}</span></div>`).join('');
     el.innerHTML = `<div>SHOP · ${formatCAD(camp.ledger.cash)} to spend</div>
       <div style="color:#c8a86a;margin-top:4px">UPGRADES (keep forever)</div>${ups}
       <div style="color:#c8a86a;margin-top:4px">GEAR</div>${gear}

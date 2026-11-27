@@ -51,6 +51,22 @@ export const ITEMS = {
   },
 };
 
+// Field kit (#87): the gear lives in gear/fieldKit.js; these are its loadout entries.
+const kitItem = (id, name, key, use, durable = true) => ({
+  name, key,
+  count: (g) => (durable ? (g.fieldKit?.carried[id] ? null : 0) : g.fieldKit?.carried[id] ?? 0),
+  carry: (g, n) => { if (g.fieldKit) g.fieldKit.carried[id] = n; },
+  use: (g) => !!g.fieldKit && use(g.fieldKit),
+});
+Object.assign(ITEMS, {
+  binoculars: kitItem('binoculars', 'Binoculars', 'KeyO', (k) => k.toggleBinoculars()),
+  whistle: kitItem('whistle', 'Signal whistle', 'KeyY', (k) => k.blowWhistle()),
+  fieldRecorder: kitItem('fieldRecorder', 'Field recorder', 'KeyP', (k) => k.toggleRecorder()),
+  bivy: kitItem('bivy', 'Emergency bivy', null, (k) => k.toggleBivy()),
+  dryClothes: kitItem('dryClothes', 'Dry clothes', null, (k) => k.changeClothes(), false),
+  fireKit: kitItem('fireKit', 'Fire kit', null, (k) => k.lightFire(), false),
+});
+
 export const DEFAULT_LOADOUT = ['bait', 'trailCamera', 'audioLure', 'spareBatteries'];
 
 export class Loadout {

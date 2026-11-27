@@ -25,6 +25,7 @@ export const EVIDENCE = {
     hairSample: { id: 'EV02', name: 'Hair sample', base: 15, from: 'hair', how: 'pouch' },
     biologicalSample: { id: 'EV06', name: 'Droppings sample', base: 30, from: 'scat', how: 'vial' },
     footprintCast: { id: 'EV05', name: 'Footprint cast', base: 20, from: 'footprint', how: 'cast' },
+    audioRecording: { id: 'EV07', name: 'Acoustic recording', base: 20, from: 'sound', how: 'recorder' },   // F05 field recorder (#87)
   },
   dollarsPerUnit: 3,                            // $ per base unit (photos pay ~$2 per score point)
   novelty: [1, 0.5, 0.25],                      // repeats of the same type & cryptid pay less (GDD 4.7), floor 0.25
@@ -76,6 +77,14 @@ export class EvidenceKit {
       stage: 'collected', at: +this.time.toFixed(2) };
     this.items.push(item);
     this.observed.add(clue.id);
+    return item;
+  }
+
+  /** A field-recorder capture (#87): one recording per sound event; quality is kept on the item. */
+  addAudio(rec, name) {
+    const item = this.add('audioRecording', { id: rec.id, cryptidId: rec.cryptidId });
+    item.quality = rec.quality; item.sound = rec.kind; item.cryptid = name ?? item.cryptid;
+    this.notify(`${item.name} saved as evidence`);
     return item;
   }
 

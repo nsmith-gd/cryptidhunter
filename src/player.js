@@ -141,6 +141,9 @@ export class Player {
     this.noise += (target - this.noise) * (1 - Math.exp(-rate * dt));
     if (this.noise < 0.005) this.noise = 0;
     this.noiseRadius = this.noise * PLAYER.noiseMaxRadius;
+    // A one-off loud sound you make on purpose (signal whistle, #87): louder and further than any gait.
+    const b = this.noiseBurst;
+    if (b && b.left > 0) { b.left -= dt; this.noise = Math.max(this.noise, b.level); this.noiseRadius = Math.max(this.noiseRadius, b.radius); }
   }
 
   // How loud the player is at a world position: 0 (out of earshot) .. noise (right next to them).

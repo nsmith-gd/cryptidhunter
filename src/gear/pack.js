@@ -20,6 +20,13 @@ export const ITEM_SPECS = {
   water: { kg: 1.0, L: 1.0 },              // a 1 L bottle
   packedLunch: { kg: 0.45, L: 0.6 },
   trailSnack: { kg: 0.15, L: 0.2 },
+  // Field kit (#87), GDD 3.2 masses.
+  binoculars: { kg: 0.35, L: 0.6 },        // F03
+  whistle: { kg: 0.02, L: 0.02 },          // C06
+  fieldRecorder: { kg: 0.18, L: 0.2 },     // F05
+  bivy: { kg: 0.2, L: 0.5 },               // D02
+  dryClothes: { kg: 0.5, L: 2.0 },         // B04 (a bundle)
+  fireKit: { kg: 0.1, L: 0.15 },           // D06 (6 uses)
 };
 
 /** Worn kit: always carried, counted once (GDD 13.1 "worn mass included once"). */
