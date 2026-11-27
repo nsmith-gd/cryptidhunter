@@ -132,12 +132,19 @@ export class StatusModel {
       }
     }
 
-    const dr = this.dread;   // #114: the slow build of the night
-    if (dr && dr.stage >= 1) {
-      add({ id: 'dread', stage: 'now', severity: dr.stage >= 3 ? 2 : dr.stage >= 2 ? 1 : 0, name: dr.stageName,
+    // D05 Dread (#114, #131): listed only while it affects you (the same threshold as the label,
+    // the tremor and the breathing), and only with effects that are really happening right now.
+    // Never a meter: no number, no bar.
+    const dr = this.dread;
+    const fb = dr?.feedback;
+    if (fb?.on) {
+      const effects = ['hands unsteady (tremor on what you hold)', 'breathing loud', 'fear comes quicker', 'the fog feels closer'];
+      if (dr.stage >= 2) effects.push('it is getting bolder');
+      if (dr.stage >= 3) effects.push('your torch stutters');
+      add({ id: 'dread', stage: 'now', severity: dr.value >= 75 ? 2 : dr.value >= 50 ? 1 : 0, name: `${fb.label.split(':')[0]} (dread)`,
         cause: dr.depth() > 0.35 ? 'Deep in the woods, a long time out' : 'A long time out in the dark',
-        effect: ['', 'The woods have gone quiet; fear comes quicker', 'The fog is closing in and it is getting bolder', 'You can barely see, your torch stutters and it may charge'][dr.stage],
-        fix: 'Head back toward the van or a lit place. It only eases a little' });
+        effect: effects.join(', ').replace(/^./, (c) => c.toUpperCase()),
+        fix: 'Get somewhere lit and safe: the van, the cabin, your tent, a lamp or a fire' });
     }
 
     if (p.exhausted) {
@@ -192,7 +199,6 @@ export class StatusModel {
       a.push({ id: 'wetness', name: 'Wetness', value: t.wetness / 100, text: `${Math.round(t.wetness)}%${t.wetness < 5 ? ' (dry)' : ''}` });
       if (s.fatigue) a.push({ id: 'fatigue', name: 'Fatigue', value: s.fatigue.value / 100, text: `${Math.round(s.fatigue.value)} (${s.fatigue.band}${s.fatigue.asleep ? ', asleep' : ''}) · low is good` });
     }
-    if (this.dread) a.push({ id: 'dread', name: 'Dread', value: this.dread.level, text: `${Math.round(this.dread.value)} (${this.dread.stageName.toLowerCase()})` });
     if (f) a.push({ id: 'fear', name: 'Fear', value: f.value / 100, text: `${Math.round(f.value)} (${f.value > 70 ? 'terrified' : f.value > FEAR.swayStart ? 'scared' : f.value > STATUS.fearSoon ? 'uneasy' : 'calm'})` });
     if (fl) a.push({ id: 'battery', name: 'Torch battery', value: fl.battery, text: `${Math.round(fl.battery * 100)}% · ${this.torchMinutes()} of light · ${fl.spares} spare${fl.spares === 1 ? '' : 's'}` });
     return a;
@@ -212,7 +218,8 @@ export class StatusModel {
 
   /** Compact HUD lines: { id, level, text } (consolidated root causes, worded stage). */
   hudWarnings(max = 4) {
-    return this.conditions().slice(0, max).map((c) => ({
+    // Dread has its own short label on screen (#131): not repeated in the HUD warning list.
+    return this.conditions().filter((c) => c.id !== 'dread').slice(0, max).map((c) => ({
       id: `${c.id}-${c.stage}`, level: c.stage === 'soon' ? Math.max(1, c.severity) : c.severity,
       text: `${c.stage === 'soon' ? 'SOON' : 'NOW'} · ${c.cause}: ${c.effect.charAt(0).toLowerCase()}${c.effect.slice(1)}. ${c.fix}`,
     }));
