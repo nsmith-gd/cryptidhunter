@@ -1,0 +1,130 @@
+{
+ "gym": "G07",
+ "seed": 707,
+ "criteria": [
+  {
+   "id": "no-opportunity",
+   "text": "A failed precondition consumes nothing (commit with no opening: refused, charges unchanged)",
+   "status": "pass",
+   "detail": {
+    "why": "no valid opportunity: nothing is spent",
+    "charges": {
+     "light": 2,
+     "heavy": 1
+    }
+   }
+  },
+  {
+   "id": "one-charge-fail",
+   "text": "A committed attempt consumes exactly one charge even when it fails (incompatible module), and the creature returns to a plausible state",
+   "status": "pass",
+   "detail": {
+    "why": "the heavy capture module isn't compatible with a dogman",
+    "outcome": "hostile",
+    "charges": {
+     "light": 2,
+     "heavy": 0
+    }
+   }
+  },
+  {
+   "id": "one-charge-ok",
+   "text": "A valid committed attempt consumes exactly one charge (and a second press spends nothing)",
+   "status": "pass",
+   "detail": {
+    "charges": {
+     "light": 1,
+     "heavy": 0
+    },
+    "second": "already committed"
+   }
+  },
+  {
+   "id": "identity",
+   "text": "The creature's identity survives containment (one individual through every state; never an inventory item)",
+   "status": "pass",
+   "detail": {
+    "state": "contained",
+    "ids": [
+     "dogman-g07"
+    ]
+   }
+  },
+  {
+   "id": "integrity-warning",
+   "text": "Containment warns when integrity falls below 40, and a repair restores it",
+   "status": "pass",
+   "detail": {
+    "warnedAt": 40,
+    "after": 70
+   }
+  },
+  {
+   "id": "blocked-route",
+   "text": "A blocked cargo route stops staging (with the reason); clearing it allows it",
+   "status": "pass",
+   "detail": {
+    "blocked": "no route to the transport: a fallen log blocks the cargo route",
+    "staged": "staged"
+   }
+  },
+  {
+   "id": "deliver-once",
+   "text": "Valid delivery pays once (at the truck, a living, loaded specimen; a second delivery is refused)",
+   "status": "pass",
+   "detail": {
+    "early": "not at the extraction point",
+    "paid": [
+     {
+      "contractId": "G07 stub contract",
+      "condition": 100,
+      "integrity": 69
+     }
+    ],
+    "twice": "already delivered: the contract pays once",
+    "hauled": true
+   }
+  },
+  {
+   "id": "no-bad-delivery",
+   "text": "No delivery if it escaped, failed (non-living) or was never loaded",
+   "status": "pass",
+   "detail": {
+    "escaped": "can't deliver from free",
+    "failed": "the specimen is non-deliverable (condition failed)",
+    "unloaded": "can't deliver from contained"
+   }
+  },
+  {
+   "id": "foot-exit",
+   "text": "Abandoning (emergency release) never locks the foot exit: you walk out with your evidence",
+   "status": "pass",
+   "detail": {
+    "released": "fleeing",
+    "walked": true,
+    "inZone": true,
+    "stage": "ended",
+    "evidence": "Hair sample"
+   }
+  },
+  {
+   "id": "tagging",
+   "text": "Tagging tested independently with three valid telemetry updates",
+   "status": "not_evaluated",
+   "detail": {
+    "reason": "the tagging state machine is task #148 (another agent); not built here"
+   }
+  },
+  {
+   "id": "testers",
+   "text": "4/5 testers can explain the difference between capturing and delivering",
+   "status": "not_evaluated",
+   "detail": {
+    "reason": "needs human testers"
+   }
+  }
+ ],
+ "digest": "97dde52b",
+ "events": 38,
+ "ticks": 14038
+}

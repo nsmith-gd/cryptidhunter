@@ -8,13 +8,17 @@ import { unlockStatus } from '../research/dossier.js';
 export const MAP_CHOICES = [
   { id: 'forest', name: 'Pine Hollow Forest', target: 'Bigfoot', level: 1,
     blurb: 'Dense night pines, a creek and a ridge. Bigfoot beds down past the ridge.' },
+  // Level 2 (#129, GDD 6.2): a daylight trip into the Oro-Medonte hills, $75 operating cost.
+  { id: 'oromedonte', name: 'Oro-Medonte Woods', target: 'Sidehill Gouger', level: 2, tripCents: 7500,
+    after: { map: 'forest', mapName: 'Pine Hollow', species: 'bigfoot', speciesName: 'Bigfoot' },
+    blurb: 'Rolling hills, a lake and one trail from the car. Back before dusk, or find your way in the dark.' },
   // Trip cost $40 is a placeholder until the economy defines L02's operating cost (assumption).
   { id: 'swamp', name: 'Blackwater Swamp', target: 'Mothman', level: 2, tripCents: 4000,
     after: { map: 'forest', mapName: 'Pine Hollow', species: 'bigfoot', speciesName: 'Bigfoot' },
     blurb: 'Boardwalks over black water and the old bridge. Something circles overhead.' },
 ];
 
-export const TARGET_BY_MAP = { test: 'Bigfoot', forest: 'Bigfoot', swamp: 'Mothman', simcoe: 'Igopogo', l05: 'Mugwump' };   // simcoe: L03 greybox, ?map=simcoe (#135)
+export const TARGET_BY_MAP = { test: 'Bigfoot', forest: 'Bigfoot', swamp: 'Mothman', oromedonte: 'Sidehill Gouger', simcoe: 'Igopogo', l05: 'Mugwump', ozark: 'Ozark Howler', pointpleasant: 'Mothman', cobaltgym: 'Old Yellow Top' };   // simcoe: L03 greybox, ?map=simcoe (#135)
 
 /** What the unlock rule reads from base camp. */
 export function unlockContext(camp) {

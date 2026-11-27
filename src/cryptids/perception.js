@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { groundAt } from '../maps/ground.js';
 import { SCENT_WORLD } from './scent.js';
 import { RoutineMemory } from './routine.js';
 
@@ -142,12 +143,13 @@ export class Perception {
     }
     if (was === 'lost') {
       if (sensing && this.awareness > 0.3) return this.setStage('identified');
-      if (state === 'investigate') return;                                       // checking the last-known spot
+      if (state === 'investigate' || state === 'stalk') return;                  // checking the last-known spot
       if (!memo || memo.confidence < 0.15 || inStage > 20) return this.setStage('reset');
       return;
     }
     if (was === 'reset') { if (inStage >= MEMORY.resetFor) this.setStage('unaware'); return; }
-    if (state === 'investigate' && (memo || this.lastHeard)) return this.setStage('investigating');
+    // Stalking (#130) is investigating too: it's tracking a cue it hasn't identified as you yet.
+    if ((state === 'investigate' || state === 'stalk') && (memo || this.lastHeard)) return this.setStage('investigating');
     if (this.awareness > 0.05 || sensing) return this.setStage('suspicious');
     if (was === 'investigating' || was === 'suspicious') return this.setStage(memo && memo.confidence > 0.3 ? 'suspicious' : 'unaware');
   }
@@ -193,10 +195,19 @@ export class Perception {
     if (this.flashlight?.on && this.camera && dist < 30) {
       const cam = this.camera.position;
       this.camera.getWorldDirection(_v);
-      const to = new THREE.Vector3(x - cam.x, this.eyeHeight * 0.6 - cam.y, z - cam.z);
+      const to = new THREE.Vector3(x - cam.x, groundAt(x, z) + this.eyeHeight * 0.6 - cam.y, z - cam.z);
       if (_v.angleTo(to) < THREE.MathUtils.degToRad(22) && this.clearLine(x, z, p)) {
         this.beamLevel = c.beamNotice * (1 - dist / 30);
       }
+    }
+    // Watched (#130): the player is looking at it, near the middle of their view, with a clear line.
+    // Some species only move when unobserved (the Gouger stalks you only while you look away).
+    this.observed = false;
+    if (this.camera && dist < (c.observedRange ?? 60)) {
+      const cam = this.camera.position;
+      this.camera.getWorldDirection(_v);
+      const to = new THREE.Vector3(x - cam.x, groundAt(x, z) + this.eyeHeight * 0.6 - cam.y, z - cam.z);
+      if (_v.angleTo(to) < THREE.MathUtils.degToRad(c.observedAngle ?? 28) && this.clearLine(x, z, p)) this.observed = true;
     }
     this.seen = this.sightLevel > 0 || this.beamLevel > 0;
     if (this.seen) {
@@ -232,7 +243,7 @@ export class Perception {
 
   /** Is there a clear line from the cryptid's eyes to the player's chest? */
   clearLine(x, z, p) {
-    const from = _v.set(x, this.eyeHeight, z);
+    const from = _v.set(x, groundAt(x, z) + this.eyeHeight, z);   // eyes above the ground it stands on (hills)
     const to = new THREE.Vector3(p.x, p.y + (this.player.height ?? 1.8) * 0.7, p.z);
     const dir = to.clone().sub(from);
     const len = dir.length();
