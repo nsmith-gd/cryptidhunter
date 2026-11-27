@@ -106,6 +106,8 @@ export class G07World {
   log(type, data = {}) { this.trace('capture', type, data); }
   near(p, r = G07.reach) { const q = this.g.player.position; return Math.hypot(q.x - p.x, q.z - p.z) <= r; }
   get state() { return this.machine.state; }
+  /** A new specimen and contract after a delivery (same yard, fresh capture record). */
+  nextSpecimen() { this.proxy.id = `dogman-g07-${(this.specimens = (this.specimens ?? 1) + 1)}`; this.machine = this.newMachine(); this.proxy.state = 'wander'; this.proxy.t = 0; this.proxy.x = -10; this.proxy.z = -14; this.sled.loaded = false; this.log('next-specimen', { id: this.proxy.id }); }
 
   place() {
     const P = this.proxy, c = this.crate, s = this.sled, m = this.meshes;
@@ -196,7 +198,7 @@ export class G07World {
     this.routine(dt);
     this.haul(dt);
     const before = this.machine.trace.length;
-    const r = this.machine.tick(dt, { resistance: this.generator.running ? 0.3 : 1.6, adverse: !this.generator.running && this.machine.held });
+    const r = this.machine.tick(dt, { resistance: this.generator.running ? 0.3 : 1.6 });   // no power: the restraint strains much harder
     for (const e of this.machine.trace.slice(before)) if (e.type === 'warning' || e.type === 'nonDeliverable') { this.log(e.type, { what: e.what ?? e.why, integrity: Math.round(this.machine.integrity), condition: Math.round(this.machine.condition) }); this.notify(`Warning: ${e.what ?? e.why}`); }
     if (r && !r.ok) this.result('escape', r);
     this.place();

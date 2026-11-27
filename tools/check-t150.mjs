@@ -25,7 +25,7 @@ const load = async (extra = '') => {
 };
 await load();
 await page.evaluate(() => { const g = __game, a = g.map.landmarks.anchor; g.player.position.set(a.x + 6, 0, a.z + 14); g.player.yaw = 0.35; g.player.pitch = -0.12;
-  document.querySelector('#overlay').style.visibility = 'hidden'; g.sim.frame(1 / 60); g.gymHarness.render(); });
+  document.querySelector('#overlay').style.visibility = 'hidden'; g.camera.position.set(g.player.position.x, 1.7, g.player.position.z); g.camera.rotation.set(-0.12, 0.35, 0, 'YXZ'); g.renderer.render(g.scene, g.camera); g.gymHarness.render(); });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/01-capture-yard-anchor-rack-crate-generator.png` });
 await page.evaluate(() => { document.querySelector('#overlay').style.visibility = ''; });

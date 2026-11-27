@@ -364,6 +364,7 @@ export function runG07(g, h) {
   // 9. Abandon a specimen and walk out the foot path with evidence: always available.
   const clue = g.clues.spawn('hair', { cryptidId: 'dogman', position: { x: C.anchor.x + 1, y: 0, z: C.anchor.z + 1 }, data: {} });
   const ev = g.evidence.add('hairSample', clue);
+  w.nextSpecimen();
   const open3 = waitFor(() => w.state === 'eligible');
   T.place(C.anchor.x + 6, C.anchor.z + 6);
   w.modules.light.charges = Math.max(1, w.modules.light.charges);
