@@ -138,7 +138,8 @@ export function utilityBrain(c) {
     // distance that shrinks as dusk falls and as they go deeper (level context). Watched, it freezes;
     // watched too long or approached, it bolts. Species tune it with profile.stalk.
     stalk: {
-      eligible: () => !!c.profile.stalk && !pc().detected && c.playerDistance < c.profile.stalk.range && (c.state === 'stalk' || !pc().observed),
+      eligible: () => !!c.profile.stalk && !pc().detected && c.playerDistance < c.profile.stalk.range && (c.state === 'stalk' || !pc().observed)
+        && (c.context?.()?.depth ?? 1) >= (c.profile.stalk.minDepth ?? 0),   // only once you're into its woods
       score: () => {
         const ctx = c.context?.() ?? {}, pull = Math.min(1, Math.max(ctx.dusk ?? 0, ctx.depth ?? 0));
         return 0.3 + 0.3 * pull + T.curiosity * 0.2 + (c.state === 'stalk' ? 0.1 : 0);

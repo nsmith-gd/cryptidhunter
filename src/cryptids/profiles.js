@@ -119,12 +119,12 @@ export const GOUGER = makeProfile({
   height: 1.1, radius: 0.45, length: 1.5,
   legs: { left: 0.42, right: 0.62 },       // uphill legs shorter: it leans into the slope
   color: 0x6f6350,
-  roamRadius: 26, roamSpeed: 1.2, roamPause: [3, 8],
+  roamRadius: 70, roamSpeed: 1.2, roamPause: [3, 8],   // its contour loop is its range
   roamStyle: 'contour',                    // grazes along one height round the hill, one way (#130)
   fleeStyle: 'contour',                    // bolts along the slope: easy going for it, hard for you
   // Stalks you while you're not looking (#130): from `far` metres, closing to `near` as dusk falls
   // and as you go deeper; frozen while watched; bolts if you come within `startle` or stare too long.
-  stalk: Object.freeze({ range: 110, far: 42, near: 15, startle: 11, holdStare: 4 }),
+  stalk: Object.freeze({ range: 110, far: 42, near: 15, startle: 11, holdStare: 4, minDepth: 0.3 }),
   fleeSafeDistance: 28, fleeSpeed: 6.8, fleeStep: 16, acceleration: 9, turnRate: 5,
   catchHits: 99, threatening: false,       // harmless
   senses: Object.freeze({ hearing: 2.0, sightRange: 18, viewAngle: 70 }),   // acute sound

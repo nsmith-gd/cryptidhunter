@@ -492,6 +492,7 @@ export class CryptidAI {
     this.agent.speed = this.profile.roamSpeed;
     // New home where it ended up, so it doesn't wander straight back toward the player.
     this.home = { x: this.agent.x, z: this.agent.z };
+    if (this.profile.roamStyle === 'contour') this.contourY = groundAt(this.agent.x, this.agent.z);   // graze on at this height
     this.pickRoamPoint();
   }
 

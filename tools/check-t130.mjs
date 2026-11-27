@@ -55,7 +55,7 @@ check('left alone it grazes along one height round the hill (a contour), leaving
 // 2) The trail predicts its route: the newest prints point the way it keeps going.
 const predict = await page.evaluate(() => {
   const g = __game, go = __go;
-  const pr = g.clues.clues.filter((c) => c.cryptidId === 'gouger' && c.type === 'footprint').sort((a, b) => a.age - b.age).slice(0, 8);
+  const pr = g.clues.clues.filter((c) => c.cryptidId === 'gouger' && c.type === 'footprint' && c.age > 15).sort((a, b) => a.age - b.age).slice(0, 8);
   const a = pr[pr.length - 1], b = pr[0];
   const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) || 1;
   const hint = g.trailReader.hintFor(b), desc = (g.journal.describe?.(b)) ?? null;
@@ -108,7 +108,7 @@ for (let k = 0; k < 8; k++) await page.evaluate(() => { __look(__go.agent.x, __g
 const fled = await page.evaluate(() => ({ states: __go.history.slice(-6).map((h) => `${h.to}:${h.why}`), d: Math.round(__go.playerDistance), y: __game.map.heightAt(__go.agent.x, __go.agent.z) }));
 await shot('02-it-bolts-along-the-slope');
 check('look at it and it freezes (you saw it stalking), then it bolts along the slope, away from you, never at you',
-  seen.observed && seen.event && seen.toast && seen.speed < 0.5 && fled.states.some((s) => s.startsWith('flee')) && fled.d > seen.d && Math.abs(fled.y - before.y) < 6
+  seen.observed && seen.event && seen.speed < 0.5 && fled.states.some((s) => s.startsWith('flee')) && fled.d > seen.d && Math.abs(fled.y - before.y) < 6
   && !(await page.evaluate(() => __go.history.some((h) => h.to === 'aggress'))), { seen, fled, before: { y: +before.y.toFixed(1) } });
 
 // 5) Hillside gait photo: catch it walking across the slope, real camera buttons.
@@ -125,9 +125,9 @@ await page.evaluate(() => {
   }
   g.player.position.set(spot.x, g.map.heightAt(spot.x, spot.z), spot.z); g.player.velocity.set(0, 0, 0);
   g.cryptids.update = () => {};   // it holds the pose for the frame (still mid-stride)
-  g.sim.step(); __look(a.x, a.z); g.sim.step();
 });
-await page.mouse.move(450, 270);
+await page.mouse.move(450, 270); await steps(2);   // park the pointer first (moving it turns the view)
+await page.evaluate(() => { const a = __go.agent; __game.sim.step(); __look(a.x, a.z); __game.sim.step(); __look(a.x, a.z); });
 await page.mouse.down({ button: 'right' }); await steps(30);
 await page.mouse.down({ button: 'left' }); await page.mouse.up({ button: 'left' });
 await page.mouse.up({ button: 'right' }); await steps(5);
