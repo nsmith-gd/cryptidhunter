@@ -112,7 +112,7 @@ export class FieldKit {
     const rec = { id: `audio:${this.recordings.length + 1}`, kind, quality, distance: Math.round(d), cryptidId: cryptid, t: +this.time.toFixed(1) };
     this.recordings.push(rec);
     const item = this.evidence?.addAudio?.(rec, name);
-    this.notify(`Recorded a ${kind === 'whoop' ? 'whoop' : 'wood knock'} (${d.toFixed(0)} m, quality ${Math.round(quality * 100)}%)`);
+    this.notify(`Recorded a ${({ whoop: 'whoop', call: 'call over the water', knock: 'wood knock' })[kind] ?? kind} (${d.toFixed(0)} m, quality ${Math.round(quality * 100)}%)`);
     this.record('fieldRecorder', `captured ${kind}`);
     return item ?? rec;
   }
