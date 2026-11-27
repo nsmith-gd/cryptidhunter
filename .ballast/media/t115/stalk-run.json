@@ -1,0 +1,2746 @@
+{
+  "A": {
+    "name": "A",
+    "states": [
+      "stalk"
+    ],
+    "d0": 24.1,
+    "d1": 15,
+    "minD": 15,
+    "maxD": 24.1,
+    "sweepDeg": 70,
+    "flees": 0
+  },
+  "B": {
+    "name": "B",
+    "states": [
+      "stalk"
+    ],
+    "d0": 15,
+    "d1": 15.9,
+    "minD": 13.1,
+    "maxD": 15.9,
+    "sweepDeg": 30,
+    "flees": 0
+  },
+  "C": {
+    "name": "C",
+    "states": [
+      "stalk"
+    ],
+    "d0": 15.9,
+    "d1": 31.9,
+    "minD": 15.9,
+    "maxD": 32.8,
+    "sweepDeg": 72,
+    "flees": 0
+  },
+  "D": {
+    "name": "D",
+    "states": [
+      "stalk",
+      "flee",
+      "roam"
+    ],
+    "d0": 31.9,
+    "d1": 31.3,
+    "minD": 14.2,
+    "maxD": 33.1,
+    "sweepDeg": 31,
+    "flees": 1
+  },
+  "log": [
+    {
+      "t": 0.02,
+      "mode": "start",
+      "why": "spotted you",
+      "dist": 24.1
+    },
+    {
+      "t": 0.02,
+      "mode": "close",
+      "dist": 24.1,
+      "beam": false,
+      "facing": false,
+      "rushing": false,
+      "loud": false
+    },
+    {
+      "t": 30.02,
+      "mode": "circle",
+      "dist": 15,
+      "beam": false,
+      "facing": true,
+      "rushing": false,
+      "loud": false
+    },
+    {
+      "t": 30.08,
+      "mode": "retreat",
+      "dist": 14.9,
+      "beam": false,
+      "facing": true,
+      "rushing": true,
+      "loud": false
+    },
+    {
+      "t": 34.03,
+      "mode": "circle",
+      "dist": 13.1,
+      "beam": false,
+      "facing": true,
+      "rushing": false,
+      "loud": false
+    },
+    {
+      "t": 61.03,
+      "mode": "retreat",
+      "dist": 31.9,
+      "beam": false,
+      "facing": true,
+      "rushing": true,
+      "loud": false
+    }
+  ],
+  "history": [
+    "roam->roam (bedded down)",
+    "roam->roam (test start)",
+    "roam->stalk (spotted you)",
+    "stalk->flee (too close)",
+    "flee->roam (lost you)"
+  ],
+  "track": [
+    {
+      "phase": "A",
+      "x": 2,
+      "z": 94,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2,
+      "z": 94,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.03,
+      "z": 94.03,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.21,
+      "z": 94.19,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.36,
+      "z": 94.33,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.54,
+      "z": 94.51,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.72,
+      "z": 94.68,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.87,
+      "z": 94.83,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.04,
+      "z": 95,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.21,
+      "z": 95.18,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.38,
+      "z": 95.36,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.55,
+      "z": 95.55,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.71,
+      "z": 95.73,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.88,
+      "z": 95.92,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.03,
+      "z": 96.11,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.19,
+      "z": 96.3,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.35,
+      "z": 96.5,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.49,
+      "z": 96.69,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.64,
+      "z": 96.89,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.79,
+      "z": 97.09,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.93,
+      "z": 97.29,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.07,
+      "z": 97.5,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.21,
+      "z": 97.7,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.34,
+      "z": 97.91,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.47,
+      "z": 98.12,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.6,
+      "z": 98.33,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.73,
+      "z": 98.54,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.85,
+      "z": 98.76,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.97,
+      "z": 98.98,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.09,
+      "z": 99.19,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.18,
+      "z": 99.42,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.26,
+      "z": 99.66,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.35,
+      "z": 99.89,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.42,
+      "z": 100.13,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.48,
+      "z": 100.36,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.55,
+      "z": 100.6,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.63,
+      "z": 100.84,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.72,
+      "z": 101.07,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.81,
+      "z": 101.3,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.89,
+      "z": 101.53,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.98,
+      "z": 101.76,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.07,
+      "z": 101.99,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.15,
+      "z": 102.22,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.2,
+      "z": 102.47,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.25,
+      "z": 102.71,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.3,
+      "z": 102.95,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.29,
+      "z": 103.2,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.28,
+      "z": 103.45,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.27,
+      "z": 103.69,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.16,
+      "z": 103.9,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 7.02,
+      "z": 104.11,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.88,
+      "z": 104.31,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.7,
+      "z": 104.33,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.48,
+      "z": 104.33,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.24,
+      "z": 104.28,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 6.04,
+      "z": 104.22,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.85,
+      "z": 104.16,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.65,
+      "z": 104.09,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.45,
+      "z": 104.02,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.26,
+      "z": 103.95,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 5.06,
+      "z": 103.88,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.97,
+      "z": 103.85,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.77,
+      "z": 103.78,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.57,
+      "z": 103.72,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.38,
+      "z": 103.66,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 4.18,
+      "z": 103.6,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.98,
+      "z": 103.54,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.79,
+      "z": 103.49,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.61,
+      "z": 103.45,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.42,
+      "z": 103.4,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.25,
+      "z": 103.36,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 3.06,
+      "z": 103.32,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.96,
+      "z": 103.3,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.76,
+      "z": 103.26,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.55,
+      "z": 103.22,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.34,
+      "z": 103.19,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.13,
+      "z": 103.16,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.97,
+      "z": 103.13,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.81,
+      "z": 103.11,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.61,
+      "z": 103.09,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.43,
+      "z": 103.07,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.22,
+      "z": 103.05,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.01,
+      "z": 103.04,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.89,
+      "z": 103.03,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.68,
+      "z": 103.02,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.48,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.28,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.09,
+      "z": 103,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.03,
+      "z": 103,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.23,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.44,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.65,
+      "z": 103.02,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.86,
+      "z": 103.03,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.02,
+      "z": 103.04,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.19,
+      "z": 103.05,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.39,
+      "z": 103.07,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.47,
+      "z": 103.08,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.47,
+      "z": 103.08,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.47,
+      "z": 103.08,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.47,
+      "z": 103.08,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.38,
+      "z": 103.07,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -1.17,
+      "z": 103.05,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.97,
+      "z": 103.04,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.76,
+      "z": 103.02,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.56,
+      "z": 103.02,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.4,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": -0.19,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.01,
+      "z": 103,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.22,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.4,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.53,
+      "z": 103.01,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.72,
+      "z": 103.02,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 0.93,
+      "z": 103.03,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.13,
+      "z": 103.05,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.35,
+      "z": 103.07,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.52,
+      "z": 103.08,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.68,
+      "z": 103.1,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 1.88,
+      "z": 103.12,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.07,
+      "z": 103.15,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "A",
+      "x": 2.26,
+      "z": 103.18,
+      "px": 0,
+      "pz": 118,
+      "state": "stalk",
+      "mode": "close"
+    },
+    {
+      "phase": "B",
+      "x": 2.47,
+      "z": 103.21,
+      "px": 0,
+      "pz": 117.99,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 2.79,
+      "z": 103.1,
+      "px": 0.11,
+      "pz": 117.35,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 3.04,
+      "z": 102.79,
+      "px": 0.26,
+      "pz": 116.57,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 3.49,
+      "z": 102.12,
+      "px": 0.42,
+      "pz": 115.79,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 3.94,
+      "z": 101.45,
+      "px": 0.6,
+      "pz": 115.01,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 4.36,
+      "z": 100.86,
+      "px": 0.79,
+      "pz": 114.23,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 4.85,
+      "z": 100.21,
+      "px": 1,
+      "pz": 113.46,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 5.34,
+      "z": 99.56,
+      "px": 1.23,
+      "pz": 112.69,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 5.84,
+      "z": 98.94,
+      "px": 1.47,
+      "pz": 111.93,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 6.41,
+      "z": 98.35,
+      "px": 1.73,
+      "pz": 111.18,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 6.97,
+      "z": 97.77,
+      "px": 2.01,
+      "pz": 110.43,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 7.54,
+      "z": 97.2,
+      "px": 2.31,
+      "pz": 109.68,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 8.15,
+      "z": 96.66,
+      "px": 2.62,
+      "pz": 108.95,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 8.76,
+      "z": 96.13,
+      "px": 2.95,
+      "pz": 108.22,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 9.37,
+      "z": 95.6,
+      "px": 3.3,
+      "pz": 107.5,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 10.08,
+      "z": 95.22,
+      "px": 3.67,
+      "pz": 106.79,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 10.8,
+      "z": 94.85,
+      "px": 4.06,
+      "pz": 106.1,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "B",
+      "x": 11.26,
+      "z": 94.62,
+      "px": 4.14,
+      "pz": 105.97,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 11.67,
+      "z": 94.44,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 12.09,
+      "z": 94.27,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 12.5,
+      "z": 94.1,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 12.93,
+      "z": 93.96,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 13.37,
+      "z": 93.87,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "B",
+      "x": 13.81,
+      "z": 93.78,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 14.26,
+      "z": 93.71,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 14.71,
+      "z": 93.69,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 15.15,
+      "z": 93.66,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 15.6,
+      "z": 93.64,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 16.05,
+      "z": 93.69,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 16.5,
+      "z": 93.75,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 16.94,
+      "z": 93.8,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 17.39,
+      "z": 93.86,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 17.84,
+      "z": 93.91,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 18.28,
+      "z": 93.97,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 18.73,
+      "z": 93.95,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 19.18,
+      "z": 93.89,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 19.62,
+      "z": 93.84,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 20.06,
+      "z": 93.75,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 20.49,
+      "z": 93.61,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 20.91,
+      "z": 93.47,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.32,
+      "z": 93.29,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.66,
+      "z": 92.99,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.99,
+      "z": 92.7,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.33,
+      "z": 92.4,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.61,
+      "z": 92.05,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.9,
+      "z": 91.7,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.18,
+      "z": 91.35,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.27,
+      "z": 90.93,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.33,
+      "z": 90.48,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.38,
+      "z": 90.04,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.45,
+      "z": 89.59,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.52,
+      "z": 89.15,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.59,
+      "z": 88.7,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.63,
+      "z": 88.25,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.64,
+      "z": 87.81,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.65,
+      "z": 87.36,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.67,
+      "z": 86.91,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.68,
+      "z": 86.46,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.69,
+      "z": 86.01,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.7,
+      "z": 85.56,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.71,
+      "z": 85.11,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.73,
+      "z": 84.66,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.74,
+      "z": 84.21,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.51,
+      "z": 83.86,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.23,
+      "z": 83.5,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.95,
+      "z": 83.15,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.68,
+      "z": 82.79,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.47,
+      "z": 82.42,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.41,
+      "z": 81.97,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.35,
+      "z": 81.53,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.27,
+      "z": 81.11,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.92,
+      "z": 80.85,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.57,
+      "z": 80.56,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.27,
+      "z": 80.23,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 20.96,
+      "z": 79.91,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 20.67,
+      "z": 79.6,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 20.88,
+      "z": 79.36,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.08,
+      "z": 79.16,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.44,
+      "z": 79.33,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 21.85,
+      "z": 79.52,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.26,
+      "z": 79.7,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 22.7,
+      "z": 79.8,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.14,
+      "z": 79.9,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 23.58,
+      "z": 79.99,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 24.02,
+      "z": 80.09,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 24.42,
+      "z": 80.22,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 24.73,
+      "z": 80.55,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 25.04,
+      "z": 80.88,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 25.35,
+      "z": 81.2,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 25.66,
+      "z": 81.53,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 25.97,
+      "z": 81.85,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 26.28,
+      "z": 82.18,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 26.59,
+      "z": 82.51,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 26.89,
+      "z": 82.84,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 27.2,
+      "z": 83.17,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 27.5,
+      "z": 83.5,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 27.75,
+      "z": 83.87,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 27.98,
+      "z": 84.26,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 28.21,
+      "z": 84.65,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 28.44,
+      "z": 85.03,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 28.66,
+      "z": 85.43,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 28.88,
+      "z": 85.82,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 29.1,
+      "z": 86.21,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 29.32,
+      "z": 86.6,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 29.54,
+      "z": 87,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 29.76,
+      "z": 87.39,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 29.98,
+      "z": 87.78,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 30.2,
+      "z": 88.17,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 30.42,
+      "z": 88.57,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 30.65,
+      "z": 88.96,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 30.89,
+      "z": 89.34,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.12,
+      "z": 89.72,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.36,
+      "z": 90.1,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.69,
+      "z": 90.41,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 32.01,
+      "z": 90.72,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 32.32,
+      "z": 91.01,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 32.31,
+      "z": 90.99,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 32.19,
+      "z": 90.77,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.98,
+      "z": 90.37,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.74,
+      "z": 89.99,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.5,
+      "z": 89.61,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.25,
+      "z": 89.23,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 31.02,
+      "z": 88.85,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "C",
+      "x": 30.79,
+      "z": 88.46,
+      "px": 4.14,
+      "pz": 105.96,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "D",
+      "x": 30.56,
+      "z": 88.07,
+      "px": 4.16,
+      "pz": 105.95,
+      "state": "stalk",
+      "mode": "circle"
+    },
+    {
+      "phase": "D",
+      "x": 30.18,
+      "z": 87.43,
+      "px": 5.15,
+      "pz": 105.27,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 29.72,
+      "z": 86.77,
+      "px": 6.36,
+      "pz": 104.39,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 29.26,
+      "z": 86.1,
+      "px": 7.55,
+      "pz": 103.48,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 28.8,
+      "z": 85.43,
+      "px": 8.72,
+      "pz": 102.54,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 28.5,
+      "z": 84.68,
+      "px": 9.85,
+      "pz": 102.01,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 28.2,
+      "z": 83.93,
+      "px": 10.94,
+      "pz": 101,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 27.9,
+      "z": 83.18,
+      "px": 12,
+      "pz": 99.94,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 27.61,
+      "z": 82.42,
+      "px": 13.02,
+      "pz": 98.85,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 27.33,
+      "z": 81.66,
+      "px": 14.01,
+      "pz": 97.72,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 27.05,
+      "z": 80.9,
+      "px": 14.96,
+      "pz": 96.56,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 26.76,
+      "z": 80.15,
+      "px": 15.05,
+      "pz": 95.37,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 26.46,
+      "z": 79.39,
+      "px": 15.73,
+      "pz": 94.18,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 26.16,
+      "z": 78.64,
+      "px": 16.59,
+      "pz": 92.95,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 25.87,
+      "z": 77.88,
+      "px": 17.42,
+      "pz": 91.7,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 25.57,
+      "z": 77.13,
+      "px": 18.19,
+      "pz": 90.41,
+      "state": "stalk",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 25.45,
+      "z": 76.4,
+      "px": 18.9,
+      "pz": 89.1,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 26.13,
+      "z": 75.07,
+      "px": 19.59,
+      "pz": 87.76,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 27.1,
+      "z": 73.2,
+      "px": 20.28,
+      "pz": 86.43,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 28.07,
+      "z": 71.31,
+      "px": 20.97,
+      "pz": 85.1,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 29.04,
+      "z": 69.42,
+      "px": 21.65,
+      "pz": 83.76,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 30.02,
+      "z": 67.53,
+      "px": 22.34,
+      "pz": 82.43,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 30.99,
+      "z": 65.65,
+      "px": 22.91,
+      "pz": 81.1,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 31.96,
+      "z": 63.76,
+      "px": 23.35,
+      "pz": 79.77,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 32.95,
+      "z": 61.87,
+      "px": 24.05,
+      "pz": 78.45,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 33.95,
+      "z": 60,
+      "px": 24.76,
+      "pz": 77.13,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 34.95,
+      "z": 58.13,
+      "px": 25.47,
+      "pz": 75.81,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 35.96,
+      "z": 56.25,
+      "px": 26.18,
+      "pz": 74.48,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 36.96,
+      "z": 54.38,
+      "px": 26.89,
+      "pz": 73.16,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 37.97,
+      "z": 52.51,
+      "px": 27.6,
+      "pz": 71.84,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 38.97,
+      "z": 50.64,
+      "px": 28.31,
+      "pz": 70.52,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 39.98,
+      "z": 48.76,
+      "px": 29.01,
+      "pz": 69.2,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 40.98,
+      "z": 46.89,
+      "px": 29.72,
+      "pz": 67.88,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 41.99,
+      "z": 45.02,
+      "px": 30.43,
+      "pz": 66.55,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 42.99,
+      "z": 43.15,
+      "px": 31.14,
+      "pz": 65.23,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 44,
+      "z": 41.27,
+      "px": 31.85,
+      "pz": 63.91,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 45,
+      "z": 39.4,
+      "px": 32.56,
+      "pz": 62.59,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 46.01,
+      "z": 37.53,
+      "px": 33.27,
+      "pz": 61.27,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 47.01,
+      "z": 35.66,
+      "px": 33.98,
+      "pz": 59.94,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 48.02,
+      "z": 33.78,
+      "px": 34.69,
+      "pz": 58.62,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 49.02,
+      "z": 31.91,
+      "px": 35.4,
+      "pz": 57.3,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 50.02,
+      "z": 30.04,
+      "px": 36.11,
+      "pz": 55.98,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 51.03,
+      "z": 28.17,
+      "px": 36.82,
+      "pz": 54.66,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 52.03,
+      "z": 26.29,
+      "px": 37.52,
+      "pz": 53.34,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 53.04,
+      "z": 24.42,
+      "px": 38.23,
+      "pz": 52.01,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 54.04,
+      "z": 22.55,
+      "px": 38.94,
+      "pz": 50.69,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 55.05,
+      "z": 20.68,
+      "px": 39.65,
+      "pz": 49.37,
+      "state": "flee",
+      "mode": "retreat"
+    },
+    {
+      "phase": "D",
+      "x": 55.95,
+      "z": 19.08,
+      "px": 40.36,
+      "pz": 48.05,
+      "state": "roam",
+      "mode": "retreat"
+    }
+  ],
+  "tiers": {
+    "fleeInside": 8,
+    "stalkMin": 15
+  }
+}

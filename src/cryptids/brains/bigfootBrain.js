@@ -17,10 +17,17 @@ import { sel, seq, when, act, tier, Brain, OK, RUN, FAIL } from './bt.js';
 //  4. Never corner it up close. 5. Patience pays: stay still and it may stand and stare, or follow you.
 //
 // Escalation: each level makes it quicker to anger and more dangerous (see TIERS).
+// Stalking (#115): when it has detected you it no longer just bolts. It keeps you in sight and
+// circles at stalkMin..stalkMax metres, closing in while you're quiet and looking away, backing off
+// from your light or a rush (see CryptidAI.tickStalk). It only truly flees when you're right on
+// top of it (fleeInside) or when you rush it from close range. Higher levels stalk closer and longer.
 export const BIGFOOT_TIERS = {
-  1: { warnAt: 0.6, chargeAt: 0.95, cornerDist: 4, realCharge: 0.25, rockMiss: 6.5, shadowChance: 0.6, shadowTime: 22, agitateOnDetect: 0.34, beamAgitation: 0.12, calmRate: 0.012, listenEvery: 5, listenFor: 1.6 },
-  2: { warnAt: 0.3, chargeAt: 0.65, cornerDist: 6, realCharge: 0.5, rockMiss: 3.5, shadowChance: 0.85, shadowTime: 35, agitateOnDetect: 0.38, beamAgitation: 0.2, calmRate: 0.01, listenEvery: 7, listenFor: 1.1 },
-  3: { warnAt: 0.0, chargeAt: 0.6, cornerDist: 8, realCharge: 0.8, rockMiss: 0.8, shadowChance: 1.0, shadowTime: 50, agitateOnDetect: 0.45, beamAgitation: 0.3, calmRate: 0.006, listenEvery: 10, listenFor: 0.6 },
+  1: { warnAt: 0.6, chargeAt: 0.95, cornerDist: 4, realCharge: 0.25, rockMiss: 6.5, shadowChance: 0.6, shadowTime: 22, agitateOnDetect: 0.34, beamAgitation: 0.12, calmRate: 0.012, listenEvery: 5, listenFor: 1.6,
+    stalkMin: 15, stalkMax: 32, stalkApproach: 0.9, stalkTime: 70, stalkLose: 15, fleeInside: 8 },
+  2: { warnAt: 0.3, chargeAt: 0.65, cornerDist: 6, realCharge: 0.5, rockMiss: 3.5, shadowChance: 0.85, shadowTime: 35, agitateOnDetect: 0.38, beamAgitation: 0.2, calmRate: 0.01, listenEvery: 7, listenFor: 1.1,
+    stalkMin: 11, stalkMax: 28, stalkApproach: 1.3, stalkTime: 110, stalkLose: 22, fleeInside: 6 },
+  3: { warnAt: 0.0, chargeAt: 0.6, cornerDist: 8, realCharge: 0.8, rockMiss: 0.8, shadowChance: 1.0, shadowTime: 50, agitateOnDetect: 0.45, beamAgitation: 0.3, calmRate: 0.006, listenEvery: 10, listenFor: 0.6,
+    stalkMin: 8, stalkMax: 24, stalkApproach: 1.8, stalkTime: 160, stalkLose: 30, fleeInside: 4 },
 };
 
 export function bigfootBrain(c) {
@@ -30,13 +37,15 @@ export function bigfootBrain(c) {
   const ctx = { get level() { return c.level; } };
 
   const root = sel('Bigfoot',
+    // A sighting agitates it once (not every tick it keeps you in view); the latch resets when it loses you.
+    act('sighting latch', () => { if (!c.noticesPlayer()) c.detectLatch = false; return FAIL; }),
     // --- Already committed to something: see it through. ---------------------------------
     seq('Charging', when('charging', () => c.state === 'aggress'), act('charge home', () => c.tickCharge(c.dt, c.p))),
     seq('Warning you off', when('warning', () => c.state === 'warn'), act('whoop + throw a rock', () => c.tickWarn(c.dt, c.p))),
 
     // --- Threatened: it has detected you. ------------------------------------------------
     seq('Threatened', when('detected', () => c.noticesPlayer() && c.state !== 'flee'),
-      act('agitated', () => { c.agitate(T().agitateOnDetect, 'spotted you'); return OK; }),
+      act('agitated (once per sighting)', () => { if (!c.detectLatch) { c.detectLatch = true; c.agitate(T().agitateOnDetect, 'spotted you'); } return OK; }),
       sel('React',
         seq('Cornered', when('too close', () => c.playerDistance <= T().cornerDist),
           act('charge (cornered)', () => c.startCharge({ bluff: c.rand() >= T().realCharge, why: 'cornered' }))),
@@ -45,7 +54,15 @@ export function bigfootBrain(c) {
           act('charge (fed up)', () => c.startCharge({ bluff: c.rand() >= Math.min(1, T().realCharge + 0.25), why: 'fed up with you' }))),
         seq('Warn off', when('agitated, not warned lately', () => c.agitation >= T().warnAt && (c.lastWarn <= -99 || c.clock - c.lastWarn > 25)),
           act('stand tall, whoop, throw a rock', () => c.startWarn(T().rockMiss))),
-        act('bolt for deep cover', () => { c.flees++; c.enterFlee(c.p, 'detected you'); return RUN; }))),
+        // Right on top of it, or rushed from close range: it breaks and runs for deep cover.
+        seq('Too close to hold', when('you are on top of it or rushing it', () => c.playerDistance < T().fleeInside
+            || (c.state === 'stalk' && c.stalk?.pressure >= 2 && c.playerDistance < T().fleeInside * 1.8)),
+          act('bolt for deep cover', () => { c.flees++; c.enterFlee(c.p, 'too close'); return RUN; })),
+        // Otherwise it holds its ground at a distance and stalks you (#115).
+        act('stalk you', () => { if (c.state !== 'stalk') c.enterStalk('spotted you', T()); return c.tickStalk(c.dt, c.p, T()); }))),
+    // Lost sight of you while stalking: works from where it last saw or heard you, then gives up.
+    seq('Stalking', when('stalking', () => c.state === 'stalk'),
+      act('circle where it last had you', () => c.tickStalk(c.dt, c.p, T()))),
     seq('Fleeing', when('fleeing', () => c.state === 'flee'),
       act('run until safe', () => {
         if (c.playerDistance > c.profile.fleeSafeDistance && !pc().detected) { c.enterRoam('lost you'); return OK; }
@@ -63,7 +80,7 @@ export function bigfootBrain(c) {
       act('stare, then decide', () => {
         const r = c.tickObserve(c.dt, c.p);
         // Lost interest but you're still around and not pressing it: shadow you instead.
-        if (c.state === 'roam' && c.playerDistance < 45 && c.rand() < T().shadowChance) c.enterShadow(T().shadowTime);
+        if (c.state === 'roam' && c.playerDistance < 45 && c.rand() < T().shadowChance) c.enterStalk('curious about you', T());
         return r ?? RUN;
       })),
     seq('Shadowing', when('shadowing', () => c.state === 'shadow'),

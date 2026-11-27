@@ -53,6 +53,8 @@ Needs Playwright with Chromium: if `require('playwright')` isn't available, run 
 
 **Profiler (debug):** press F6 for the profiling panel (Start/Stop, Marker, Export), or open the game with `?profile` to record from the first frame. Export downloads `summary.json`, `events.jsonl` and `manifest.json` named `cryptozoology_<build>_<gym>_<scenario>_<platform>_<seed>_<run-id>`. `npm run check:t67` plays 2 minutes, exports and validates the files.
 
+**Gameplay gyms (GDD 15):** `?map=gym` (G00 bench), `?map=g02` (physiology), `?map=g03` (search and camp), `?map=g04` (territory and withdrawal). Each has a fixed seed and an in-memory fixture (your career save is never touched). Its HUD links every gym and has Reset, Run script and Blind buttons. Add `&blind` to hide the debug answers. `npm run check:t108` runs each gym's script, resets, replays it to the same digest and reports every pass criterion.
+
 `npm run check:t1` builds, opens the greybox map headlessly, drives the player and writes screenshots to `.ballast/media/t1/`.
 
 `npm test` runs unit tests. `npm run check:t3` lets Bigfoot leave a trail, then a bot follows three clue hints (W/D/E key presses only) and checks it moves along Bigfoot's route toward it; screenshots go to `.ballast/media/t3/`.

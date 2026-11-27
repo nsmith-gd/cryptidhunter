@@ -12,7 +12,9 @@ import { Camp } from '../hunt/camp.js';
 import { Ledger, formatCAD } from '../economy/ledger.js';
 import { layoutFor, audit, PLACES, cellToWorld } from './tunnelLayout.js';
 import { buildTunnelMap } from './tunnelMap.js';
-import { CreatureProxy } from './creatureProxy.js';
+import { TunnelMonster } from './tunnelMonster.js';
+import { PhotoCamera } from '../hunt/photoCamera.js';
+import { gradeOf } from '../evidence/quality.js';
 import { TutorialCareer, freshL01, L01 } from './tutorialCareer.js';
 
 // L01 Cabbagetown tunnels: the tutorial expedition, and the G01 tunnel gym (?gym).
@@ -110,28 +112,25 @@ let collapsed = false, ended = false;
 
 // ---- the creature ----------------------------------------------------------------------------
 const audio = makeAudio();
-const creature = new CreatureProxy(scene, layout.creature, {
-  onEvent: (type, d) => { log(type, d); if (type === 'creature-fled') toast(d.why === 'your light' ? 'It flinches from your light and scuttles away.' : 'Something scuttles away into the dark.'); },
-  isLit: (p) => flashlight.on && inBeam(p),
-  canSee: (a, b) => lineOfSight(a, b),
-  playChitter: () => audio.chitter(),
-});
-/** Straight, open line between two world points along a tunnel (same row or column of cells). */
-function lineOfSight(a, b) {
-  const ca = map.cellAt(a.x, a.z), cb = map.cellAt(b.x, b.z), G = layout.grid, Wd = 64;
-  if (ca.x !== cb.x && ca.y !== cb.y) return false;
-  const n = Math.max(Math.abs(cb.x - ca.x), Math.abs(cb.y - ca.y));
-  for (let k = 0; k <= n; k++) {
-    const x = ca.x + Math.sign(cb.x - ca.x) * k, y = ca.y + Math.sign(cb.y - ca.y) * k;
-    if (!G[y * Wd + x]) return false;
-  }
-  return true;
-}
-function inBeam(p) {
-  const to = p.clone().sub(camera.position), fwd = new THREE.Vector3();
-  camera.getWorldDirection(fwd);
-  return fwd.angleTo(to) < THREE.MathUtils.degToRad(22);
-}
+// The tunnel creature (#123) on the shared cryptid framework: it rests in side chambers, creeps out
+// to vantage points ahead of you, lingers at the edge of the light (the photo opportunity, longer
+// the more careful you are), flinches from your torch and bolts from noise, rushing or closeness.
+// It never attacks; scare it off often enough and it stays hidden; the level goes on either way.
+const creature = new TunnelMonster({ scene, colliders: map.colliders, rand: stream('l01-creature'),
+  senses: { player, flashlight, camera, colliders: map.colliders, lightLevel: 0.02 },
+  onEvent: (type, d) => {
+    if (!['showing', 'flinch', 'startled', 'slipped-away', 'gone', 'emerging'].includes(type)) return;
+    const { cryptid, name, ...data } = d; void cryptid; void name;
+    log(`creature-${type}`, data);
+    if (type === 'startled') { audio.chitter(); toast(data.why === 'your light' ? 'It flinches from your light, chitters and scuttles away.' : `Something chitters and scuttles away into the dark (${data.why}).`); }
+    if (type === 'flinch') toast('Eyes flare in your torchlight. It rears back. Quick.', 2);
+    if (type === 'gone') toast('Whatever it was, it has gone deep. You won\'t see it again tonight.', 5);
+  } });
+// The camera (F01 still camera, 12 shots): hold right mouse to raise it, left-click to shoot. Each
+// shot is graded from the light really on the subject, the steadiness and the framing (GDD 4.5).
+const photo = new PhotoCamera({ camera, scene, input, getSubjects: () => creature.subjects(), canvas: renderer.domElement, film: 12,
+  evidenceContext: () => ({ ambient: 0.03, time: simTime, attemptId: entry.attemptId ?? 'L01' }),
+  onPhoto: (r) => log('photo', { subject: r.subject, distance: r.subject ? +r.distance.toFixed(1) : null, score: r.score }) });
 
 // ---- HUD ---------------------------------------------------------------------------------------
 const css = document.createElement('style');
@@ -255,6 +254,12 @@ function escape(via) {
   if (ended) return;
   ended = true;
   const evidence = pack.furSample ? [pack.furSample] : [];
+  photo.wantRaised = false; photo.enabled = false; if (photo.overlay) photo.overlay.style.opacity = '0';   // put the camera away
+  // Your best photo of the creature (one sighting event): its grade sets the offer, GDD 4.7
+  // round(T × 0.01 × 35 × M) with T = $250 at L01. A grade-0 frame is no evidence.
+  const best = photo.records.filter((x) => x.kind === 'creature').sort((a, b) => b.quality.Q - a.quality.Q)[0];
+  const g = best && gradeOf(best.quality.Q);
+  if (best && g.M > 0) evidence.push({ kind: 'photo', eventId: best.eventId, cents: Math.round(250 * 0.01 * 35 * g.M) * 100, label: `Creature photo (${g.name}, quality ${best.quality.Q})`, grade: g, Q: best.quality.Q });
   const r = career.escape(evidence, via);
   saveCareer();
   log('escaped', { via, minutes: +(simTime / 60).toFixed(1), evidence: evidence.map((x) => x.kind), creatureClosest: +creature.closest.toFixed(1) });
@@ -262,7 +267,9 @@ function escape(via) {
   document.exitPointerLock?.();
   endScreen.innerHTML = `<div><b class="t">YOU GOT OUT</b><br><i>Up ${via}, into the cold night air. ${fmtTime(simTime)} underground.</i><br><br>` +
     `Trip cost: ${formatCAD(-st.expense)}<br>` +
-    (evidence.length ? `Fur sample (compelling physical trace): ${paid ? `+${formatCAD(paid)}` : 'already sold before: $0'}<br>` : 'No evidence brought out: that\'s fine. Getting out was the job.<br>') +
+    (pack.furSample ? `Fur sample (compelling physical trace)<br>` : '') +
+    (evidence.find((x) => x.kind === 'photo') ? `${evidence.find((x) => x.kind === 'photo').label}<br>` : best ? `Your best photo of it was too poor to count (${best.quality.problems?.[0] ?? 'grade 0'})<br>` : '') +
+    (evidence.length ? `Evidence paid: ${paid ? `+${formatCAD(paid)}` : 'already sold before: $0'}<br>` : 'No evidence brought out: that\'s fine. Getting out was the job.<br>') +
     `Cash now: <b>${formatCAD(career.ledger.cash)}</b><br><br>` +
     (r.firstClear ? `<b>Tutorial cleared.</b> Next trip unlocked: <b>${r.unlocked.name}</b> (${r.unlocked.place}).<br>` : `Next trip available: <b>${r.unlocked.name}</b>.<br>`) +
     `<br><small>${GYM ? 'G01 gym · F9 reset · F7 export the event trace' : '<a href="./" style="color:#9cf">Back to base</a> · or reload to go down the tunnels again'}</small></div>`;
@@ -290,7 +297,8 @@ overlay.innerHTML = entry.ok ? `<div><b class="t">01 · CABBAGETOWN TUNNELS</b><
   `A neighbour swears something lives in the old service tunnels under the park. You've come down the maintenance stair with your hand-me-down kit to see for yourself.<br><br>` +
   `<b>Get back out.</b> Keep fed and keep warm; your torch and the old painted signs are all you have to find the way.<br>` +
   `Trip cost ${formatCAD(L01.tripCents)}${entry.charged ? ' (paid)' : entry.resumed ? ' (already paid)' : ''} · cash ${formatCAD(career.ledger.cash)}<br><br>` +
-  `WASD move · mouse look · Shift hurry · Ctrl/C crouch · F torch · E use / pick up · Z eat · X change into dry clothes · Tab field notes<br><br><b>Click to start</b>` +
+  `Something lives down here. If it shows itself, a clear photo is worth money, but it is shy: move quietly, keep your light off it, and let it come to the edge of the light.<br><br>` +
+  `WASD move · mouse look · Shift hurry · Ctrl/C crouch · F torch · hold right mouse: camera, left-click: photo · E use / pick up · Z eat · X change into dry clothes · Tab field notes<br><br><b>Click to start</b>` +
   `${GYM ? `<br><small>G01 gym · seed ${seed} · F9 reset · F7 export trace</small>` : ''}</div>`
   : `<div><b class="t">01 · CABBAGETOWN TUNNELS</b><br><br>${entry.reason}</div>`;
 overlay.addEventListener('click', () => { if (entry.ok && !ended) input.requestLock(); });
@@ -333,7 +341,8 @@ function simulate(dt) {
   if (exposed()) health = Math.max(0, health - EXPOSURE.drain * dt);
   else if (thermo.inWater === 'dry') health = Math.min(100, health + EXPOSURE.recover * dt * (thermo.nearHeat ? 2 : 1));
   if (health <= 0) { die(); return; }
-  creature.update(dt, player);
+  creature.update(dt);
+  photo.update(dt);
   maybeCollapse();
   // Landmarks and places (S04 navigation: they go in your field notes).
   const c = map.cellAt(player.position.x, player.position.z);
@@ -394,6 +403,6 @@ function makeAudio() {
 function fmtTime(s) { const m = Math.floor(s / 60), r = Math.floor(s % 60); return `${m}:${String(r).padStart(2, '0')}`; }
 
 // Test / gym hooks.
-window.__l01 = { THREE, scene, camera, renderer, player, input, flashlight, thermo, nutrition, map, layout, layoutAudit, career, creature, trace, sim, pack, seed,
+window.__l01 = { THREE, scene, camera, renderer, player, input, flashlight, thermo, nutrition, map, layout, layoutAudit, career, creature, photo, trace, sim, pack, seed,
   get health() { return health; }, set health(v) { health = v; }, get simTime() { return simTime; }, get collapsed() { return collapsed; }, get ended() { return ended; },
   get target() { return target; }, exposed, interact, escape, exportTrace, resetGym, entry };

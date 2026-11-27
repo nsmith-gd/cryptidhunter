@@ -41,7 +41,7 @@ export const MEMORY = Object.freeze({
   lostFor: 3,                     // seconds without the player before 'lost' (after identified/engaged)
   resetFor: 2,                    // seconds spent in 'reset' before 'unaware'
 });
-const ENGAGED_STATES = new Set(['aggress', 'warn', 'flee', 'shadow']);
+const ENGAGED_STATES = new Set(['aggress', 'warn', 'flee', 'shadow', 'stalk']);
 
 const _ray = new THREE.Ray();
 const _hit = new THREE.Vector3();

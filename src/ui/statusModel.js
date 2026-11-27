@@ -71,6 +71,20 @@ export class StatusModel {
           cause: `Energy reserve dropping (${Math.round(n.energy)})`, effect: `Stamina recovery will slow below ${STATUS.hungerNow}`, fix: food });
       }
 
+      const hy = s.hydration;
+      if (hy?.enabled) {
+        const water = hy.drinkable >= 0.25 ? `Drink (I): ${hy.drinkable.toFixed(2).replace(/\.?0+$/, '')} L left` : hy.hasCanteen ? 'Fill the canteen at a stream or the swamp (I)' : 'No water left: head back to the van';
+        if (hy.value <= 50) {
+          add({ id: 'thirst', stage: 'now', severity: hy.value <= 25 ? 2 : 1, name: hy.value <= 25 ? 'Dehydrated' : 'Thirsty',
+            cause: `${hy.value <= 25 ? 'Dehydrated' : 'Thirsty'} (hydration ${Math.round(hy.value)})`, effect: `Stamina recovers slower (${100 - recovery}% slower in all)`, fix: water });
+        } else if (hy.value <= 60) {
+          add({ id: 'thirst', stage: 'soon', severity: 0, name: 'Getting thirsty', cause: `Hydration dropping (${Math.round(hy.value)})`,
+            effect: 'Stamina recovery will slow below 50', fix: water });
+        }
+        if (hy.ill) add({ id: 'illness', stage: 'now', severity: 2, name: 'Sick', cause: 'Drank untreated water', effect: 'Losing health until it passes',
+          fix: 'Wait it out; next time purify (tablets) or drink bottled water' });
+      }
+
       if (t.inWater !== 'dry') {
         add({ id: 'soaking', stage: t.wetness >= 30 ? 'now' : 'soon', severity: t.inWater === 'deep' ? 2 : 1, name: t.inWater === 'deep' ? 'Deep water' : 'Wading',
           cause: t.inWater === 'deep' ? 'Deep water' : 'Standing in water', effect: 'Your clothes are soaking through: you will lose heat faster',
@@ -116,6 +130,14 @@ export class StatusModel {
         add({ id: 'rain', stage: s.thermo.wetness >= 30 ? 'now' : 'soon', severity: 1, name: 'Out in the rain', cause: 'Rain',
           effect: 'Soaking your clothes: wet clothes lose heat faster', fix: 'Get under shelter: your tent, the cabin or the van' });
       }
+    }
+
+    const dr = this.dread;   // #114: the slow build of the night
+    if (dr && dr.stage >= 1) {
+      add({ id: 'dread', stage: 'now', severity: dr.stage >= 3 ? 2 : dr.stage >= 2 ? 1 : 0, name: dr.stageName,
+        cause: dr.depth() > 0.35 ? 'Deep in the woods, a long time out' : 'A long time out in the dark',
+        effect: ['', 'The woods have gone quiet; fear comes quicker', 'The fog is closing in and it is getting bolder', 'You can barely see, your torch stutters and it may charge'][dr.stage],
+        fix: 'Head back toward the van or a lit place. It only eases a little' });
     }
 
     if (p.exhausted) {
@@ -164,11 +186,13 @@ export class StatusModel {
     if (s) {
       const n = s.nutrition, t = s.thermo;
       a.push({ id: 'energy', name: 'Energy', value: n.energy / 100, text: `${Math.round(n.energy)} (${n.band})` });
+      if (s.hydration?.enabled) a.push({ id: 'hydration', name: 'Hydration', value: s.hydration.value / 100, text: `${Math.round(s.hydration.value)} (${s.hydration.band}) · ${s.hydration.drinkable.toFixed(2).replace(/\.?0+$/, '')} L to drink` });
       const trend = (t.equilibrium ?? t.core) < t.core - 0.02 ? ', cooling' : (t.equilibrium ?? t.core) > t.core + 0.02 ? ', warming' : '';
       a.push({ id: 'temperature', name: 'Body temperature', value: (t.core - THERMO.floor) / (THERMO.ceiling - THERMO.floor), text: `${t.core.toFixed(1)}°C (${t.band}${trend})` });
       a.push({ id: 'wetness', name: 'Wetness', value: t.wetness / 100, text: `${Math.round(t.wetness)}%${t.wetness < 5 ? ' (dry)' : ''}` });
       if (s.fatigue) a.push({ id: 'fatigue', name: 'Fatigue', value: s.fatigue.value / 100, text: `${Math.round(s.fatigue.value)} (${s.fatigue.band}${s.fatigue.asleep ? ', asleep' : ''}) · low is good` });
     }
+    if (this.dread) a.push({ id: 'dread', name: 'Dread', value: this.dread.level, text: `${Math.round(this.dread.value)} (${this.dread.stageName.toLowerCase()})` });
     if (f) a.push({ id: 'fear', name: 'Fear', value: f.value / 100, text: `${Math.round(f.value)} (${f.value > 70 ? 'terrified' : f.value > FEAR.swayStart ? 'scared' : f.value > STATUS.fearSoon ? 'uneasy' : 'calm'})` });
     if (fl) a.push({ id: 'battery', name: 'Torch battery', value: fl.battery, text: `${Math.round(fl.battery * 100)}% · ${this.torchMinutes()} of light · ${fl.spares} spare${fl.spares === 1 ? '' : 's'}` });
     return a;

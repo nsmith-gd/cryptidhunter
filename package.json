@@ -57,6 +57,11 @@
     "check:t71": "vite build && node tools/check-t71.mjs",
     "check:t75": "vite build && node tools/check-t75.mjs",
     "check:t74": "vite build && node tools/check-t74.mjs",
+    "check:t123": "vite build && node tools/check-t123.mjs",
+    "check:t115": "vite build && node tools/check-t115.mjs",
+    "check:t114": "vite build && node tools/check-t114.mjs",
+    "check:t108": "vite build && node tools/check-t108.mjs",
+    "check:t105": "vite build && node tools/check-t105.mjs",
     "check:t104": "vite build && node tools/check-t104.mjs",
     "check:t91": "vite build && node tools/check-t91.mjs",
     "check:t67": "vite build && node tools/check-t67.mjs",
@@ -78,7 +83,8 @@
     "check:t88": "vite build && node tools/check-t88.mjs",
     "check:t87": "vite build && node tools/check-t87.mjs",
     "check:t89": "vite build && node tools/check-t89.mjs",
-    "check:t90": "vite build && node tools/check-t90.mjs"
+    "check:t90": "vite build && node tools/check-t90.mjs",
+    "check:t103": "vite build && node tools/check-t103.mjs"
   },
   "repository": {
     "type": "git",

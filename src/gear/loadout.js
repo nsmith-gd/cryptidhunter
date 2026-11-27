@@ -183,7 +183,7 @@ export class Loadout {
   // --- Pack and load (#69) -----------------------------------------------------------------
   /** What you're carrying right now: quick slots, pack (gear, food, water) and worn kit. */
   get load() {
-    const quick = {}, pack = { water: this.water, ...this.getFood() };
+    const quick = {}, pack = { water: this.water, ...this.getFood(), ...(this.extraPack?.() ?? {}) };
     for (const id of this.slots) quick[id] = Loadout.unitCount(id, this.gear);
     for (const id of this.pack) pack[id] = Loadout.unitCount(id, this.gear);
     return computeLoad({ quick, pack });
@@ -221,7 +221,7 @@ export class Loadout {
 
   /** U: pour out a litre of water, else leave the heaviest packed item on the ground. */
   lighten() {
-    if (this.water > 0) { this.water--; this.flash(`Poured out 1 L of water (${this.water} L left)`); this.log.push({ item: 'water', ok: true, via: 'drop' }); this.render(); return 'water'; }
+    if (this.water > 0) { const out = Math.min(1, this.water); this.water = +(this.water - out).toFixed(2); this.flash(`Poured out ${out} L of water (${this.water} L left)`); this.log.push({ item: 'water', ok: true, via: 'drop' }); this.render(); return 'water'; }
     const heaviest = [...this.pack].sort((a, b) => (ITEM_SPECS[b]?.kg ?? 0) * Loadout.unitCount(b, this.gear) - (ITEM_SPECS[a]?.kg ?? 0) * Loadout.unitCount(a, this.gear))[0];
     if (!heaviest) { this.flash('Nothing in your pack to leave behind'); return null; }
     const n = ITEMS[heaviest].count(this.gear);
