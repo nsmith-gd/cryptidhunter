@@ -27,6 +27,7 @@ import { buildSwampMap } from './maps/swamp.js';
 import { buildOroMedonteMap } from './maps/oroMedonte.js';
 import { buildPineBarrensMap } from './maps/pineBarrens.js';
 import { JerseyDevil } from './cryptids/jerseyDevil.js';
+import { TagTrack } from './research/tagging.js';
 import { DaylightCycle } from './maps/daylight.js';
 import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildSimcoeMap } from './maps/simcoe.js';
@@ -210,6 +211,8 @@ const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: hun
       estimate: est && `${est} of evidence plus your photos, valued at base camp` });
   },
   onEnd: (outcome) => {
+    // Tag telemetry (#148): the records are yours only if you got out with them; valid intervals are evidence.
+    if (tagTrack?.tagged) { const r = tagTrack.recover(hunt.elapsed, { extracted: ['complete', 'abandoned', 'emergency'].includes(outcome) }); if (r.payable) evidence.addTelemetry(tagTrack); }
     // Ordinary death (#89, GDD 9.1): what you carried and set out is lost; camp keeps its stock.
     const died = outcome === 'caught' || outcome === 'dawn';
     const carriedNow = loadout.gearLeft();
@@ -598,7 +601,22 @@ const jerseyDevil = mapId === 'pinebarrens' ? new JerseyDevil({ scene, player, f
   lights: () => (fieldKit?.fires ?? []).map((f) => ({ x: f.x, z: f.z, kind: 'fire' })),
   onHit: (injury) => huntFailure.injured('Jersey Devil', injury),
   onEvent: (type, e) => devilEvent(type, e) }) : null;
+// Tagging (#148, GDD 8.2): Untracked -> Tagged -> valid telemetry interval -> Recovered. The tagging
+// contract loans an F17 receiver: within its range you get a fix every TELEMETRY_EVERY seconds.
+const tagTrack = jerseyDevil ? new TagTrack({ tagId: 'F16-1', subjectId: 'jersey-devil' }) : null;
+const TELEMETRY = { every: 15, range: 250 };
+let nextFix = 0;
+function telemetryStep() {
+  if (!tagTrack?.tagged || tagTrack.recovered || hunt.elapsed < nextFix) return;
+  nextFix = hunt.elapsed + TELEMETRY.every;
+  const d = Math.hypot(player.position.x - jerseyDevil.pos.x, player.position.z - jerseyDevil.pos.z);
+  const before = tagTrack.intervals.length;
+  const r = tagTrack.telemetry(hunt.elapsed, { inRange: d < TELEMETRY.range, signal: Math.max(0, 1 - d / TELEMETRY.range) });
+  if (tagTrack.intervals.length > before) photo.toast(`Telemetry interval recorded (${tagTrack.intervals.length}): three fixes in one watch. Get it home.`);
+  else if (r.why === 'out of receiver range' && !tagTrack.warnedRange) { tagTrack.warnedRange = true; photo.toast('Receiver: no signal. Stay within range of the tagged animal.'); }
+}
 function devilEvent(type, e) {
+  if (type === 'tagged') { tagTrack?.tag(hunt.elapsed, { opportunity: true, compatible: true }); nextFix = hunt.elapsed + TELEMETRY.every; }
   cryptidEvents.push({ type: `devil-${type}`, name: 'Jersey Devil', t: performance.now() });
   if (type === 'signal') { fear?.scare?.(18, 'shriek'); photo.toast('A shriek right overhead: it\'s hovering over you, eyes burning. Get under the pines NOW!'); }
   if (type === 'swoop-aborted') photo.toast('It wheels away: it lost you under the canopy.');
@@ -894,7 +912,7 @@ function simulateOnce(dt, extra = false) {
   updateWear(dt);
   updateInterference(dt);
   survival.update(dt);
-  if (hunt.stage === 'search' || hunt.stage === 'extract') jerseyDevil?.update(dt);
+  if (hunt.stage === 'search' || hunt.stage === 'extract') { jerseyDevil?.update(dt); telemetryStep(); }
   terrainInjury?.update(dt);
   // Daylight follows the trip clock (sim time), not the frame rate (#129).
   daylight?.update(hunt.elapsed / (map.clock?.seconds ?? 1), Math.max(0, hunt.elapsed - (map.clock?.seconds ?? 0)));
@@ -1032,7 +1050,7 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { jerseyDevil, tags, oyt, dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { tagTrack, jerseyDevil, tags, oyt, dogman, interference, howler, daylight, terrainInjury, igopogo, lake, power, dread, buildDreadAudio, sponsorSurvey,scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
 // Gyms G02–G04 (#108): ?map=g02|g03|g04 (&blind, &simpaused). HUD: links to every gym, Reset (reload
 // the same fixture and seed), Run script, Blind. window.__gym.run() plays the scripted checks.
 if (GYM_RUNS[map.gym]) {
