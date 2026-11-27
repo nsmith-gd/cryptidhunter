@@ -29,8 +29,8 @@ export const GYM_TASKS = {
     'Go over the side in deep water (E away from the dock): breath and cold, then reach the shallows and the hut', 'Leave by the dry exit on foot, no boat needed'],
   G06: ['Cover the three corridors with overlapping cameras (A, B, C)', 'Remove one camera (5/6/7) and watch the alarm', 'Let the power fail (8) or recharge it (9)',
     'Sleep in the tent with full coverage', 'Find the blind spot behind the rock; move camera D past it (0)', 'Dogman mode (&proxy=dogman): walk the same route twice, then change it'],
-  G09: ['Cross the river at the ford', 'Take supplies from the base cache (it never restocks)', 'Walk to the stones; 5 once for the warning',
-    'Walk away and leave by the trailhead (ordinary extraction)', 'Or press 5 again to commit, then try to get home'],
+  G09: ['Cross the river at the ford', 'Take supplies from the base cache (it never restocks)', 'Walk to the stones; 5 brings up the warning',
+    'Walk away and leave by the trailhead (ordinary extraction)', 'Or choose Go on (G), then try to get home'],
   G07: ['Commit a module with no opening: nothing is spent', 'Wait for it to feed at the anchor; commit the wrong (heavy) module, then the light one (5 / Shift+5)',
     'Secure it and crate it (6)', 'Switch the generator off (0): watch integrity fall, then repair the crate (7)', 'Block the cargo route (L), try to stage (9); clear it and stage',
     'Haul the sled to the truck and deliver (9)', 'Release one (8) and walk out the foot path with your evidence'],
@@ -192,7 +192,7 @@ export class GymHarness {
     const w = this.world;
     return `<div style="margin-top:4px">finale: <b>${w.phase}</b>${w.outcome ? ' · ' + w.outcome : ''} · cache food ${w.cache.food} · batteries ${w.cache.batteries} · fuel ${w.cache.fuel}</div>
       <div>${w.changed.length ? 'changed: ' + w.changed.join(', ') : 'landmarks as they were'} · heard ${w.mimicry.length} false call${w.mimicry.length === 1 ? '' : 's'}</div>
-      <div style="color:#8fa89a">5 at the stones (twice to commit) · 6 take food · 7 take batteries · H at the trailhead to leave</div>`;
+      <div style="color:#8fa89a">5 at the stones: the warning (G go on, T turn back) · 6 take food · 7 take batteries · H at the trailhead to leave</div>`;
   }
 
   /** G06 readouts: cameras (live / dark / removed), hub, alarm, and the proxy's progress (debug). */

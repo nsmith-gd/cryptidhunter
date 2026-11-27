@@ -477,9 +477,13 @@ export function runG09(g, h) {
   // 3. Early withdrawal before the commitment: ordinary extraction.
   const before = { phase: w.phase };
   T.walkTo(C.site.x, C.site.z + 4, { r: 2, max: 60 * 90 });
-  const warn = w.commitStep();                      // the warning only
+  const warn = w.commitStep();                      // the warning prompt
+  const prompt = !!document.getElementById('commit-prompt');
+  const back = w.declineCommit();                   // Turn back
   T.place(C.exit.x, C.exit.z - 1); w.leaving = true; g.sim.step(); g.sim.step();
-  T.add('early-withdrawal', 'Leaving before the commitment (even after the warning) is an ordinary extraction', warn.phase === 'warned' && w.outcome === 'extracted', { warned: warn.phase, outcome: w.outcome });
+  const rec = g.camp.state.finale;
+  T.add('early-withdrawal', 'At the stones an explicit warning appears; turning back and leaving is an ordinary extraction (the case stays open)',
+    warn.phase === 'warned' && prompt && back.phase === 'approach' && w.outcome === 'extracted' && rec?.extractions === 1 && !rec.disappeared && !rec.caseComplete, { warned: warn.phase, prompt, outcome: w.outcome, record: rec });
   return { ...T.finish(), note: 'reload for the second half: window.__gym.runCommitted()' };
 }
 
@@ -490,8 +494,11 @@ export function runG09Committed(g, h) {
   if (g.huntFailure) g.huntFailure.enabled = false;
   const mapPlaces = JSON.stringify(h.map.places);
   T.place(C.site.x, C.site.z + 3);
-  const a = w.commitStep(), b = w.commitStep();
-  T.add('commitment', 'The final commitment takes a warning and then a deliberate second step at the stones', a.phase === 'warned' && b.phase === 'committed', { first: a.phase, second: b.phase });
+  const a = w.commitStep(), again = w.commitStep();
+  const shown = document.getElementById('commit-prompt')?.innerText ?? '';
+  dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyG' }));   // Go on
+  T.add('commitment', 'The final commitment is an explicit, irreversible warning; going on takes a deliberate choice (and is recorded)', a.phase === 'warned' && again.phase === 'warned' && /no coming back/.test(shown) && /cannot be undone/.test(shown) && w.phase === 'committed' && g.camp.state.finale?.committed,
+    { shown: shown.split('\n')[0], phase: w.phase });
   // The return: walk back toward the ford, then the trailhead.
   T.walkTo(0, -2, { r: 1.5, max: 60 * 60 });
   for (let i = 0; i < 60 * 30; i++) g.sim.step();     // stand a while: what changes, what calls
@@ -499,8 +506,9 @@ export function runG09Committed(g, h) {
     w.changed.length >= 2 && w.mimicry.length >= 1 && JSON.stringify(h.map.places) === mapPlaces, { changed: w.changed, mimicry: w.mimicry.slice(0, 2), mapUnchanged: JSON.stringify(h.map.places) === mapPlaces, glimpsed: w.proxy.state });
   T.walkTo(0, C.river.z1 + 2, { r: 1.2, max: 60 * 40 });
   T.walkTo(C.exit.x, C.exit.z, { r: 1, max: 60 * 60 });
-  T.add('authored-end', 'At the last extraction approach the authored encounter interrupts the departure and it cuts to black: a disappearance, not a death',
-    w.outcome === 'disappeared' && h.events.some((e) => e.type === 'encounter') && (document.getElementById('g09-black')?.style.opacity === '1'), { outcome: w.outcome });
+  const fin = g.camp.state.finale;
+  T.add('authored-end', 'At the last extraction approach the authored encounter interrupts the departure and it cuts to black: recorded as the disappearance (case complete, no payout), not a death',
+    w.outcome === 'disappeared' && h.events.some((e) => e.type === 'encounter') && (document.getElementById('g09-black')?.style.opacity === '1') && fin?.disappeared?.payout === 0 && fin.caseComplete && fin.ordinaryDeaths === 0, { outcome: w.outcome, record: fin });
   T.add('no-new-mechanic', 'No new final mechanic: the finale uses wading, the base cache, the map and the ordinary exit', true, { used: ['wading (surfaceAt)', 'finite cache', 'paper map', 'trailhead exit'] });
   return T.finish();
 }
@@ -510,9 +518,10 @@ export function runG09Death(g, h) {
   const T = tools(g, h), w = h.world, C = G09_CFG;
   T.start();
   if (g.huntFailure) g.huntFailure.enabled = false;
-  T.place(C.site.x, C.site.z + 3); w.commitStep(); w.commitStep();
+  T.place(C.site.x, C.site.z + 3); w.commitStep(); w.confirmCommit();
   g.survival.health.value = 0; g.sim.step();
-  T.add('ordinary-death', 'Dying before the authored encounter is an ordinary death (retryable), distinct from the disappearance', w.outcome === 'died', { outcome: w.outcome });
+  const fin = g.camp.state.finale;
+  T.add('ordinary-death', 'Dying before the authored encounter is an ordinary death (retryable): counted as a death, the story not finished', w.outcome === 'died' && fin?.ordinaryDeaths === 1 && !fin.disappeared && !fin.caseComplete, { outcome: w.outcome, record: fin });
   return T.finish();
 }
 
