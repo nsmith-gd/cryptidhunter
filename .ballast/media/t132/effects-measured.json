@@ -1,0 +1,66 @@
+{
+  "noise": {
+    "calm": {
+      "noise": 0,
+      "radius": 0,
+      "bigfootHears": 0
+    },
+    "shaken": {
+      "noise": 0.301,
+      "radius": 7.74,
+      "bigfootHears": 0.107
+    }
+  },
+  "photo": {
+    "calm": {
+      "hit": "HIT",
+      "steadiness": 1,
+      "Q": 94,
+      "shake": 0
+    },
+    "shaken": {
+      "hit": "HIT",
+      "steadiness": 0.628,
+      "Q": 85,
+      "shake": 2.98
+    }
+  },
+  "cast": {
+    "calm": 4,
+    "shaken": 6.04
+  },
+  "sample": {
+    "calm": {
+      "immediate": true,
+      "seconds": 0,
+      "bagged": true
+    },
+    "shaken": {
+      "immediate": false,
+      "seconds": 1.03,
+      "bagged": true
+    }
+  },
+  "map": {
+    "calm": 0,
+    "shaken": 1.28
+  },
+  "recovery": {
+    "calm": 1,
+    "shaken": 0.787
+  },
+  "health": {
+    "before": 100,
+    "after": 100,
+    "events": 0
+  },
+  "sameTick": {
+    "before": 60,
+    "afterScareSameTick": 60,
+    "nextTick": 68
+  },
+  "van": {
+    "secondsToCalm": 15,
+    "value": 25
+  }
+}
