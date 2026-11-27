@@ -398,7 +398,15 @@ hunt.journal = journal;
 const dread = new Dread({ player, fear, flashlight, scene, half: map.bounds ?? 150,
   getHome: () => HUNT.exit,
   getThreats: () => cryptids.cryptids,
-  isSafe: () => fear.inSafeZone() || fear.lampLight() > 0.5 || !!fieldCamp?.insideTent,
+  // #132: the kind of safe place you're in; dread falls fastest at the van, then in shelter, by a fire, in lamplight.
+  isSafe: () => {
+    const p = player.position, near = (x, z, r) => Math.hypot(p.x - x, p.z - z) < r;
+    if (near(HUNT.exit.x, HUNT.exit.z, 8)) return 'vehicle';
+    if (fieldCamp?.insideTent || (map.safeZones ?? []).some((z) => near(z.x, z.z, z.r))) return 'shelter';
+    if ((fieldKit?.fires ?? []).some((f) => near(f.x, f.z, 4)) || (map.landmarks?.campsite && near(map.landmarks.campsite.x, map.landmarks.campsite.z, 4.5))) return 'fire';
+    if (fear.lampLight() > 0.5) return 'light';
+    return false;
+  },
   notify: (m) => m && photo.toast(m),
   vr: () => !!renderer.xr?.isPresenting });
 { const scare = fear.scare.bind(fear); fear.scare = (amount, why) => { dread.onScare(amount); return scare(amount, why); }; }
@@ -459,7 +467,7 @@ const photo = new PhotoCamera({
     ] : []),
   ],
   onPhoto: (r) => { if (r.subject === 'Mothman') mothman.onPhotographed(); hunt.onPhoto(r); },
-  getShake: () => fear.swaySpeed,
+  getShake: () => fear.swaySpeed + (dread?.effects.photoShake ?? 0),   // dread (#132): shaking hands blur photos
   getAimOffset: () => fear.hiddenSway,      // evidence sees the full hand shake whatever the screen shows (#77)
   // What each evidence record needs (#85): attempt, field clock, the map's ambient light, goggles on.
   evidenceContext: () => ({ attemptId: expedition?.attemptId ?? null, time: hunt.elapsed, ambient: map.environment?.lightLevel ?? 0.05,
@@ -468,6 +476,9 @@ const photo = new PhotoCamera({
 // Physical evidence (#73): X bags a hair tuft or casts a footprint; a photo of a footprint or
 // scratch marks is kept as evidence too. Drive home to sell it at base camp; caught = lost.
 const evidence = new EvidenceKit({ camera, clues, input, notify: (m) => photo.toast(m) });
+evidence.getEffects = () => dread.effects;              // dread (#132): slower casting and sampling with shaking hands
+fieldMap.getUnfoldDelay = () => dread.effects.mapDelay;  // ...and slower to unfold the map
+fieldMap.notify = (m) => photo.toast(m);
 {
   const snap = photo.snap.bind(photo);
   photo.snap = () => { const shot = snap(); if (shot) evidence.photographed(shot, photo); return shot; };
@@ -726,6 +737,9 @@ function simulateOnce(dt, extra = false) {
   if (!extra) xr.update(dt);                 // VR controllers -> the same intents as keyboard/mouse (before the player reads them)
   if (huntFailure.isCaught && hunt.stage !== 'ended') hunt.end('caught');
   if (ended()) return;                       // world freezes behind the end screens
+  // Dread's effects this tick (#132): from its value at the start of the last tick, so nothing it
+  // causes now can raise it again in the same tick. Breathing noise, stamina recovery.
+  { const e = dread.effects; player.breathNoise = { level: e.breathNoise, radius: e.breathRadius }; survival.dreadPenalty = e.recoveryPenalty; }
   if (!fieldCamp?.sleeping) player.update(dt);   // asleep: you lie still
   updateWear(dt);
   survival.update(dt);

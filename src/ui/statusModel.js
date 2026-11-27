@@ -138,7 +138,9 @@ export class StatusModel {
     const dr = this.dread;
     const fb = dr?.feedback;
     if (fb?.on) {
-      const effects = ['hands unsteady (tremor on what you hold)', 'breathing loud', 'fear comes quicker', 'the fog feels closer'];
+      // Every effect named here is really applied at this level (dreadEffects / #132).
+      const effects = ['hands unsteady: photos blur more, slower to cast, bag samples and unfold the map',
+        'breathing loud: anything close can hear you', 'stamina recovers slower', 'fear comes quicker', 'the fog feels closer'];
       if (dr.stage >= 2) effects.push('it is getting bolder');
       if (dr.stage >= 3) effects.push('your torch stutters');
       add({ id: 'dread', stage: 'now', severity: dr.value >= 75 ? 2 : dr.value >= 50 ? 1 : 0, name: `${fb.label.split(':')[0]} (dread)`,

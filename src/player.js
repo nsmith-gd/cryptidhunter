@@ -144,6 +144,9 @@ export class Player {
     // A one-off loud sound you make on purpose (signal whistle, #87): louder and further than any gait.
     const b = this.noiseBurst;
     if (b && b.left > 0) { b.left -= dt; this.noise = Math.max(this.noise, b.level); this.noiseRadius = Math.max(this.noiseRadius, b.radius); }
+    // Your breathing when dread has you (#132, S14): a real sound creatures can hear, even standing still.
+    const br = this.breathNoise;
+    if (br && br.level > 0) { this.noise = Math.max(this.noise, br.level); this.noiseRadius = Math.max(this.noiseRadius, br.radius); }
   }
 
   // How loud the player is at a world position: 0 (out of earshot) .. noise (right next to them).
