@@ -11,6 +11,10 @@ export const CLUE_TYPES = Object.freeze({
   branch: { label: 'Snapped branch', lifetime: 600, fadeFraction: 0.2 },    // EV04 environmental disturbance
   scat: { label: 'Droppings', lifetime: 900, fadeFraction: 0.2 },           // EV06 biological sample
   deerTrack: { label: 'Deer tracks', lifetime: 1e9, fadeFraction: 0, falseLead: true },  // GDD 4.4: ordinary animal sign
+  // #99: two more ordinary-animal false leads that look like a cryptid's sign at a glance, each with
+  // a cue you can learn (claws on the bear print; fur and bone in coyote droppings). HQ rejects them.
+  bearTrack: { label: 'Big tracks', lifetime: 1e9, fadeFraction: 0, falseLead: true, like: 'footprint' },
+  coyoteScat: { label: 'Droppings', lifetime: 1e9, fadeFraction: 0, falseLead: true, like: 'scat' },
 });
 
 // Shared geometry (one per kind); materials are per clue so each can fade on its own.
@@ -133,4 +137,49 @@ export function buildDeerTrack() {
   return g;
 }
 
-export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack };
+/** A black bear's print: broad short pad, five short toes in a tight arc, a claw mark ahead of each. */
+export function buildBearTrack() {
+  const g = new THREE.Group();
+  const m = mat(0x150e08);
+  const pad = new THREE.Mesh(unitDisc, m);
+  pad.rotation.x = -Math.PI / 2;
+  pad.scale.set(0.15, 0.13, 1);                       // wider than long: nothing like a long bare foot
+  pad.position.set(0, 0.012, 0.03);
+  g.add(pad);
+  for (let i = 0; i < 5; i++) {
+    const a = (i - 2) * 0.36, x = Math.sin(a) * 0.1, z = -0.05 - Math.cos(a) * 0.06;
+    const toe = new THREE.Mesh(unitDisc, m);
+    toe.rotation.x = -Math.PI / 2;
+    toe.scale.set(0.035, 0.035, 1);
+    toe.position.set(x, 0.012, z);
+    const claw = new THREE.Mesh(unitDisc, m);          // the giveaway: claw pricks out in front of the toes
+    claw.rotation.x = -Math.PI / 2;
+    claw.scale.set(0.012, 0.03, 1);
+    claw.position.set(x * 1.25, 0.012, z - 0.045);
+    g.add(toe, claw);
+  }
+  return g;
+}
+
+/** Coyote droppings: thin, twisted, tapered ends, flecked with pale fur and bone chips. */
+export function buildCoyoteScat(data, rand = stream('clueArt')) {
+  const g = new THREE.Group();
+  const m = mat(0x2a241c, { roughness: 0.8 }), fleck = mat(0xcfc6b0, { emissive: 0x141210 });
+  for (let i = 0; i < 3; i++) {
+    const p = new THREE.Mesh(lump, m);
+    p.scale.set(0.11, 0.035, 0.035);
+    p.position.set((rand() - 0.5) * 0.12, 0.02, (rand() - 0.5) * 0.12);
+    p.rotation.y = rand() * 3;
+    g.add(p);
+  }
+  for (let i = 0; i < 5; i++) {
+    const f = new THREE.Mesh(lump, fleck);
+    f.scale.setScalar(0.012);
+    f.position.set((rand() - 0.5) * 0.14, 0.04, (rand() - 0.5) * 0.14);
+    g.add(f);
+  }
+  return g;
+}
+
+export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack,
+  bearTrack: buildBearTrack, coyoteScat: buildCoyoteScat };

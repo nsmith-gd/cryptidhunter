@@ -43,3 +43,44 @@ export function spawnDeerTracks({ clues, bounds, blocked = () => false, avoid = 
   }
   return trails;
 }
+
+// #99: more ordinary wildlife (GDD 4.4 false leads), chosen to look like a cryptid's sign at a
+// glance: a black bear's big prints (learn the claw pricks) and coyote droppings (learn the fur and
+// bone). Seeded like the deer, kept off the start and the van.
+export const WILDLIFE = {
+  bear: { trails: 2, prints: 10, stride: 1.25 },
+  coyote: { piles: 4 },
+};
+
+export function spawnWildlifeSigns({ clues, bounds, blocked = () => false, avoid = [], rand = stream('wildlife') }) {
+  const spot = () => {
+    for (let tries = 0; tries < 60; tries++) {
+      const x = (rand() * 2 - 1) * (bounds - 15), z = (rand() * 2 - 1) * (bounds - 15);
+      if (!blocked(x, z) && avoid.every((a) => Math.hypot(x - a.x, z - a.z) > a.r)) return { x, z };
+    }
+    return null;
+  };
+  const out = { bear: [], coyote: [] };
+  for (let t = 0; t < WILDLIFE.bear.trails; t++) {
+    const s = spot(); if (!s) continue;
+    let { x, z } = s, h = rand() * Math.PI * 2, left = true;
+    const prints = [];
+    for (let i = 0; i < WILDLIFE.bear.prints; i++) {
+      h += (rand() - 0.5) * 0.5;
+      const nx = x + Math.sin(h) * WILDLIFE.bear.stride, nz = z - Math.cos(h) * WILDLIFE.bear.stride;
+      if (blocked(nx, nz) || Math.abs(nx) > bounds - 4 || Math.abs(nz) > bounds - 4) { h += Math.PI / 2; continue; }
+      x = nx; z = nz;
+      const side = (left ? -1 : 1) * 0.18; left = !left;
+      const px = x + Math.cos(h) * side, pz = z + Math.sin(h) * side;
+      clues.spawn('bearTrack', { cryptidId: 'bear', position: { x: px, y: 0, z: pz }, rotationY: -h, origin: { x, z }, data: {} });
+      prints.push({ x: px, z: pz });
+    }
+    out.bear.push(prints);
+  }
+  for (let i = 0; i < WILDLIFE.coyote.piles; i++) {
+    const s = spot(); if (!s) continue;
+    clues.spawn('coyoteScat', { cryptidId: 'coyote', position: { x: s.x, y: 0, z: s.z }, rotationY: rand() * 6.28, origin: s, data: {} });
+    out.coyote.push(s);
+  }
+  return out;
+}

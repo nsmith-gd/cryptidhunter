@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { snapshot, creaturePhotoComponents } from '../evidence/quality.js';
 
 // Handheld camera (L0 greybox). Hold right mouse to raise it: the view zooms into a
 // viewfinder. Left-click while raised snaps a photo. The shot is a HIT if a cryptid is inside
@@ -26,7 +27,8 @@ export class PhotoCamera {
    *   With base + height the subject is sampled as a standing column (feet to head);
    *   otherwise as a sphere around center.
    */
-  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, getAimOffset = null, canvas = null, film = PHOTO.filmRoll }) {
+  constructor({ camera, scene, input, getSubjects, onPhoto, getShake = () => 0, getAimOffset = null, canvas = null, film = PHOTO.filmRoll, getLight = null }) {
+    this.getLight = getLight;   // (point) => 0..1 light on the subject (#99 clarity); null = treat as lit
     this.camera = camera;
     this.canvas = canvas;       // the rendered view, for album thumbnails
     this.filmTotal = film;
@@ -103,7 +105,8 @@ export class PhotoCamera {
     const shake = this.getShake();
     // Camera motion: how fast the view is turning (your mouse) plus fear shake.
     const motion = shake + this.lookSpeed / PHOTO.lookBlur;
-    const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, motion, ...photoScore(r, motion), at: performance.now() };
+    const light = r.subject && this.getLight && r.center ? this.getLight(r.center) : 1;
+    const entry = { result: r.subject ? 'HIT' : 'MISS', ...r, shake, motion, light, ...photoScore(r, motion, { light }), at: performance.now() };
     entry.thumb = this.thumbnail();   // grabbed before the flash: what the lens saw
     entry.frame = this.filmTotal - this.film;
     this.log.push(entry);
@@ -112,7 +115,7 @@ export class PhotoCamera {
       ? `[photo] HIT: ${r.subject} in frame, ${r.distance.toFixed(1)} m, ${r.visible}/${r.samples} points visible, score ${entry.score} (centred ${entry.parts?.centring} size ${entry.parts?.size} visible ${entry.parts?.visibility} steady ${entry.parts?.steadiness})`
       : `[photo] MISS: ${r.reason}`);
     this.flash(entry);
-    this.onPhoto?.({ subject: r.subject, distance: r.distance, visible: r.visible, samples: r.samples, score: entry.score, source: 'handheld camera' });
+    this.onPhoto?.({ subject: r.subject, distance: r.distance, visible: r.visible, samples: r.samples, score: entry.score, issues: entry.issues, frame: entry.frame, source: 'handheld camera' });
     return entry;
   }
 
@@ -159,7 +162,7 @@ export class PhotoCamera {
         const ends = s.base && s.height ? [s.base, s.base.clone().setY(s.base.y + s.height)] : pts; // feet to crown
         for (const p of ends) { const y = _v.copy(p).project(cam).y; lo = Math.min(lo, y); hi = Math.max(hi, y); }
         const screenSize = Math.min(1, Math.max(0, (Math.min(hi, 1) - Math.max(lo, -1)) / 2));
-        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2), screenSize };
+        best = { subject: s.name, distance: dist, visible, samples: pts.length, offCentre: off / (cam.fov / 2), screenSize, center: s.center.clone() };
       }
     }
     return best ? { ...best, reason: 'in frame' } : { subject: null, distance: 0, visible: 0, samples: 0, reason };
@@ -267,32 +270,35 @@ export class PhotoCamera {
       this.white.style.transition = 'opacity .35s';
       this.white.style.opacity = '0';
     }));
+    // #99 / GDD 4.4: the field preview names actionable problems only; grade and value come at HQ.
     this.toast(entry.subject
-      ? `HIT — ${entry.subject} (${entry.distance.toFixed(0)} m) · SCORE ${entry.score}\n` +
-        `centred ${entry.parts.centring} · size ${entry.parts.size} · visible ${entry.parts.visibility} · steady ${entry.parts.steadiness}${entry.steadiness < 0.75 ? ' (blurry)' : ''}`
+      ? `HIT — ${entry.subject} (${entry.distance.toFixed(0)} m)\n${entry.issues.length ? entry.issues.slice(0, 2).join(' · ') : 'looks clear'}`
       : `MISS — ${entry.reason}`, entry.subject ? 'hit' : 'miss');
   }
 }
 
 /**
- * Photo score (0-100) from four things, each also reported 0-100 in `parts`:
+ * Photo quality Q (0-100, GDD 4.5; #99): Q = 100 × (0.30C + 0.35I + 0.20K + 0.15P) where
+ *   C clarity = light on the subject × steadiness, I identification = size in frame,
+ *   K completeness = share of the subject not hidden, P provenance (1 handheld, less for a trail cam).
+ * `parts` still reports the older readouts (0-100) for the album and debug log:
  *   centring   — how close to the middle of the frame the cryptid is
  *   size       — how tall it is in the frame (a full-frame subject scores 100); without a measured
  *                screen size (e.g. a fixed trail camera) it falls back to distance
  *   visibility — how much of it isn't hidden behind trees, rocks, walls
  *   steadiness — how still the camera was (turning the view and fear shake blur the shot)
- * score = visibility × steadiness × (35% centring + 65% size)
  */
-export function photoScore(r, motionDegPerSec = 0) {
+export function photoScore(r, motionDegPerSec = 0, { light = 1, provenance = 1 } = {}) {
   const steadiness = Math.max(0.1, Math.min(1, 1 - motionDegPerSec / 8));
-  if (!r.subject) return { score: 0, steadiness, parts: null };
+  if (!r.subject) return { score: 0, steadiness, parts: null, issues: [] };
   const centring = 1 - Math.min(1, r.offCentre ?? 0);
   const size = r.screenSize != null ? Math.min(1, r.screenSize / PHOTO.fullFrame)
     : Math.max(0.2, Math.min(1, 1 - (r.distance - 8) / 50));
   const visibility = r.visible / r.samples;
-  const score = Math.round(100 * visibility * steadiness * (0.35 * centring + 0.65 * size));
+  const q = snapshot(creaturePhotoComponents(r, { light, steady: steadiness, sizeShare: size * (0.7 + 0.3 * centring), provenance }));
   const pct = (v) => Math.round(v * 100);
-  return { score, steadiness, parts: { centring: pct(centring), size: pct(size), visibility: pct(visibility), steadiness: pct(steadiness) } };
+  return { score: q.Q, grade: q.grade, components: q.components, issues: q.issues, steadiness,
+    parts: { centring: pct(centring), size: pct(size), visibility: pct(visibility), steadiness: pct(steadiness), light: pct(light) } };
 }
 
 // Points on the subject to test: a standing column (feet, knees, chest, head, shoulders)

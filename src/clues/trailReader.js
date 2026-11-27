@@ -63,6 +63,9 @@ export class TrailReader {
   hintFor(clue) {
     // GDD 4.4: ordinary animal signs are real false leads. Reading them tells you so, not where it went.
     if (clue.type === 'deerTrack') return 'Deer tracks: an ordinary animal. Not what you\'re hunting.';
+    // #99: the other false leads don't name themselves. They just don't lead to a fresh trail.
+    if (clue.type === 'bearTrack') return 'Big tracks, heading nowhere in particular. Look closely at the toes.';
+    if (clue.type === 'coyoteScat') return 'Droppings, a day or more old. Nothing fresh leads on from here.';
     const ahead = this.aheadOf(clue);
     return ahead ? clueHint(clue, ahead) : coldHint(clue);
   }

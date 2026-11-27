@@ -27,6 +27,9 @@ export function describeClue(clue) {
     case 'branch': return `Branch snapped off ${clue.y.toFixed(1)} m up: something tall pushed through`;
     case 'scat': return `${(clue.data?.size ?? 1) >= 1.3 ? 'Large' : 'Small'} pile of droppings, still soft`;
     case 'deerTrack': return 'Small split-hoof prints: just a deer';
+    // #99: described by what you can see, not by species; HQ tells you what it was.
+    case 'bearTrack': return 'Broad print, 18 cm wide: five short toes in an arc, a sharp prick in front of each';
+    case 'coyoteScat': return 'Thin twisted droppings with tapered ends, full of pale fur and chips of bone';
     default: return clue.type;
   }
 }

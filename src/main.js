@@ -53,7 +53,7 @@ import { NightVision } from './gear/nightVision.js';
 import { Fear } from './hunt/fear.js';
 import { Survival } from './survival/survival.js';
 import { EvidenceKit } from './evidence/evidence.js';
-import { spawnDeerTracks } from './clues/deerTracks.js';
+import { spawnDeerTracks, spawnWildlifeSigns } from './clues/deerTracks.js';
 import { StatusModel } from './ui/statusModel.js';
 import { StatusScreen } from './ui/statusScreen.js';
 import { XRControls } from './xr/xrControls.js';
@@ -265,9 +265,12 @@ hunt.journal = journal;
 const levelFlow = new LevelFlow({ scene, map });
 if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
-if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
+const wildlifeOpts = { clues, bounds,
   blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
-  avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] });
+  avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] };
+if (mapId === 'forest') spawnDeerTracks(wildlifeOpts);
+// #99: bear tracks and coyote droppings, false leads that look like the real thing at a glance.
+const wildlife = mapId === 'forest' ? spawnWildlifeSigns(wildlifeOpts) : null;
 // Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
 if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
 levelFlow.setDebug(clueTrails.debug);

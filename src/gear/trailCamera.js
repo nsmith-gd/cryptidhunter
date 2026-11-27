@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { samplePoints, isPartOf, photoScore } from '../hunt/photoCamera.js';
+import { QUALITY } from '../evidence/quality.js';
 import { groundAt } from '../maps/ground.js';
 
 // Trail camera (Hunting Gear, L1): press T to set one on a stake in front of you, facing the way
@@ -13,7 +14,7 @@ export const TRAIL_CAM = {
   height: 1.0,          // lens height on the stake
   cooldown: 6,          // seconds between triggers per camera
   maxPhotos: 12,        // per camera (memory card)
-  scoreFactor: 0.5,     // grainy, badly framed: half the score of the same shot taken by hand
+  scoreFactor: 0.5,     // (pre-#99; now unused: quality comes from its IR flash light and lower provenance)
 };
 
 export class TrailCameras {
@@ -118,11 +119,13 @@ export class TrailCameras {
     cam.cooldown = TRAIL_CAM.cooldown;
     cam.flash = 0.25;
     // Same scoring as the handheld camera (a mounted camera doesn't shake), then halved.
-    const score = Math.round(photoScore(shot, 0).score * TRAIL_CAM.scoreFactor);
-    const photo = { ...shot, score, source: `trail camera ${cam.id}`, at: this.t };
+    // #99: its IR flash lights the subject; nobody witnessed it, so provenance is lower (GDD 4.5).
+    const q = photoScore(shot, 0, { light: QUALITY.trailCamLight, provenance: QUALITY.trailCamProvenance });
+    const score = q.score;
+    const photo = { ...shot, score, issues: q.issues, source: `trail camera ${cam.id}`, at: this.t };
     cam.photos.push(photo);
     console.info(`[trail cam ${cam.id}] ${shot.subject} at ${shot.distance.toFixed(1)} m, score ${score}`);
-    this.notify(`Trail camera ${cam.id} caught ${shot.subject}! (score ${score})`);
+    this.notify(`Trail camera ${cam.id} caught ${shot.subject}!`);
     this.onPhoto?.(photo);
   }
 
