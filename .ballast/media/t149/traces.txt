@@ -1,0 +1,34 @@
+== Success: commit during the opening, crate, sled, delivered once
+       0 s  transition    free -> eligible  (feeding at the carcass)
+       2 s  charge        eligible  charges left 1
+       2 s  transition    eligible -> committed  (commit landed)
+       5 s  transition    committed -> secured  (restraint confirmed)
+      40 s  transition    secured -> contained  (in crate G04)
+     300 s  warning       contained  containment integrity low
+     300 s  transition    contained -> staged  (on cargo sled)
+     900 s  transition    staged -> delivered  (contract verified)
+     900 s  refused       delivered  (already delivered: the contract pays once)
+
+== Missed opening (no charge), then a late commit: the charge is spent and it turns on you
+       0 s  transition    free -> eligible  (crossing the road)
+       6 s  transition    eligible -> free  (it crossed before you were ready)
+      60 s  transition    free -> eligible  (investigating your camp)
+      64 s  charge        eligible  charges left 1
+      64 s  transition    eligible -> free  (the opportunity had closed)  creature: hostile
+      65 s  refused       free  (no valid opportunity: nothing is spent)
+
+== Containment strain: warning, then escape
+       0 s  transition    free -> eligible  (opening)
+       0 s  charge        eligible  charges left 1
+       0 s  transition    eligible -> committed  (commit landed)
+       0 s  transition    committed -> secured  (restraint confirmed)
+      22 s  warning       secured  containment integrity low
+      36 s  transition    secured -> free  (containment failed)  creature: hostile
+
+== Emergency release from the crate
+       0 s  transition    free -> eligible  (opening)
+       0 s  charge        eligible  charges left 1
+       0 s  transition    eligible -> committed  (commit landed)
+       0 s  transition    committed -> secured  (restraint confirmed)
+       0 s  transition    secured -> contained  (in crate G04)
+      30 s  transition    contained -> free  (emergency release)  creature: fleeing
