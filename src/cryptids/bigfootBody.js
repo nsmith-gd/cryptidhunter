@@ -51,7 +51,7 @@ export const MOVES = Object.freeze({
 /** Which move a behaviour state and speed plays. */
 export function moveFor(state, speed) {
   if (state === 'flee') return 'bolt';
-  if (state === 'shadow') return 'stalk';
+  if (state === 'shadow' || state === 'stalk') return 'stalk';
   if (state === 'investigate') return speed < 0.25 ? 'shift' : 'search';
   if (state === 'observe' || state === 'warn' || state === 'aggress') return speed > 2.6 ? 'charge' : 'loom';
   return speed < 0.25 ? 'shift' : speed < 2.6 ? 'lumber' : 'charge';
