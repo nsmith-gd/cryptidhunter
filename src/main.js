@@ -433,6 +433,12 @@ sponsorSurvey.setUp({ scene, clues });
 sponsorSurvey.buildHud();
 // Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
 if (sandbox && mapId === 'test') cryptids.spawn(PROFILES.prowler, -15, 15);
+// Authored clue spots (#94, Blackwater Swamp): Mothman's sign at its perches and ordinary false
+// leads. They stay all night (no fading): the swamp's sign is where it lands, not a moving trail.
+for (const sp of map.clueSpots ?? []) {
+  const c = clues.spawn(sp.type, { cryptidId: sp.cryptidId, position: sp.position, rotationY: sp.rotationY, data: sp.data });
+  c.lifetime = 1e9;
+}
 levelFlow.setDebug(clueTrails.debug);
 
 // Camera: hold right mouse to raise it, left-click to snap. A shot is a HIT if a cryptid is

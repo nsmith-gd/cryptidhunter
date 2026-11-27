@@ -15,6 +15,8 @@ export const CLUE_TYPES = Object.freeze({
   deerTrack: { label: 'Hoof prints', lifetime: 1e9, fadeFraction: 0, falseLead: true },
   foxTrack: { label: 'Paw prints', lifetime: 1e9, fadeFraction: 0, falseLead: true },
   owlFeather: { label: 'Feather', lifetime: 1e9, fadeFraction: 0, falseLead: true },
+  // Mothman sign (#94): a patch of grey, glittering scales shed on a perch, like moth-wing dust.
+  wingDust: { label: 'Dusty scales', lifetime: 1e9, fadeFraction: 0 },
 });
 
 // Shared geometry (one per kind); materials are per clue so each can fade on its own.
@@ -169,4 +171,23 @@ export function buildOwlFeather() {
   return g;
 }
 
-export const BUILDERS = { footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack, foxTrack: buildFoxTrack, owlFeather: buildOwlFeather };
+/** Wing dust (#94): a smear of fine grey scales on boards, a few catching the light. data: { size } */
+export function buildWingDust(data, rand = stream('clueArt')) {
+  const g = new THREE.Group();
+  const size = data.size ?? 0.5;
+  const smear = new THREE.Mesh(unitDisc, mat(0x7c7a76, { opacity: 0.75 }));
+  smear.rotation.x = -Math.PI / 2; smear.scale.set(size, size * 0.6, 1); smear.position.y = 0.006;
+  g.add(smear);
+  const glint = mat(0xd8d4c8, { emissive: 0x3a3830 });
+  const flake = new THREE.PlaneGeometry(0.03, 0.03);
+  for (let i = 0; i < 26; i++) {
+    const f = new THREE.Mesh(flake, glint);
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * size * 0.55;
+    f.rotation.x = -Math.PI / 2; f.rotation.z = rand() * 3;
+    f.position.set(Math.cos(a) * d, 0.009, Math.sin(a) * d * 0.7);
+    g.add(f);
+  }
+  return g;
+}
+
+export const BUILDERS = { wingDust: buildWingDust, footprint: buildFootprint, hair: buildHair, scratch: buildScratch, branch: buildBranch, scat: buildScat, deerTrack: buildDeerTrack, foxTrack: buildFoxTrack, owlFeather: buildOwlFeather };
