@@ -19,6 +19,7 @@ import { buildGymG02, buildGymG03, buildGymG04, GYM_SEEDS } from './maps/gymScen
 import { GymHarness } from './gym/gymKit.js';
 import { GYM_RUNS } from './gym/gymRuns.js';
 import { buildGymG05 } from './gym/g05.js';
+import { buildGymG07 } from './gym/g07.js';   // G07 capture gym (#150)
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
 import { buildOroMedonteMap } from './maps/oroMedonte.js';
@@ -108,7 +109,7 @@ const keyRemap = new KeyRemap();
 
 // One world seed per run (#66): ?seed=N replays a run exactly; otherwise a fresh one is logged.
 // Gyms (#108) have a fixed default seed, so the fixture is the same every time.
-const gymRun = ['g02', 'g03', 'g04', 'g05'].includes(new URLSearchParams(location.search).get('map'));
+const gymRun = ['g02', 'g03', 'g04', 'g05', 'g07'].includes(new URLSearchParams(location.search).get('map'));
 setSeed(Number(new URLSearchParams(location.search).get('seed')) || GYM_SEEDS[new URLSearchParams(location.search).get('map')] || randomSeed());
 console.info(`[seed] ${getSeed()}  (add ?seed=${getSeed()} to replay this world)`);
 
@@ -144,7 +145,7 @@ const equipment = new Equipment(camp);
 const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, oromedonte: buildOroMedonteMap,   // oromedonte: Level 2 (#129)
   simcoe: buildSimcoeMap, ozark: buildOzarkMap, pointpleasant: buildPointPleasantMap,   // simcoe: L03 greybox (#135)
   gym: buildGymMap,   // gym: G00 bench (#77)
-  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05,
+  g02: buildGymG02, g03: buildGymG03, g04: buildGymG04, g05: buildGymG05, g07: buildGymG07,
   l05: buildTimiskamingMap };   // l05: Lake Timiskaming greybox (#139)                      // G05 (#138)                                          // gyms G02–G04 (#108)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
