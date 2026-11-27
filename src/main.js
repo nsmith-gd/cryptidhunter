@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setSeed, randomSeed, getSeed } from './core/rng.js';
+import { setSeed, randomSeed, getSeed, stream } from './core/rng.js';
 import { FixedStepLoop } from './core/simLoop.js';
 import { WebXRPresenter, PauseState, mountPauseScreen } from './xr/webxr.js';
 import { ProfilingRecorder } from './profiling/recorder.js';
@@ -17,6 +17,9 @@ import { buildTestMap } from './testMap.js';
 import { buildGymMap } from './maps/gymG00.js';
 import { runG00 } from './gym/g00.js';
 import { buildSwampMap } from './maps/swamp.js';
+import { buildOroMedonteMap } from './maps/oroMedonte.js';
+import { DaylightCycle } from './maps/daylight.js';
+import { TerrainInjury } from './survival/terrainInjury.js';
 import { buildForestMap } from './maps/forest.js';
 import { setGroundHeight } from './maps/ground.js';
 import { NightLighting } from './maps/nightLighting.js';
@@ -120,7 +123,7 @@ const camp = new Camp();
 // condition (held in the ledger's asset record) drops with use, water and impact.
 const equipment = new Equipment(camp);
 // Map: chosen on the start screen (locked ones need reputation); ?map=forest|swamp overrides.
-const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap };   // gym: G00 bench (#77)
+const MAPS = { test: buildTestMap, swamp: buildSwampMap, forest: buildForestMap, gym: buildGymMap, oromedonte: buildOroMedonteMap };   // oromedonte: Level 2 (#129)   // gym: G00 bench (#77)
 const mapId = resolveMap(location.search, camp);
 const huntTarget = TARGET_BY_MAP[mapId] ?? 'Bigfoot';
 const map = (MAPS[mapId] ?? buildTestMap)(scene);
@@ -158,6 +161,10 @@ const leftBehindNow = () => [
 // Photo evidence you've brought home, kept across hunts for review (and HQ verification / sale) (#85).
 const evidenceArchive = new EvidenceArchive(camp.saveService);
 const hunt = new HuntLoop({ scene, player, journal: null, colliders, target: huntTarget,
+  // Level 2 (#129): a daylight trip from the parked car, back before dusk.
+  clock: map.clock ?? null, vehicle: map.daylight ? 'car' : 'van',
+  objective: map.daylight ? [`OBJECTIVE: Find signs of the ${huntTarget} and get back to the car before dusk`,
+    'Leave the trail to search. Drink (I) before you are thirsty, take steep slopes slowly, and keep your map and compass (M) handy.'] : null,
   onStart: () => { expedition?.commit(); supplier.commit(expedition?.attemptId ?? null); },   // purchases and rentals are final once you set off (#88)
   manifest: () => {
     const carried = evidence.carried;
@@ -229,6 +236,8 @@ const flashlight = new Flashlight(camera, input);
 const timeOfDay = new URLSearchParams(location.search).get('time');
 const todConfig = timeOfDay ? timeOfDayConfig(mapId === 'swamp' ? 'swamp' : 'forest', timeOfDay) : null;
 const night = map.environment?.night ? new NightLighting({ scene, camera, hemi, moon, flashlight, config: { ...map.environment.night, ...(todConfig ?? {}) } }) : null;
+// Daylight maps (#129): the light eases from afternoon through dusk to night as the trip clock runs out.
+const daylight = map.daylight && night && !todConfig ? new DaylightCycle({ night, hemi, scene, day: map.environment.night }) : null;
 // Forest atmosphere: ground mist + midground and background fog curtains (?noatmos turns it off).
 const atmosphere = mapId === 'forest' && !new URLSearchParams(location.search).has('noatmos')
   ? new Atmosphere({ scene, camera, half: bounds, keepClear: map.keepClear, hazeColor: night?.cfg.skyHorizon, glowColor: night?.cfg.moonGlow }) : null;
@@ -270,11 +279,14 @@ const survival = new Survival({ player, input, lethalCold: true,   // past the t
   map: { ...map, environment: { ...map.environment, airTemp: map.environment?.airTemp ?? ({ forest: 6, swamp: 13 }[mapId] ?? 10) } },
   heatSources: () => [
     ...(map.landmarks?.campsite ? [{ ...map.landmarks.campsite, r: 4.5, name: 'campfire' }] : []),
+    ...(map.campsites ?? []),
     ...(map.safeZones ?? []).map((z) => ({ x: z.x, z: z.z, r: z.r, name: z.name })),
     { x: HUNT.exit.x, z: HUNT.exit.z, r: 6, name: 'the van' },
     ...(fieldKit?.heatSources() ?? []),   // your own fire and bivy (#87)
     ...(fieldCamp?.heatSources() ?? []),  // inside your pitched tent (#104)
   ] });
+// Minor terrain injuries (#129): sprinting over steep ground can turn an ankle (Level 2 hills).
+const terrainInjury = map.terrainInjury ? new TerrainInjury({ player, health: survival.health, slopeAt: map.slopeAt, notify: (m) => survival.toast(m), rand: stream('terrain-injury') }) : null;
 const noiseRing = new NoiseRing(scene, player);
 // Scent traces (#107): food you open and blood from a bleeding wound leave real traces the wind
 // carries; cryptids smell only those (never your pack). Pine Hollow's night breeze blows west to
@@ -351,7 +363,7 @@ const clueFinder = new ClueFinder(camera, clues, journal, input);
 const trailReader = new TrailReader({ clues, clueTrails, journal, player });
 // Paper map and compass (#70): M raises them. No position marker, no beacon, no distance to the
 // van: the way back is read from the map, the compass, the landmarks and the trail signs.
-const fieldMap = new FieldMap({ map, player, input, home: 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : 'PINE HOLLOW' });
+const fieldMap = new FieldMap({ map, player, input, home: map.daylight ? 'car' : 'trailhead', title: mapId === 'swamp' ? 'BLACKWATER SWAMP' : mapId === 'oromedonte' ? 'ORO-MEDONTE WOODS' : 'PINE HOLLOW' });
 const journalUI = new JournalUI(journal, clueFinder);
 // Species dossier in the field journal (#101): milestones banked from earlier extracted trips,
 // career credibility, and what the next milestone needs. Tonight's notes count once you get out.
@@ -374,7 +386,8 @@ hunt.journal = journal;
 // beds down and where its fresh trail starts, and walks that route so the clues are real.
 // Bigfoot lives in the forest/test map, not the swamp (Mothman's home).
 const levelFlow = new LevelFlow({ scene, map });
-if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
+if (mapId === 'oromedonte') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.gouger, clueTrails, clues });   // Level 2: the Sidehill Gouger
+else if (mapId !== 'swamp') levelFlow.spawnCryptid({ cryptids, profile: PROFILES.bigfoot, clueTrails, clues });
 // #86: any registered species joins the hunt from its data alone: ?cryptid=gouger (repeatable).
 for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   const sp = getSpecies(id);
@@ -383,7 +396,7 @@ for (const id of new URLSearchParams(location.search).getAll('cryptid')) {
   cryptids.spawn(sp, s.x, s.z);
 }
 // Ordinary-animal false leads (#84, GDD 4.4): deer trails wander Pine Hollow.
-if (mapId === 'forest') spawnDeerTracks({ clues, bounds,
+if (mapId === 'forest' || mapId === 'oromedonte') spawnDeerTracks({ clues, bounds,
   blocked: (x, z) => colliders.some((c) => c.max.y > 0.4 && x > c.min.x - 0.3 && x < c.max.x + 0.3 && z > c.min.z - 0.3 && z < c.max.z + 0.3),
   avoid: [{ x: player.position.x, z: player.position.z, r: 25 }, { x: HUNT.exit.x, z: HUNT.exit.z, r: 15 }] });
 // Sandbox also gets a hostile stand-in on the shared brain, to exercise the Aggress state.
@@ -526,6 +539,7 @@ function refreshMoney() {
 }
 // Prep panel (#98): plan numbers and capabilities, and the one COMMIT button that pays for the trip.
 expedition = new Expedition({ camp, loadout, target: huntTarget,
+  tripCents: MAP_CHOICES.find((m) => m.id === mapId)?.tripCents ?? EXPEDITION.tripCents,   // per-level operating cost (L02 $75)
   mapName: MAP_CHOICES.find((m) => m.id === mapId)?.name ?? 'Test range',
   capabilities: () => {
     const g = camp.state.gear, carried = [...loadout.slots, ...loadout.pack];
@@ -660,6 +674,7 @@ function simulateOnce(dt, extra = false) {
   if (!fieldCamp?.sleeping) player.update(dt);   // asleep: you lie still
   updateWear(dt);
   survival.update(dt);
+  terrainInjury?.update(dt);
   updateScent(dt);
   fear.update(dt);
   if (!vr?.presenting) fear.applySway(dt);    // after the player sets the view (never in VR: no forced camera motion)
@@ -716,6 +731,7 @@ function present(dt) {
   clueFinder.update();
   journalUI.update(dt);
   aiDebug.update(camera);
+  daylight?.update(hunt.elapsed / (map.clock?.seconds ?? 1), Math.max(0, hunt.elapsed - (map.clock?.seconds ?? 0)));
   night?.update(player.position, dt);
   water?.update(dt);
   atmosphere?.update(dt);
@@ -772,4 +788,4 @@ renderer.setAnimationLoop((time, xrFrame) => {
 // Test/debug hook (used by automated captures).
 // Gym G00 (#77): ?map=gym&seed=N&simpaused, then __gym.run() replays the bench script.
 if (map.gym === 'G00') window.__gym = { run: (opts) => runG00(window.__game, opts) };
-window.__game = { scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };
+window.__game = { daylight, terrainInjury, scent, equipment, equipmentPanel, fieldKit, fieldCamp, weather, expedition, evidenceArchive, supplier, ITEMS, THREE, bars, evidence, profiler, profilerPanel, settings, keyRemap, gamepad, captions, settingsPanel, fieldMap, vr, xr, pauseState, status, statusScreen, survival, sim, seed: getSeed(), shop, viewmodel, water, pixels, cine, atmosphere, rocks, escalation, cryptidEvents, textCard, story, reputation, camp, loadout, nightVision, knocks, trailCams, audioLures, synthWhoop, fear, night, levelFlow, HUNT, aiDebug, sandbox, hunt, photo, bait, map, mapId, player, huntFailure, noiseRing, flashlight, batteries, mothman, chupacabra, cryptids, cryptidProfiles: PROFILES, clues, clueTrails, journal, clueFinder, journalUI, trailReader, input, scene, camera, renderer, overlay };

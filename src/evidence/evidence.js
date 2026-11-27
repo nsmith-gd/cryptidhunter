@@ -31,7 +31,7 @@ export const EVIDENCE = {
   novelty: [1, 0.5, 0.25],                      // repeats of the same type & cryptid pay less (GDD 4.7), floor 0.25
 };
 
-const CRYPTID_NAMES = { bigfoot: 'Bigfoot', mothman: 'Mothman', chupacabra: 'Chupacabra' };
+const CRYPTID_NAMES = { bigfoot: 'Bigfoot', mothman: 'Mothman', chupacabra: 'Chupacabra', gouger: 'Sidehill Gouger' };
 
 export class EvidenceKit {
   constructor({ camera, clues, input, notify = () => {} }) {

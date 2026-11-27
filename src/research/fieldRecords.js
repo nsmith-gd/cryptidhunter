@@ -10,7 +10,7 @@
 import { CANDIDATES, clueFeature } from '../journal/clueEvidence.js';
 import { photoGrade } from './dossier.js';
 
-export const SPECIES = { Bigfoot: 'bigfoot', Mothman: 'mothman', Chupacabra: 'chupacabra' };
+export const SPECIES = { Bigfoot: 'bigfoot', Mothman: 'mothman', Chupacabra: 'chupacabra', 'Sidehill Gouger': 'gouger' };
 
 export function judgeSign(clue, speciesId) {
   if (clue.type === 'deerTrack') return null;
