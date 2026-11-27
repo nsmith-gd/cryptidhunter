@@ -78,8 +78,10 @@ check('you eat downwind of him: the wind carries it away and he never smells it'
 const blood = await page.evaluate(() => {
   const g = __game;
   g.survival.health.injure({ cause: 'test', damage: 5, wound: 'bleeding', severity: 'light' });
-  for (let i = 0; i < 60 * 7; i++) g.sim.step();
-  const t = g.scent.traces.filter((x) => x.kind === 'blood');
+  // Bleed while moving: a drop every few seconds along your way (standing still refreshes one pool).
+  const p = g.player.position;
+  for (let i = 0; i < 60 * 10; i++) { if (i % 60 === 0) p.x += 2; g.sim.step(); }
+  const t = g.scent.traces.filter((x) => x.kind === 'blood').sort((a, b) => a.born - b.born);
   const s0 = t.length ? g.scent.strengthOf(t[0]) : 0;
   for (let i = 0; i < 60 * 20; i++) g.sim.step();
   return { traces: t.length, first: +s0.toFixed(3), later: t.length ? +g.scent.strengthOf(t[0]).toFixed(3) : 0 };
